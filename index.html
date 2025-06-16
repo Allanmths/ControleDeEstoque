@@ -16,64 +16,66 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     <style>
         body { font-family: 'Inter', sans-serif; }
-        .modal-backdrop, #sidebar-overlay { background-color: rgba(0, 0, 0, 0.5); }
+        .modal-backdrop, #sidebar-overlay, #auth-overlay { background-color: rgba(0, 0, 0, 0.5); }
         .animate-spin { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: #f3f4f6; }
         ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
         @media print {
-            body * {
-                visibility: hidden !important;
-            }
-            #print-area, #print-area * {
-                visibility: visible !important;
-            }
-            #print-area {
-                position: absolute !important;
-                left: 0 !important;
-                top: 0 !important;
-                width: 100% !important;
-            }
-            @page {
-                size: A4;
-                margin: 20mm;
-            }
+            body * { visibility: hidden !important; }
+            #print-area, #print-area * { visibility: visible !important; }
+            #print-area { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; }
+            @page { size: A4; margin: 20mm; }
         }
-        tr.low-stock-warning {
-            background-color: #fef9c3 !important;
-        }
-        tr.low-stock-warning:hover {
-            background-color: #fef08a !important;
-        }
-        #advanced-filters-wrapper {
-            display: grid;
-            grid-template-rows: 0fr;
-            transition: grid-template-rows 0.4s ease-in-out;
-        }
-        #advanced-filters-wrapper.open {
-            grid-template-rows: 1fr;
-        }
-        #advanced-filters-content {
-            overflow: hidden;
-        }
-        .bulk-action-bar {
-            transition: all 0.3s ease-in-out;
-            max-height: 0;
-            overflow: hidden;
-        }
-        .bulk-action-bar.open {
-           max-height: 500px;
-        }
-         #toggle-advanced-filters i {
-            transition: transform 0.3s ease-in-out;
-        }
-        #toggle-advanced-filters.open i {
-            transform: rotate(180deg);
-        }
+        tr.low-stock-warning { background-color: #fef9c3 !important; }
+        tr.low-stock-warning:hover { background-color: #fef08a !important; }
+        #advanced-filters-wrapper { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.4s ease-in-out; }
+        #advanced-filters-wrapper.open { grid-template-rows: 1fr; }
+        #advanced-filters-content { overflow: hidden; }
+        .bulk-action-bar { transition: all 0.3s ease-in-out; max-height: 0; overflow: hidden; }
+        .bulk-action-bar.open { max-height: 500px; }
+        #toggle-advanced-filters i { transition: transform 0.3s ease-in-out; }
+        #toggle-advanced-filters.open i { transform: rotate(180deg); }
+        /* Adicionado para ocultar elementos baseados no role */
+        [data-role-required] { display: none; }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-900 min-h-screen">
+
+    <!-- NEW: Seção de Autenticação (Login/Registro) -->
+    <div id="auth-section" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-100">
+        <div id="auth-container" class="w-full max-w-md">
+            <!-- Formulário de Login -->
+            <div id="login-form-container">
+                <div class="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 text-center">
+                    <i class="fas fa-boxes-stacked fa-2x text-blue-500 mb-4"></i>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-1">Bem-vindo de volta!</h2>
+                    <p class="text-gray-500 mb-6">Faça login para acessar o estoque.</p>
+                    <form id="login-form" class="space-y-4">
+                        <input type="email" id="login-email" placeholder="Email" class="w-full p-3 bg-gray-100 rounded-lg text-gray-900" required>
+                        <input type="password" id="login-password" placeholder="Senha" class="w-full p-3 bg-gray-100 rounded-lg text-gray-900" required>
+                        <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition">Entrar</button>
+                    </form>
+                    <p class="mt-6 text-sm">Não tem uma conta? <a href="#" id="show-register-link" class="font-semibold text-blue-600 hover:underline">Registre-se</a></p>
+                </div>
+            </div>
+            <!-- Formulário de Registro -->
+            <div id="register-form-container" class="hidden">
+                 <div class="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 text-center">
+                    <i class="fas fa-user-plus fa-2x text-blue-500 mb-4"></i>
+                    <h2 class="text-2xl font-bold text-gray-800 mb-1">Crie sua Conta</h2>
+                    <p class="text-gray-500 mb-6">O registro cria uma conta com permissão de 'Visualizador'.</p>
+                    <form id="register-form" class="space-y-4">
+                        <input type="email" id="register-email" placeholder="Email" class="w-full p-3 bg-gray-100 rounded-lg text-gray-900" required>
+                        <input type="password" id="register-password" placeholder="Senha (mínimo 6 caracteres)" class="w-full p-3 bg-gray-100 rounded-lg text-gray-900" required>
+                        <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition">Registrar</button>
+                    </form>
+                    <p class="mt-6 text-sm">Já tem uma conta? <a href="#" id="show-login-link" class="font-semibold text-blue-600 hover:underline">Faça Login</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Sidebar Menu -->
     <div id="sidebar-menu" class="fixed top-0 left-0 h-full w-64 bg-white shadow-lg z-50 transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
@@ -88,18 +90,22 @@
                 <a href="#" data-tab="stock" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-200 text-gray-700">
                     <i class="fas fa-warehouse w-6 mr-3"></i>Estoque
                 </a>
-                <a href="#" data-tab="register" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-200 text-gray-700">
+                <!-- MODIFIED: Adicionado data-role-required para controle de acesso -->
+                <a href="#" data-tab="register" data-role-required="admin" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-200 text-gray-700">
                     <i class="fas fa-plus-circle w-6 mr-3"></i>Cadastros
                 </a>
-                <a href="#" data-tab="outputs" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-200 text-gray-700">
+                <a href="#" data-tab="outputs" data-role-required="admin" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-200 text-gray-700">
                     <i class="fas fa-arrow-circle-up w-6 mr-3"></i>Saídas
                 </a>
             </nav>
         </div>
-        <!-- Settings Link at the bottom -->
         <div class="p-4 border-t border-gray-200">
-             <a href="#" data-tab="settings" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-200 text-gray-700">
+             <a href="#" data-tab="settings" data-role-required="admin" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-200 text-gray-700">
                 <i class="fas fa-cog w-6 mr-3"></i>Configurações
+            </a>
+            <!-- NEW: Botão de Logout -->
+            <a href="#" id="logout-btn" class="flex items-center p-3 rounded-lg hover:bg-red-100 text-red-600 font-semibold">
+                <i class="fas fa-sign-out-alt w-6 mr-3"></i>Sair
             </a>
         </div>
     </div>
@@ -110,15 +116,15 @@
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
     </div>
 
-    <!-- Main App Section -->
-    <div id="app-section">
+    <!-- Main App Section (inicialmente oculta) -->
+    <div id="app-section" class="hidden">
         <div class="container mx-auto p-4 md:p-8 max-w-7xl">
             <header class="mb-8 text-center relative">
-                 <button id="menu-toggle-btn" class="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-md hover:bg-gray-200 text-gray-600">
-                     <i class="fas fa-bars fa-lg"></i>
-                 </button>
-                 <h1 class="text-4xl md:text-5xl font-bold text-gray-900"><i class="fas fa-boxes-stacked mr-3 text-blue-500"></i>Controle de Estoque</h1>
-                 <p class="text-gray-500 mt-2">Gerencie seus produtos, categorias e relatórios.</p>
+                <button id="menu-toggle-btn" class="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-md hover:bg-gray-200 text-gray-600">
+                    <i class="fas fa-bars fa-lg"></i>
+                </button>
+                <h1 class="text-4xl md:text-5xl font-bold text-gray-900"><i class="fas fa-boxes-stacked mr-3 text-blue-500"></i>Controle de Estoque</h1>
+                <p id="user-welcome-message" class="text-gray-500 mt-2">Gerencie seus produtos, categorias e relatórios.</p>
             </header>
             
             <main id="tab-content">
@@ -139,18 +145,24 @@
     <!-- Firebase SDK e Script da Aplicação -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, writeBatch, runTransaction, serverTimestamp, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-        // Substitua este objeto pela configuração do seu projeto Firebase
-        const firebaseConfig = {
-              apiKey: "AIzaSyDVxDoPVP-uhWwfXsdlouk5uv-jt-P6tL8",
-              authDomain: "controledeestoque-7ea51.firebaseapp.com",
-              projectId: "controledeestoque-7ea51",
-              storageBucket: "controledeestoque-7ea51.firebasestorage.app",
-              messagingSenderId: "355699807496",
-              appId: "1:355699807496:web:6432766da431e535b888bd"
+        // **FIXED**: Use injected __firebase_config if available, otherwise use hardcoded config as fallback.
+        const hardcodedFirebaseConfig = {
+            // MANTENHA A SUA CONFIGURAÇÃO ORIGINAL AQUI
+            apiKey: "AIzaSyDVxDoPVP-uhWwfXsdlouk5uv-jt-P6tL8",
+            authDomain: "controledeestoque-7ea51.firebaseapp.com",
+            projectId: "controledeestoque-7ea51",
+            storageBucket: "controledeestoque-7ea51.firebasestorage.app",
+            messagingSenderId: "355699807496",
+            appId: "1:355699807496:web:6432766da431e535b888bd"
         };
+        
+        const firebaseConfig = typeof __firebase_config !== 'undefined' && __firebase_config
+            ? JSON.parse(__firebase_config)
+            : hardcodedFirebaseConfig;
+
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-stock-app';
 
         class StockApp {
@@ -158,34 +170,26 @@
             auth;
             db;
             state = {
-                products: [],
-                categories: [],
-                locations: [],
-                movements: [],
+                products: [], categories: [], locations: [], movements: [],
                 selectedProducts: [],
-                currentPage: 1,
-                itemsPerPage: 10, // Default value, will be overridden by Firestore
-                firestoreRefs: null,
-                dom: null,
-                chartInstance: null,
+                currentPage: 1, itemsPerPage: 10,
+                firestoreRefs: null, dom: null, chartInstance: null,
                 deleteQueue: { id: null, type: null, isBulk: false },
-                isLoading: true,
-                dashboardSettings: {
-                    chartType: 'bar',
-                    period: '7days', // '7days', '30days', 'this_month', 'last_month', 'custom'
-                    startDate: null,
-                    endDate: null
-                },
+                isLoading: true, isAuthReady: false,
+                currentUser: null, userRole: null, // NEW: Auth state
+                dashboardSettings: { chartType: 'bar', period: '7days', startDate: null, endDate: null },
+                // NEW: Unsubscribe functions for listeners
+                unsubscribers: [],
             };
 
             constructor() {
-                // Adiciona uma verificação para garantir que o firebaseConfig não está vazio
-                if (!firebaseConfig.apiKey || firebaseConfig.apiKey === "YOUR_API_KEY") {
-                    console.error("Firebase config is not set. Please update firebaseConfig object in your script.");
-                    document.addEventListener('DOMContentLoaded', () => {
-                        document.body.innerHTML = `<div class="w-full h-screen flex items-center justify-center p-4"><div class="text-center bg-red-100 p-8 rounded-lg shadow-md"><h1 class="text-2xl font-bold text-red-800 mb-2">Erro de Configuração</h1><p class="text-red-700">As credenciais do Firebase não foram configuradas. Por favor, adicione sua configuração do Firebase no arquivo HTML para que o aplicativo possa funcionar.</p></div></div>`;
-                    });
-                    return;
+                // **FIXED**: Simplified and corrected the config check.
+                if (!firebaseConfig || !firebaseConfig.apiKey) {
+                     console.error("Firebase config is not set. Please update the firebaseConfig object or ensure it's injected correctly.");
+                     document.addEventListener('DOMContentLoaded', () => {
+                         document.body.innerHTML = `<div class="w-full h-screen flex items-center justify-center p-4"><div class="text-center bg-red-100 p-8 rounded-lg shadow-md"><h1 class="text-2xl font-bold text-red-800 mb-2">Erro de Configuração</h1><p class="text-red-700">As credenciais do Firebase não foram configuradas. Por favor, adicione sua configuração do Firebase no arquivo HTML para que o aplicativo possa funcionar.</p></div></div>`;
+                     });
+                     return;
                 }
                 this.app = initializeApp(firebaseConfig);
                 this.auth = getAuth(this.app);
@@ -197,16 +201,20 @@
                 this.cacheDomElements();
                 this.injectPanelContent();
                 this.setupEventListeners();
-                this.switchTab('reports');
                 this.handleAuthentication();
             }
             
             cacheDomElements() {
                 this.state.dom = {
                     loadingOverlay: document.getElementById('loading-overlay'),
+                    appSection: document.getElementById('app-section'), // MODIFIED
+                    authSection: document.getElementById('auth-section'), // NEW
+                    authContainer: document.getElementById('auth-container'), // NEW
+                    loginFormContainer: document.getElementById('login-form-container'), // NEW
+                    registerFormContainer: document.getElementById('register-form-container'), // NEW
                     contentEl: document.getElementById('tab-content'),
                     panels: { stock: document.getElementById('panel-stock'), register: document.getElementById('panel-register'), outputs: document.getElementById('panel-outputs'), reports: document.getElementById('panel-reports'), settings: document.getElementById('panel-settings') },
-                    sidebar: { menu: document.getElementById('sidebar-menu'), nav: document.getElementById('sidebar-nav'), overlay: document.getElementById('sidebar-overlay'), toggleBtn: document.getElementById('menu-toggle-btn') },
+                    sidebar: { menu: document.getElementById('sidebar-menu'), nav: document.getElementById('sidebar-nav'), overlay: document.getElementById('sidebar-overlay'), toggleBtn: document.getElementById('menu-toggle-btn'), logoutBtn: document.getElementById('logout-btn') }, // MODIFIED
                     modals: {
                         alert: { self: document.getElementById('alert-modal'), title: document.getElementById('alert-modal-title'), message: document.getElementById('alert-modal-message'), icon: document.getElementById('alert-modal-icon'), closeBtn: document.getElementById('alert-modal-close') },
                         edit: { self: document.getElementById('edit-modal'), productName: document.getElementById('edit-product-name'), quantitiesContainer: document.getElementById('edit-quantities-container'), saveBtn: document.getElementById('save-edit'), cancelBtn: document.getElementById('cancel-edit') },
@@ -218,6 +226,15 @@
             setupEventListeners() {
                 const { dom } = this.state;
                 if (!dom) return;
+
+                // Auth Listeners (NEW)
+                document.getElementById('login-form').addEventListener('submit', (e) => { e.preventDefault(); this.handleLogin(e.target); });
+                document.getElementById('register-form').addEventListener('submit', (e) => { e.preventDefault(); this.handleRegister(e.target); });
+                document.getElementById('show-register-link').addEventListener('click', (e) => { e.preventDefault(); this.toggleAuthForm(true); });
+                document.getElementById('show-login-link').addEventListener('click', (e) => { e.preventDefault(); this.toggleAuthForm(false); });
+                dom.sidebar.logoutBtn.addEventListener('click', (e) => { e.preventDefault(); this.handleLogout(); });
+
+                // Modal & Sidebar Listeners
                 dom.modals.alert.closeBtn.addEventListener('click', () => dom.modals.alert.self.classList.replace('flex', 'hidden'));
                 dom.modals.edit.cancelBtn.addEventListener('click', () => this.closeEditModal());
                 dom.modals.edit.saveBtn.addEventListener('click', () => this.handleSaveEdit());
@@ -225,6 +242,8 @@
                 dom.modals.delete.confirmBtn.addEventListener('click', () => this.handleDelete());
                 dom.sidebar.toggleBtn.addEventListener('click', () => this.toggleSidebar(true));
                 dom.sidebar.overlay.addEventListener('click', () => this.toggleSidebar(false));
+                
+                // General App Listeners
                 dom.sidebar.menu.addEventListener('click', (e) => {
                     const link = e.target.closest('.sidebar-link');
                     if (link && link.dataset.tab) {
@@ -239,42 +258,175 @@
                 dom.contentEl.addEventListener('input', (e) => this.handleContentInput(e));
             }
 
+            // --- AUTHENTICATION & PERMISSIONS ---
             handleAuthentication() {
                 onAuthStateChanged(this.auth, async (user) => {
+                    this.setLoading(true);
                     if (user) {
-                        await this.initializeAppForUser(user);
-                    } else {
-                        try {
-                            const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
-                            if (token) await signInWithCustomToken(this.auth, token);
-                            else await signInAnonymously(this.auth);
-                        } catch (error) {
-                            console.error("Authentication Error:", error);
-                            this.showAlert("Erro Crítico", `Falha na autenticação: ${error.message}`, true);
-                            this.setLoading(false);
+                        this.state.currentUser = user;
+                        // Fetch user role from Firestore
+                        const userDocRef = doc(this.db, 'users', user.uid);
+                        const userDoc = await getDoc(userDocRef);
+                        if (userDoc.exists()) {
+                            this.state.userRole = userDoc.data().role; // 'admin' or 'viewer'
+                        } else {
+                            // This might happen if registration creates auth user but firestore doc fails.
+                            // Default to 'viewer' for security.
+                            this.state.userRole = 'viewer';
+                            console.warn("User document not found in Firestore, defaulting to 'viewer'.");
                         }
+                        this.state.isAuthReady = true;
+                        this.showAppUI();
+                        this.initializeAppForUser();
+                    } else {
+                        this.state.currentUser = null;
+                        this.state.userRole = null;
+                        this.state.isAuthReady = false;
+                        this.showAuthUI();
+                        this.clearAllListeners(); // Stop listening to data when logged out
                     }
+                    this.setLoading(false);
                 });
             }
 
-            async initializeAppForUser(user) {
-                const basePath = `artifacts/${appId}/users/${user.uid}`;
+            async handleLogin(form) {
+                const email = form.querySelector('#login-email').value;
+                const password = form.querySelector('#login-password').value;
+                this.setLoading(true);
+                try {
+                    await signInWithEmailAndPassword(this.auth, email, password);
+                    // onAuthStateChanged will handle the rest
+                } catch (error) {
+                    this.showAlert("Erro de Login", this.getFriendlyAuthError(error.code), true);
+                    this.setLoading(false);
+                }
+            }
+
+            async handleRegister(form) {
+                const email = form.querySelector('#register-email').value;
+                const password = form.querySelector('#register-password').value;
+                this.setLoading(true);
+                try {
+                    const userCredential = await createUserWithEmailAndPassword(this.auth, email, password);
+                    // Create a corresponding document in 'users' collection with default role
+                    await setDoc(doc(this.db, "users", userCredential.user.uid), {
+                        email: userCredential.user.email,
+                        role: "viewer", // NEW USERS ARE VIEWERS BY DEFAULT
+                        createdAt: serverTimestamp()
+                    });
+                    // onAuthStateChanged will handle the rest
+                } catch (error) {
+                    this.showAlert("Erro de Registro", this.getFriendlyAuthError(error.code), true);
+                    this.setLoading(false);
+                }
+            }
+
+            async handleLogout() {
+                this.setLoading(true);
+                await signOut(this.auth);
+                // onAuthStateChanged will handle UI changes
+            }
+            
+            toggleAuthForm(showRegister) {
+                this.state.dom.loginFormContainer.classList.toggle('hidden', showRegister);
+                this.state.dom.registerFormContainer.classList.toggle('hidden', !showRegister);
+            }
+
+            showAppUI() {
+                this.state.dom.authSection.classList.add('hidden');
+                this.state.dom.appSection.classList.remove('hidden');
+            }
+
+            showAuthUI() {
+                this.state.dom.authSection.classList.remove('hidden');
+                this.state.dom.appSection.classList.add('hidden');
+                // Reset state
+                this.state.products = [];
+                this.state.categories = [];
+                this.state.locations = [];
+                this.state.movements = [];
+            }
+            
+            applyRolePermissions() {
+                const { userRole } = this.state;
+                const welcomeEl = document.getElementById('user-welcome-message');
+                if(welcomeEl) {
+                    welcomeEl.textContent = `Bem-vindo! Você está logado como ${userRole === 'admin' ? 'Administrador' : 'Visualizador'}.`;
+                }
+
+                // Show/hide all elements with data-role-required attribute
+                const restrictedElements = document.querySelectorAll('[data-role-required]');
+                restrictedElements.forEach(el => {
+                    const requiredRole = el.getAttribute('data-role-required');
+                    if (userRole === requiredRole) {
+                        el.style.display = ''; // or 'flex', 'block' etc. depending on original style
+                    } else {
+                        el.style.display = 'none';
+                    }
+                });
+
+                // Force to dashboard if a viewer tries to access a restricted tab
+                const activeTab = document.querySelector('.sidebar-link.bg-gray-200')?.dataset.tab;
+                const activeTabEl = document.querySelector(`.sidebar-link[data-tab="${activeTab}"]`);
+                if(userRole === 'viewer' && activeTabEl && activeTabEl.getAttribute('data-role-required') === 'admin') {
+                   this.switchTab('reports');
+                }
+                
+                // Refresh views to apply changes (e.g., hiding edit/delete buttons)
+                this.updateAllViews();
+            }
+
+            getFriendlyAuthError(code) {
+                switch (code) {
+                    case 'auth/user-not-found': return 'Nenhum usuário encontrado com este e-mail.';
+                    case 'auth/wrong-password': return 'Senha incorreta. Tente novamente.';
+                    case 'auth/invalid-email': return 'O formato do e-mail é inválido.';
+                    case 'auth/weak-password': return 'A senha deve ter pelo menos 6 caracteres.';
+                    case 'auth/email-already-in-use': return 'Este e-mail já está cadastrado.';
+                    default: return 'Ocorreu um erro. Tente novamente.';
+                }
+            }
+            // --- END AUTHENTICATION ---
+
+            // MODIFIED: This now sets up listeners for shared public data
+            async initializeAppForUser() {
+                // The data is now shared, not per-user. Path points to a public space.
+                const basePath = `artifacts/${appId}/public/data`;
                 this.state.firestoreRefs = {
                     products: collection(this.db, `${basePath}/products`),
                     categories: collection(this.db, `${basePath}/categories`),
                     movements: collection(this.db, `${basePath}/movements`),
                     locations: collection(this.db, `${basePath}/locations`),
                     settings: doc(this.db, `${basePath}/settings/main`),
+                    // NEW: Reference to user roles collection
+                    users: collection(this.db, `users`),
                 };
-                this.listenForSettingsUpdates();
-                this.listenForLocationUpdates();
-                this.listenForCategoryUpdates();
-                this.listenForProductUpdates();
-                this.listenForMovements();
+                
+                // Clear any previous listeners before attaching new ones
+                this.clearAllListeners();
+
+                // Attach listeners and store their unsubscribe functions
+                this.state.unsubscribers.push(this.listenForSettingsUpdates());
+                this.state.unsubscribers.push(this.listenForLocationUpdates());
+                this.state.unsubscribers.push(this.listenForCategoryUpdates());
+                this.state.unsubscribers.push(this.listenForProductUpdates());
+                this.state.unsubscribers.push(this.listenForMovements());
+                
+                // Apply UI rules based on the fetched role
+                this.applyRolePermissions();
             }
 
+            clearAllListeners() {
+                this.state.unsubscribers.forEach(unsub => unsub());
+                this.state.unsubscribers = [];
+            }
+            
+            // MODIFIED: All write operations must check for admin role
             async handleFormSubmit(e) {
                 e.preventDefault();
+                if (this.state.userRole !== 'admin') {
+                    return this.showAlert('Acesso Negado', 'Você não tem permissão para realizar esta ação.', true);
+                }
                 const form = e.target;
                 this.setLoading(true);
                 try {
@@ -300,11 +452,20 @@
                 }
 
                 const { action, id } = button.dataset;
+                const isAdmin = this.state.userRole === 'admin';
+
+                // Check permissions for write actions
+                if ((action?.startsWith('delete') || action === 'edit' || button.id === 'bulk-delete-btn') && !isAdmin) {
+                    return this.showAlert('Acesso Negado', 'Você não tem permissão para realizar esta ação.', true);
+                }
+
                 if (action === 'delete-category' && id) this.openDeleteModal(id, 'category');
                 if (action === 'delete-location' && id) this.openDeleteModal(id, 'location');
                 if (action === 'edit' && id) this.openEditModal(id);
                 if (action === 'delete' && id) this.openDeleteModal(id, 'product');
                 if (button.id === 'bulk-delete-btn') this.openDeleteModal(null, 'product', true);
+                
+                // Read-only actions are allowed for all
                 if (action === 'page-prev') { this.state.currentPage--; this.renderProducts(); }
                 if (action === 'page-next') { this.state.currentPage++; this.renderProducts(); }
                 if (button.id === 'toggle-advanced-filters') {
@@ -312,171 +473,21 @@
                     button.classList.toggle('open');
                 }
                 if (button.id === 'clear-filters-btn') this.clearFilters();
-                if (button.id === 'download-template-btn') this.handleDownloadTemplate();
-                if (button.id === 'upload-insert-trigger-btn') document.getElementById('excel-insert-input').click();
-                if (button.id === 'export-pdf-btn') this.handleExportPdf();
-                if (button.id === 'save-settings-btn') this.handleSaveSettings();
                 if (button.id === 'generate-report-btn') this.handleGenerateReport();
                 if (button.id === 'print-report-btn') window.print();
-            }
-            
-            handleContentChange(e) {
-                const target = e.target;
-                if (['stock-category-filter', 'stock-status-filter', 'date-filter-start', 'date-filter-end'].includes(target.id)) {
-                    this.state.currentPage = 1;
-                    this.renderProducts();
-                }
-                if (target.id === 'output-product-select') this.handleOutputProductSelection(target.value);
-                if (target.id === 'excel-insert-input') {
-                    const file = target.files?.[0];
-                    const filenameEl = document.getElementById('excel-insert-filename');
-                    if(file && filenameEl) {
-                        this.handleExcelParse(file, filenameEl);
-                    }
-                }
-                if (target.id === 'select-all-checkbox') {
-                    const isChecked = target.checked;
-                    document.querySelectorAll('.product-checkbox').forEach(cb => cb.checked = isChecked);
-                }
-                if (target.classList.contains('product-checkbox') || target.id === 'select-all-checkbox') {
-                    this.handleSelectionChange();
-                }
-                if (target.name === 'output-location') {
-                    this.updateOutputQuantityLock();
-                }
-
-                if (target.id === 'period-selector') {
-                    const period = target.value;
-                    this.state.dashboardSettings.period = period;
-                    const customDateSelector = document.getElementById('custom-date-range-selector');
-                    if (period === 'custom') {
-                        customDateSelector.classList.remove('hidden');
-                        customDateSelector.classList.add('grid');
-                    } else {
-                        customDateSelector.classList.add('hidden');
-                        customDateSelector.classList.remove('grid');
-                        this.updateDashboardView();
-                    }
-                }
-                if (target.id === 'dashboard-date-start' || target.id === 'dashboard-date-end') {
-                    this.state.dashboardSettings.startDate = document.getElementById('dashboard-date-start').value;
-                    this.state.dashboardSettings.endDate = document.getElementById('dashboard-date-end').value;
-                    if (this.state.dashboardSettings.startDate && this.state.dashboardSettings.endDate) {
-                        this.updateDashboardView();
-                    }
-                }
-            }
-
-            handleContentInput(e) {
-                const target = e.target;
-                if (target.id === 'search-product-input') {
-                    this.state.currentPage = 1;
-                    this.renderProducts();
-                }
-                if (target.id === 'output-quantity') {
-                    const max = parseInt(target.max, 10);
-                    if (!isNaN(max) && parseInt(target.value, 10) > max) {
-                        target.value = max;
-                    }
-                }
-            }
-
-            async handleAddCategory(form) {
-                const name = form.querySelector('#category-name').value.trim();
-                if (name && this.state.firestoreRefs) {
-                    await addDoc(this.state.firestoreRefs.categories, { name });
-                    form.reset();
-                    this.showAlert('Sucesso', 'Categoria adicionada!');
-                } else {
-                    throw new Error("Nome da categoria inválido.");
-                }
-            }
-
-            async handleAddLocation(form) {
-                const name = form.querySelector('#location-name').value.trim();
-                if (name && this.state.firestoreRefs) {
-                    // Create a URL-friendly ID from the name
-                    const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-                    if (this.state.locations.some(loc => loc.id === id)) {
-                         throw new Error("Uma localidade com nome similar já existe.");
-                    }
-                    await setDoc(doc(this.state.firestoreRefs.locations, id), { name });
-                    form.reset();
-                    this.showAlert('Sucesso', 'Localidade adicionada!');
-                } else {
-                    throw new Error("Nome da localidade inválido.");
+                
+                // Admin-only actions
+                if (isAdmin) {
+                    if (button.id === 'download-template-btn') this.handleDownloadTemplate();
+                    if (button.id === 'upload-insert-trigger-btn') document.getElementById('excel-insert-input').click();
+                    if (button.id === 'export-pdf-btn') this.handleExportPdf();
+                    if (button.id === 'save-settings-btn') this.handleSaveSettings();
                 }
             }
             
-            async handleAddProduct(form) {
-                const quantities = {};
-                let totalQuantity = 0;
-                this.state.locations.forEach(loc => {
-                    const input = form.querySelector(`#qty-${loc.id}`);
-                    if (input) {
-                        const qty = parseInt(input.value, 10) || 0;
-                        quantities[loc.id] = qty;
-                        totalQuantity += qty;
-                    }
-                });
-
-                const productData = {
-                    name: form.querySelector('#product-name').value.trim(),
-                    category: form.querySelector('#product-category-select').value,
-                    minStock: parseInt(form.querySelector('#product-min-stock').value, 10) || 0,
-                    unit: form.querySelector('#product-unit-select').value,
-                    quantities,
-                    totalQuantity,
-                    createdAt: serverTimestamp()
-                };
-
-                if (productData.name && productData.category && productData.unit) {
-                    const newProdRef = await addDoc(this.state.firestoreRefs.products, productData);
-                    if (totalQuantity > 0) {
-                        await this.logMovement(newProdRef.id, 'entrada', totalQuantity, 'Criação de Produto');
-                    }
-                    form.reset();
-                    this.showAlert('Sucesso', 'Produto adicionado!');
-                } else {
-                    throw new Error("Dados do produto inválidos. Verifique nome, categoria e unidade.");
-                }
-            }
-
-            async handleAddOutput(form) {
-                const productId = form.querySelector('#output-product-select').value;
-                const quantity = parseInt(form.querySelector('#output-quantity').value, 10);
-                const motive = form.querySelector('#output-motive-select').value;
-                const locationId = form.querySelector('input[name="output-location"]:checked')?.value;
-
-                if (!productId || isNaN(quantity) || quantity <= 0 || !motive || !locationId) {
-                    throw new Error("Preencha todos os campos, incluindo a localidade.");
-                }
-
-                await runTransaction(this.db, async (transaction) => {
-                    const productRef = doc(this.state.firestoreRefs.products, productId);
-                    const productDoc = await transaction.get(productRef);
-                    if (!productDoc.exists()) throw new Error("Produto não encontrado.");
-                    
-                    const productData = productDoc.data();
-                    const currentQuantityInLocation = productData.quantities[locationId] || 0;
-                    if (currentQuantityInLocation < quantity) throw new Error(`Estoque insuficiente em ${this.state.locations.find(l => l.id === locationId)?.name}.`);
-                    
-                    const newQuantities = { ...productData.quantities, [locationId]: currentQuantityInLocation - quantity };
-                    const newTotalQuantity = Object.values(newQuantities).reduce((sum, qty) => sum + qty, 0);
-
-                    transaction.update(productRef, { quantities: newQuantities, totalQuantity: newTotalQuantity });
-                    const movementRef = doc(collection(this.db, this.state.firestoreRefs.movements.path));
-                    transaction.set(movementRef, { productId, type: 'saida', quantity, motive, location: locationId, date: serverTimestamp() });
-                });
-
-                this.showAlert('Sucesso!', 'Saída registrada com sucesso.');
-                form.reset();
-                document.getElementById('output-stock-info').textContent = '';
-                document.getElementById('output-location-selector').innerHTML = '';
-            }
-
             async handleSaveEdit() {
-                const { self, quantitiesContainer } = this.state.dom.modals.edit;
+                if (this.state.userRole !== 'admin') return this.showAlert('Acesso Negado', 'Você não tem permissão para salvar edições.', true);
+                 const { self, quantitiesContainer } = this.state.dom.modals.edit;
                 const id = self.dataset.productId;
                 if (!id) return;
 
@@ -503,32 +514,15 @@
                     this.showAlert('Sucesso!', 'Produto atualizado.');
                     this.closeEditModal();
                 } catch (error) {
-                    this.showAlert('Erro', 'Não foi possível salvar.', true);
+                    this.showAlert('Erro', `Não foi possível salvar: ${error.message}`, true);
                 }
             }
 
-            async handleSaveSettings() {
-                const input = document.getElementById('items-per-page-input');
-                if (!input) return;
-                const itemsPerPage = parseInt(input.value, 10);
-                if (isNaN(itemsPerPage) || itemsPerPage <= 0) {
-                    return this.showAlert('Erro', 'Número de itens por página inválido.', true);
-                }
-                
-                this.setLoading(true);
-                try {
-                    await setDoc(this.state.firestoreRefs.settings, { itemsPerPage }, { merge: true });
-                    this.showAlert('Sucesso!', 'Configurações salvas.');
-                } catch(error) {
-                    this.showAlert('Erro', 'Não foi possível salvar as configurações.', true);
-                } finally {
-                    this.setLoading(false);
-                }
-            }
-            
             async handleDelete() {
+                if (this.state.userRole !== 'admin') return this.showAlert('Acesso Negado', 'Você não tem permissão para excluir.', true);
                 const { id, type, isBulk } = this.state.deleteQueue;
-                if (!type) return;
+                //... (rest of the delete logic remains the same)
+                 if (!type) return;
                 this.setLoading(true);
 
                 try {
@@ -565,22 +559,15 @@
                 }
             }
             
-            async logMovement(productId, type, quantity, motive) {
-                if (!this.state.firestoreRefs) return;
-                await addDoc(this.state.firestoreRefs.movements, { productId, type, quantity, motive, date: serverTimestamp() });
-            }
-
-            async listenForLocationUpdates() {
-                if (!this.state.firestoreRefs) return;
-                
+            // --- DATA LISTENERS ---
+            // MODIFIED: Listeners now return the unsubscribe function for cleanup
+            listenForLocationUpdates() {
+                 if (!this.state.firestoreRefs) return () => {};
                 const createDefaultLocations = async () => {
                     const defaultLocations = [
-                        { id: 'estoque_seco', name: 'Estoque Seco' },
-                        { id: 'extensao', name: 'Extensão' },
-                        { id: 'freezer', name: 'Freezer' },
-                        { id: 'adega_1', name: 'Adega 1' },
-                        { id: 'adega_2', name: 'Adega 2' },
-                        { id: 'adega_grande', name: 'Adega Grande' },
+                        { id: 'estoque_seco', name: 'Estoque Seco' }, { id: 'extensao', name: 'Extensão' },
+                        { id: 'freezer', name: 'Freezer' }, { id: 'adega_1', name: 'Adega 1' },
+                        { id: 'adega_2', name: 'Adega 2' }, { id: 'adega_grande', name: 'Adega Grande' },
                     ];
                     const batch = writeBatch(this.db);
                     defaultLocations.forEach(loc => {
@@ -589,26 +576,24 @@
                     await batch.commit();
                 };
 
-                onSnapshot(query(this.state.firestoreRefs.locations), async (snapshot) => {
-                    if (snapshot.empty) {
+                return onSnapshot(query(this.state.firestoreRefs.locations), async (snapshot) => {
+                    if (this.state.userRole === 'admin' && snapshot.empty) {
                         await createDefaultLocations();
-                        // The listener will be re-triggered automatically
                         return;
                     }
                     this.state.locations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => a.name.localeCompare(b.name));
-                    this.injectPanelContent(); // Re-inject content that depends on locations
+                    this.injectPanelContent();
                     this.updateAllViews();
                 });
             }
 
-            async listenForSettingsUpdates() {
-                if (!this.state.firestoreRefs) return;
-                onSnapshot(this.state.firestoreRefs.settings, async (docSnap) => {
+            listenForSettingsUpdates() {
+                if (!this.state.firestoreRefs) return () => {};
+                return onSnapshot(this.state.firestoreRefs.settings, async (docSnap) => {
                     if (docSnap.exists()) {
                         const settingsData = docSnap.data();
                         this.state.itemsPerPage = settingsData.itemsPerPage || 10;
-                    } else {
-                        // Create default settings if they don't exist
+                    } else if (this.state.userRole === 'admin') {
                         await setDoc(this.state.firestoreRefs.settings, { itemsPerPage: 10 });
                         this.state.itemsPerPage = 10;
                     }
@@ -618,49 +603,41 @@
             }
 
             listenForProductUpdates() {
-                if (!this.state.firestoreRefs) return;
-                onSnapshot(query(this.state.firestoreRefs.products), (snapshot) => {
+                if (!this.state.firestoreRefs) return () => {};
+                return onSnapshot(query(this.state.firestoreRefs.products), (snapshot) => {
                     this.state.products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     this.updateAllViews();
-                    this.setLoading(false); // First data load is complete
+                    this.setLoading(false);
                 });
             }
 
             listenForCategoryUpdates() {
-                if (!this.state.firestoreRefs) return;
-                onSnapshot(query(this.state.firestoreRefs.categories), (snapshot) => {
+                if (!this.state.firestoreRefs) return () => {};
+                return onSnapshot(query(this.state.firestoreRefs.categories), (snapshot) => {
                     this.state.categories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => a.name.localeCompare(b.name));
                     this.updateAllViews();
                 });
             }
             
             listenForMovements() {
-                if (!this.state.firestoreRefs) return;
-                onSnapshot(query(this.state.firestoreRefs.movements), (snapshot) => {
+                if (!this.state.firestoreRefs) return () => {};
+                return onSnapshot(query(this.state.firestoreRefs.movements), (snapshot) => {
                     this.state.movements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                     this.updateDashboardView();
                     this.renderLowStockAlerts();
                     this.renderTopMovements();
                 });
             }
-
-            updateAllViews() {
-                this.renderProducts();
-                this.renderCategories();
-                this.populateProductSelects();
-                this.renderDashboard();
-                this.renderSettings();
-            }
-
+            
+            // --- UI RENDERING ---
+            // MODIFIED: Render functions now check for role to show/hide elements
             renderProducts() {
                 const productList = document.getElementById('product-list');
                 const emptyState = document.getElementById('empty-state');
                 if (!productList || !emptyState || this.state.locations.length === 0) return;
 
                 const filteredProducts = this.getFilteredProducts();
-                
-                const startIndex = (this.state.currentPage - 1) * this.state.itemsPerPage;
-                const paginatedProducts = filteredProducts.slice(startIndex, startIndex + this.state.itemsPerPage);
+                const paginatedProducts = filteredProducts.slice((this.state.currentPage - 1) * this.state.itemsPerPage, this.state.currentPage * this.state.itemsPerPage);
 
                 if (filteredProducts.length === 0) {
                     emptyState.classList.remove('hidden');
@@ -674,41 +651,51 @@
                         const isSelected = this.state.selectedProducts.includes(product.id);
                         const quantitiesHtml = this.state.locations.map(loc => `<td class="p-3 text-center text-gray-700">${product.quantities?.[loc.id] || 0}</td>`).join('');
                         
+                        // NEW: Conditionally render action buttons
+                        const actionButtons = this.state.userRole === 'admin' ? `
+                            <button data-action="edit" data-id="${product.id}" class="text-blue-500 hover:text-blue-700 p-2"><i class="fas fa-edit"></i></button>
+                            <button data-action="delete" data-id="${product.id}" class="text-red-500 hover:text-red-700 p-2"><i class="fas fa-trash"></i></button>
+                        ` : '';
+                        
+                        const checkbox = this.state.userRole === 'admin' ? `<input type="checkbox" class="product-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-id="${product.id}" ${isSelected ? 'checked' : ''}>` : '';
+
                         return `
                             <tr class="hover:bg-gray-200 transition-colors ${isLowStock ? 'low-stock-warning' : ''} ${isSelected ? 'bg-blue-100' : ''}" data-product-id="${product.id}">
-                                <td class="p-3 text-center"><input type="checkbox" class="product-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-id="${product.id}" ${isSelected ? 'checked' : ''}></td>
+                                <td class="p-3 text-center">${checkbox}</td>
                                 <td class="p-3 font-medium text-gray-900 sticky left-0 bg-white">${product.name} ${isLowStock ? '<i class="fas fa-exclamation-triangle text-amber-500 ml-1" title="Estoque baixo!"></i>' : ''}</td>
                                 <td class="p-3 text-center text-gray-700">${category?.name || 'N/A'}</td>
                                 <td class="p-3 text-center font-bold text-gray-900">${product.totalQuantity || 0}</td>
                                 ${quantitiesHtml}
-                                <td class="p-3 text-right">
-                                    <button data-action="edit" data-id="${product.id}" class="text-blue-500 hover:text-blue-700 p-2"><i class="fas fa-edit"></i></button>
-                                    <button data-action="delete" data-id="${product.id}" class="text-red-500 hover:text-red-700 p-2"><i class="fas fa-trash"></i></button>
-                                </td>
+                                <td class="p-3 text-right">${actionButtons}</td>
                             </tr>`;
                     }).join('');
                 }
                 this.renderPaginationControls(filteredProducts.length);
                 this.renderBulkActionBar();
             }
-            
+
             renderCategories() {
                 const categoryList = document.getElementById('category-list');
+                if (!categoryList) return;
+
+                categoryList.innerHTML = this.state.categories.length > 0 ? this.state.categories.map(cat => {
+                    const isUsed = this.state.products.some(p => p.category === cat.id);
+                    // NEW: Conditionally render delete button
+                    const deleteButton = this.state.userRole === 'admin' ? `
+                        <button data-action="delete-category" data-id="${cat.id}" class="text-red-500 hover:text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed" ${isUsed ? 'disabled title="Categoria em uso"' : ''}>
+                            <i class="fas fa-times"></i>
+                        </button>
+                    ` : '';
+                    return `
+                        <div class="flex justify-between items-center p-2 bg-gray-100 rounded-lg">
+                            <span class="text-gray-900">${cat.name}</span>
+                            ${deleteButton}
+                        </div>`;
+                }).join('') : '<p class="text-sm text-gray-500">Nenhuma categoria.</p>';
+
+                // Populate selects (this is read-only, so no permission check needed)
                 const selects = [document.getElementById('product-category-select'), document.getElementById('stock-category-filter')];
-                if (categoryList) {
-                    categoryList.innerHTML = this.state.categories.length > 0 ? this.state.categories.map(cat => {
-                        const isUsed = this.state.products.some(p => p.category === cat.id);
-                        return `
-                            <div class="flex justify-between items-center p-2 bg-gray-100 rounded-lg">
-                                <span class="text-gray-900">${cat.name}</span>
-                                <button data-action="delete-category" data-id="${cat.id}" class="text-red-500 hover:text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed" ${isUsed ? 'disabled title="Categoria em uso"' : ''}>
-                                    <i class="fas fa-times"></i>
-                                </button>
-                            </div>
-                        `;
-                    }).join('') : '<p class="text-sm text-gray-500">Nenhuma categoria.</p>';
-                }
-                selects.forEach(select => {
+                 selects.forEach(select => {
                     if (!select) return;
                     const currentValue = select.value;
                     let options = select.id === 'stock-category-filter' ? '<option value="all">Todas</option>' : '<option value="">Selecione...</option>';
@@ -718,17 +705,140 @@
                 });
             }
 
+            // ... Other methods like handleAddCategory, handleAddLocation, etc. are implicitly protected by the handleFormSubmit check ...
+            // ... The remaining methods are mostly unchanged as they were already correct. We just need to ensure they are called correctly.
+            // Example of a method that does not need modification in its core logic:
+            async handleAddCategory(form) {
+                 const name = form.querySelector('#category-name').value.trim();
+                 if (name && this.state.firestoreRefs) {
+                     await addDoc(this.state.firestoreRefs.categories, { name });
+                     form.reset();
+                     this.showAlert('Sucesso', 'Categoria adicionada!');
+                 } else {
+                     throw new Error("Nome da categoria inválido.");
+                 }
+            }
+
+            // --- The rest of the class methods from the original code would follow ---
+            // They are not repeated here for brevity, as their internal logic doesn't need to change,
+            // only their invocation (which is now protected by role checks).
+            
+            // NOTE: Keep all the other original methods here, like:
+            // handleAddLocation, handleAddProduct, handleAddOutput, logMovement, renderSettings,
+            // populateProductSelects, setLoading, showAlert, toggleSidebar, switchTab,
+            // openEditModal, closeEditModal, openDeleteModal, closeDeleteModal, renderDashboard,
+            // updateDashboardView, renderMovementsChart, renderLowStockAlerts, renderTopMovements,
+            // handleGenerateReport, handleSelectionChange, renderPaginationControls, renderBulkActionBar,
+            // clearFilters, handleDownloadTemplate, getFilteredProducts, handleExportPdf, handleExcelParse,
+            // handleBulkInsert, injectPanelContent, updateOutputQuantityLock, handleOutputProductSelection.
+            // No changes are needed inside them, as the permission checks are done at the entry points (handleContentClick, handleFormSubmit).
+        }
+        
+        // This is just a placeholder to make the linter happy.
+        // In a real scenario, you would copy ALL the remaining methods from your original
+        // script into the StockApp class definition. For this example, we assume they are present.
+        // We will now copy the remaining functions to ensure the app is complete.
+        Object.assign(StockApp.prototype, {
+            // All the other methods from your original script go here...
+            // Copying them over to ensure a complete, runnable file.
+              async handleAddLocation(form) {
+                const name = form.querySelector('#location-name').value.trim();
+                if (name && this.state.firestoreRefs) {
+                    const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+                    if (this.state.locations.some(loc => loc.id === id)) {
+                         throw new Error("Uma localidade com nome similar já existe.");
+                    }
+                    await setDoc(doc(this.state.firestoreRefs.locations, id), { name });
+                    form.reset();
+                    this.showAlert('Sucesso', 'Localidade adicionada!');
+                } else {
+                    throw new Error("Nome da localidade inválido.");
+                }
+            },
+            
+            async handleAddProduct(form) {
+                const quantities = {};
+                let totalQuantity = 0;
+                this.state.locations.forEach(loc => {
+                    const input = form.querySelector(`#qty-${loc.id}`);
+                    if (input) {
+                        const qty = parseInt(input.value, 10) || 0;
+                        quantities[loc.id] = qty;
+                        totalQuantity += qty;
+                    }
+                });
+
+                const productData = {
+                    name: form.querySelector('#product-name').value.trim(),
+                    category: form.querySelector('#product-category-select').value,
+                    minStock: parseInt(form.querySelector('#product-min-stock').value, 10) || 0,
+                    unit: form.querySelector('#product-unit-select').value,
+                    quantities,
+                    totalQuantity,
+                    createdAt: serverTimestamp()
+                };
+
+                if (productData.name && productData.category && productData.unit) {
+                    const newProdRef = await addDoc(this.state.firestoreRefs.products, productData);
+                    if (totalQuantity > 0) {
+                        await this.logMovement(newProdRef.id, 'entrada', totalQuantity, 'Criação de Produto');
+                    }
+                    form.reset();
+                    this.showAlert('Sucesso', 'Produto adicionado!');
+                } else {
+                    throw new Error("Dados do produto inválidos. Verifique nome, categoria e unidade.");
+                }
+            },
+            async handleAddOutput(form) {
+                const productId = form.querySelector('#output-product-select').value;
+                const quantity = parseInt(form.querySelector('#output-quantity').value, 10);
+                const motive = form.querySelector('#output-motive-select').value;
+                const locationId = form.querySelector('input[name="output-location"]:checked')?.value;
+
+                if (!productId || isNaN(quantity) || quantity <= 0 || !motive || !locationId) {
+                    throw new Error("Preencha todos os campos, incluindo a localidade.");
+                }
+
+                await runTransaction(this.db, async (transaction) => {
+                    const productRef = doc(this.state.firestoreRefs.products, productId);
+                    const productDoc = await transaction.get(productRef);
+                    if (!productDoc.exists()) throw new Error("Produto não encontrado.");
+                    
+                    const productData = productDoc.data();
+                    const currentQuantityInLocation = productData.quantities[locationId] || 0;
+                    if (currentQuantityInLocation < quantity) throw new Error(`Estoque insuficiente em ${this.state.locations.find(l => l.id === locationId)?.name}.`);
+                    
+                    const newQuantities = { ...productData.quantities, [locationId]: currentQuantityInLocation - quantity };
+                    const newTotalQuantity = Object.values(newQuantities).reduce((sum, qty) => sum + qty, 0);
+
+                    transaction.update(productRef, { quantities: newQuantities, totalQuantity: newTotalQuantity });
+                    const movementRef = doc(collection(this.db, this.state.firestoreRefs.movements.path));
+                    transaction.set(movementRef, { productId, type: 'saida', quantity, motive, location: locationId, date: serverTimestamp() });
+                });
+
+                this.showAlert('Sucesso!', 'Saída registrada com sucesso.');
+                form.reset();
+                document.getElementById('output-stock-info').textContent = '';
+                document.getElementById('output-location-selector').innerHTML = '';
+            },
+            async logMovement(productId, type, quantity, motive) {
+                if (!this.state.firestoreRefs) return;
+                await addDoc(this.state.firestoreRefs.movements, { productId, type, quantity, motive, date: serverTimestamp() });
+            },
             renderSettings() {
                 const locationsList = document.getElementById('location-list');
                 if (locationsList) {
                     locationsList.innerHTML = this.state.locations.length > 0 ? this.state.locations.map(loc => {
                         const isUsed = this.state.products.some(p => p.quantities && p.quantities[loc.id] > 0);
+                         const deleteButton = this.state.userRole === 'admin' ? `
+                           <button data-action="delete-location" data-id="${loc.id}" class="text-red-500 hover:text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed" ${isUsed ? 'disabled title="Localidade em uso"' : ''}>
+                               <i class="fas fa-times"></i>
+                           </button>
+                        ` : '';
                         return `
                              <div class="flex justify-between items-center p-2 bg-gray-100 rounded-lg">
                                  <span class="text-gray-900">${loc.name}</span>
-                                 <button data-action="delete-location" data-id="${loc.id}" class="text-red-500 hover:text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed" ${isUsed ? 'disabled title="Localidade em uso"' : ''}>
-                                     <i class="fas fa-times"></i>
-                                 </button>
+                                 ${deleteButton}
                              </div>
                         `;
                     }).join('') : '<p class="text-sm text-gray-500">Nenhuma localidade cadastrada.</p>';
@@ -738,24 +848,29 @@
                 if (itemsPerPageInput) {
                     itemsPerPageInput.value = this.state.itemsPerPage;
                 }
-            }
-            
+            },
+            updateAllViews() {
+                 this.renderProducts();
+                 this.renderCategories();
+                 this.populateProductSelects();
+                 this.renderDashboard();
+                 this.renderSettings();
+            },
             populateProductSelects() {
                 const outputSelect = document.getElementById('output-product-select');
                 if (!outputSelect) return;
                 const currentValue = outputSelect.value;
                 let options = '<option value="">Selecione um produto...</option>';
-                // Ordena os produtos por nome para facilitar a seleção
                 const sortedProducts = [...this.state.products].sort((a,b) => a.name.localeCompare(b.name));
                 options += sortedProducts.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
                 outputSelect.innerHTML = options;
                 outputSelect.value = currentValue;
-            }
-            
+            },
             setLoading(isLoading) {
-                if (this.state.dom) this.state.dom.loadingOverlay.style.display = isLoading ? 'flex' : 'none';
-            }
-
+                if (this.state.dom && this.state.dom.loadingOverlay) {
+                  this.state.dom.loadingOverlay.style.display = isLoading ? 'flex' : 'none';
+                }
+            },
             showAlert(title, message, isError = false) {
                 const { self, title: titleEl, message: messageEl, icon: iconEl, closeBtn } = this.state.dom.modals.alert;
                 titleEl.textContent = title;
@@ -763,21 +878,18 @@
                 iconEl.className = `fa-3x mb-4 fa-solid ${isError ? 'fa-circle-xmark text-red-500' : 'fa-circle-check text-green-500'}`;
                 closeBtn.className = `px-6 py-2 text-white font-semibold rounded-lg ${isError ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`;
                 self.classList.replace('hidden', 'flex');
-            }
-            
+            },
             toggleSidebar(show) {
                 const { menu, overlay } = this.state.dom.sidebar;
                 menu.classList.toggle('-translate-x-full', !show);
                 overlay.classList.toggle('hidden', !show);
-            }
-
+            },
             switchTab(tabId) {
                 document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
                 document.getElementById(`panel-${tabId}`)?.classList.remove('hidden');
                 document.querySelectorAll('.sidebar-link').forEach(l => l.classList.toggle('bg-gray-200', l.dataset.tab === tabId));
                 if (tabId === 'reports') this.renderDashboard();
-            }
-            
+            },
             openEditModal(productId) {
                 const product = this.state.products.find(p => p.id === productId);
                 if (!product) return this.showAlert('Erro', 'Produto não encontrado.', true);
@@ -794,10 +906,8 @@
                 
                 quantitiesContainer.innerHTML = `<div class="grid grid-cols-2 gap-4">${quantitiesHtml}</div>`;
                 self.classList.replace('hidden', 'flex');
-            }
-            
-            closeEditModal() { this.state.dom.modals.edit.self.classList.replace('flex', 'hidden'); }
-            
+            },
+            closeEditModal() { this.state.dom.modals.edit.self.classList.replace('flex', 'hidden'); },
             openDeleteModal(id, type, isBulk = false) {
                 this.state.deleteQueue = { id, type, isBulk };
                 const { self, text } = this.state.dom.modals.delete;
@@ -812,21 +922,19 @@
                     text.textContent = `Tem certeza que deseja excluir "${itemName || ''}"? Esta ação não pode ser desfeita.`;
                 }
                 self.classList.replace('hidden', 'flex');
-            }
-            
+            },
             closeDeleteModal() {
                 this.state.dom.modals.delete.self.classList.replace('flex', 'hidden');
                 this.state.deleteQueue = { id: null, type: null, isBulk: false };
-            }
-
+            },
             renderDashboard() {
                 if (!document.getElementById('panel-reports')?.isConnected) return;
                 this.updateDashboardView();
                 this.renderLowStockAlerts();
                 this.renderTopMovements();
-            }
-
+            },
             updateDashboardView() {
+                if(!this.state.isAuthReady) return;
                 const { chartType } = this.state.dashboardSettings;
                 document.querySelectorAll('.chart-type-btn').forEach(btn => {
                     if (btn.dataset.type === chartType) {
@@ -838,29 +946,19 @@
                     }
                 });
                 this.renderMovementsChart();
-            }
-            
+            },
             renderMovementsChart() {
                 const ctx = document.getElementById('movements-chart')?.getContext('2d');
                 if (!ctx) return;
-
                 const { chartType, period } = this.state.dashboardSettings;
-                const today = new Date();
-                today.setHours(23, 59, 59, 999);
-                let startDate = new Date();
-                startDate.setHours(0, 0, 0, 0);
+                const today = new Date(); today.setHours(23, 59, 59, 999);
+                let startDate = new Date(); startDate.setHours(0, 0, 0, 0);
                 let endDate = new Date(today);
 
                 switch (period) {
-                    case '7days':
-                        startDate.setDate(today.getDate() - 6);
-                        break;
-                    case '30days':
-                        startDate.setDate(today.getDate() - 29);
-                        break;
-                    case 'this_month':
-                        startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-                        break;
+                    case '7days': startDate.setDate(today.getDate() - 6); break;
+                    case '30days': startDate.setDate(today.getDate() - 29); break;
+                    case 'this_month': startDate = new Date(today.getFullYear(), today.getMonth(), 1); break;
                     case 'last_month':
                         startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
                         endDate = new Date(today.getFullYear(), today.getMonth(), 0);
@@ -870,10 +968,8 @@
                         const startVal = this.state.dashboardSettings.startDate;
                         const endVal = this.state.dashboardSettings.endDate;
                         if (!startVal || !endVal) return;
-                        startDate = new Date(startVal);
-                        startDate.setUTCHours(0, 0, 0, 0);
-                        endDate = new Date(endVal);
-                        endDate.setUTCHours(23, 59, 59, 999);
+                        startDate = new Date(startVal); startDate.setUTCHours(0, 0, 0, 0);
+                        endDate = new Date(endVal); endDate.setUTCHours(23, 59, 59, 999);
                         break;
                 }
 
@@ -884,14 +980,11 @@
 
                 if (this.state.chartInstance) this.state.chartInstance.destroy();
 
-                const gridColor = 'rgba(0, 0, 0, 0.1)';
-                const textColor = '#111827';
+                const gridColor = 'rgba(0, 0, 0, 0.1)'; const textColor = '#111827';
                 let chartConfig;
-
                 if (chartType === 'pie') {
                     const totalEntradas = filteredMovements.filter(m => m.type === 'entrada').reduce((sum, m) => sum + m.quantity, 0);
                     const totalSaidas = filteredMovements.filter(m => m.type === 'saida').reduce((sum, m) => sum + m.quantity, 0);
-
                     chartConfig = {
                         type: 'pie',
                         data: {
@@ -903,15 +996,10 @@
                                 borderWidth: 2
                             }]
                         },
-                        options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
-                            plugins: { legend: { position: 'top', labels: { color: textColor } } }
-                        }
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: textColor } } } }
                     };
-                } else { // Bar or Line chart
-                    const labels = [];
-                    const dataMap = new Map();
+                } else {
+                    const labels = []; const dataMap = new Map();
                     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
                         const dateString = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
                         labels.push(dateString);
@@ -935,24 +1023,17 @@
                         data: {
                             labels,
                             datasets: [{
-                                label: 'Entradas',
-                                data: entradasData,
+                                label: 'Entradas', data: entradasData,
                                 backgroundColor: chartType === 'bar' ? 'rgba(34, 197, 94, 0.7)' : 'transparent',
-                                borderColor: 'rgba(34, 197, 94, 1)',
-                                borderWidth: chartType === 'line' ? 3 : 1,
-                                tension: 0.2
+                                borderColor: 'rgba(34, 197, 94, 1)', borderWidth: chartType === 'line' ? 3 : 1, tension: 0.2
                             }, {
-                                label: 'Saídas',
-                                data: saidasData,
+                                label: 'Saídas', data: saidasData,
                                 backgroundColor: chartType === 'bar' ? 'rgba(239, 68, 68, 0.7)' : 'transparent',
-                                borderColor: 'rgba(239, 68, 68, 1)',
-                                borderWidth: chartType === 'line' ? 3 : 1,
-                                tension: 0.2
+                                borderColor: 'rgba(239, 68, 68, 1)', borderWidth: chartType === 'line' ? 3 : 1, tension: 0.2
                             }]
                         },
                         options: {
-                            responsive: true,
-                            maintainAspectRatio: false,
+                            responsive: true, maintainAspectRatio: false,
                             scales: {
                                 y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor, precision: 0 } },
                                 x: { grid: { color: gridColor }, ticks: { color: textColor } }
@@ -961,10 +1042,8 @@
                         }
                     };
                 }
-                
                 this.state.chartInstance = new Chart(ctx, chartConfig);
-            }
-
+            },
             renderLowStockAlerts() {
                 const listEl = document.getElementById('low-stock-list'), emptyEl = document.getElementById('low-stock-empty');
                 if (!listEl || !emptyEl) return;
@@ -975,8 +1054,7 @@
                 } else {
                     listEl.classList.add('hidden'); emptyEl.classList.remove('hidden');
                 }
-            }
-            
+            },
             renderTopMovements() {
                 const renderList = (elementId, data) => {
                     const listEl = document.getElementById(elementId);
@@ -994,18 +1072,15 @@
                 const sorted = [...this.state.movements].sort((a,b) => b.date?.seconds - a.date?.seconds);
                 renderList('top-entradas-list', sorted.filter(m => m.type === 'entrada').slice(0, 5));
                 renderList('top-saidas-list', sorted.filter(m => m.type === 'saida').slice(0, 5));
-            }
-            
+            },
             async handleGenerateReport() {
                 const dateInput = document.getElementById('report-date'), reportOutput = document.getElementById('report-output');
                 if (!dateInput || !reportOutput || !dateInput.value) return this.showAlert('Atenção', 'Selecione uma data para gerar o relatório.', true);
                 const targetDate = new Date(dateInput.value); targetDate.setUTCHours(23, 59, 59, 999);
                 this.setLoading(true);
 
-                // This is a simplified historical stock calculation. For large datasets, a more robust solution (like daily snapshots) would be needed.
                 const historicalStock = {};
-                this.state.products.forEach(p => { 
-                    // Calculate stock at creation time
+                this.state.products.forEach(p => {
                     const createdAt = p.createdAt?.toDate();
                     if(createdAt <= targetDate) {
                         historicalStock[p.id] = { ...p, quantity: 0 };
@@ -1014,15 +1089,13 @@
 
                 this.state.movements.filter(m => m.date.toDate() <= targetDate).forEach(m => {
                     if (historicalStock[m.productId]) {
-                         // Check if movement is related to initial product creation to avoid double counting
                         const isCreationMovement = m.motive === 'Criação de Produto' || m.motive === 'Importação Excel';
                         const productCreatedAt = this.state.products.find(p => p.id === m.productId)?.createdAt?.toDate();
                         
-                         // Heuristic to guess initial quantity before edits
                         if (isCreationMovement && productCreatedAt && productCreatedAt.getTime() === m.date.toDate().getTime()) {
-                             historicalStock[m.productId].quantity = m.quantity;
+                            historicalStock[m.productId].quantity = m.quantity;
                         } else if (!isCreationMovement) {
-                             historicalStock[m.productId].quantity += m.type === 'entrada' ? m.quantity : -m.quantity;
+                            historicalStock[m.productId].quantity += m.type === 'entrada' ? m.quantity : -m.quantity;
                         }
                     }
                 });
@@ -1038,8 +1111,7 @@
                 document.getElementById('report-subtitle').textContent = `Posição em ${new Date(dateInput.value).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}`;
                 reportOutput.classList.remove('hidden');
                 this.setLoading(false);
-            }
-
+            },
             handleSelectionChange() {
                 this.state.selectedProducts = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.id);
                 const selectAllCheckbox = document.getElementById('select-all-checkbox');
@@ -1049,8 +1121,7 @@
                 }
                 this.renderBulkActionBar();
                 this.renderProducts();
-            }
-
+            },
             renderPaginationControls(totalItems) {
                 const controlsContainer = document.getElementById('pagination-controls');
                 if (!controlsContainer) return;
@@ -1062,12 +1133,14 @@
                 const startItem = (this.state.currentPage - 1) * this.state.itemsPerPage + 1;
                 const endItem = Math.min(this.state.currentPage * this.state.itemsPerPage, totalItems);
                 controlsContainer.innerHTML = `<span class="text-sm text-gray-700">Mostrando <span class="font-semibold">${startItem}</span> a <span class="font-semibold">${endItem}</span> de <span class="font-semibold">${totalItems}</span></span><div><button data-action="page-prev" class="px-3 h-8 text-sm font-medium text-white bg-gray-800 rounded-l hover:bg-gray-900 disabled:opacity-50" ${this.state.currentPage === 1 ? 'disabled' : ''}>Anterior</button><button data-action="page-next" class="px-3 h-8 text-sm font-medium text-white bg-gray-800 rounded-r border-0 border-l border-gray-700 hover:bg-gray-900 disabled:opacity-50" ${this.state.currentPage === totalPages ? 'disabled' : ''}>Próximo</button></div>`;
-            }
-
+            },
             renderBulkActionBar() {
                 const actionBar = document.getElementById('bulk-action-bar');
                 const selectedCount = document.getElementById('selected-count');
-                if (!actionBar || !selectedCount) return;
+                if (!actionBar || !selectedCount || this.state.userRole !== 'admin') {
+                    if(actionBar) actionBar.classList.add('hidden');
+                     return;
+                };
                 if (this.state.selectedProducts.length > 0) {
                     selectedCount.textContent = `${this.state.selectedProducts.length} selecionado(s)`;
                     actionBar.classList.remove('hidden');
@@ -1076,8 +1149,7 @@
                     actionBar.classList.remove('open');
                     setTimeout(() => actionBar.classList.add('hidden'), 300);
                 }
-            }
-
+            },
             clearFilters() {
                 document.getElementById('search-product-input').value = '';
                 document.getElementById('stock-category-filter').value = 'all';
@@ -1086,22 +1158,15 @@
                 document.getElementById('date-filter-end').value = '';
                 this.state.currentPage = 1;
                 this.renderProducts();
-            }
-            
+            },
             handleDownloadTemplate() {
-                const headers = {
-                    name: "Exemplo Produto",
-                    category: "Exemplo Categoria",
-                    unit: "UND",
-                    minStock: 10
-                };
+                const headers = { name: "Exemplo Produto", category: "Exemplo Categoria", unit: "UND", minStock: 10 };
                 this.state.locations.forEach(l => headers[l.id] = 0);
                 const worksheet = XLSX.utils.json_to_sheet([headers]);
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Produtos");
                 XLSX.writeFile(workbook, "modelo_importacao_estoque.xlsx");
-            }
-
+            },
             getFilteredProducts() {
                 const categoryFilter = document.getElementById('stock-category-filter')?.value || 'all';
                 const searchTerm = document.getElementById('search-product-input')?.value.toLowerCase() || '';
@@ -1123,13 +1188,11 @@
                     const matchesDate = !createdAt || (!startDate && !endDate) || (createdAt >= startDate && createdAt <= endDate);
                     return matchesCategory && matchesSearch && matchesStatus && matchesDate;
                 });
-            }
-
+            },
             handleExportPdf() {
                 const filteredProducts = this.getFilteredProducts();
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF({ orientation: 'landscape' });
-                
                 doc.text(`Relatório de Estoque - ${new Date().toLocaleDateString()}`, 14, 16);
                 
                 const head = [['Produto', 'Categoria', ...this.state.locations.map(l => l.name), 'Total']];
@@ -1141,15 +1204,12 @@
                 ]);
 
                 doc.autoTable({
-                    head: head,
-                    body: body,
-                    startY: 20,
-                    headStyles: { fillColor: [22, 163, 74] }, // Verde
+                    head: head, body: body, startY: 20,
+                    headStyles: { fillColor: [22, 163, 74] },
                     styles: { fontSize: 8 },
                 });
                 doc.save(`estoque_${new Date().toISOString().slice(0,10)}.pdf`);
-            }
-            
+            },
             handleExcelParse(file, filenameEl) {
                 this.setLoading(true);
                 filenameEl.textContent = `Carregando ${file.name}...`;
@@ -1162,7 +1222,6 @@
                         const sheetName = workbook.SheetNames[0];
                         const worksheet = workbook.Sheets[sheetName];
                         const json = XLSX.utils.sheet_to_json(worksheet);
-                        
                         await this.handleBulkInsert(json);
                     } catch (error) {
                         this.showAlert('Erro de Excel', `Não foi possível ler o arquivo: ${error.message}`, true);
@@ -1178,8 +1237,7 @@
                        this.setLoading(false);
                 };
                 reader.readAsArrayBuffer(file);
-            }
-
+            },
             async handleBulkInsert(data) {
                 const batch = writeBatch(this.db);
                 const localCategories = [...this.state.categories];
@@ -1188,7 +1246,7 @@
                     let categoryName = row.category?.toString().trim();
                     let productName = row.name?.toString().trim();
 
-                    if (!productName || !categoryName) continue; // Pula linhas sem nome ou categoria
+                    if (!productName || !categoryName) continue;
 
                     let category = localCategories.find(c => c.name.toLowerCase() === categoryName.toLowerCase());
                     
@@ -1199,8 +1257,7 @@
                         localCategories.push(category);
                     }
                     
-                    const quantities = {};
-                    let totalQuantity = 0;
+                    const quantities = {}; let totalQuantity = 0;
                     this.state.locations.forEach(loc => {
                         const qty = parseInt(row[loc.id], 10) || 0;
                         quantities[loc.id] = qty;
@@ -1209,12 +1266,9 @@
                     
                     const newProdRef = doc(collection(this.db, this.state.firestoreRefs.products.path));
                     const productData = {
-                        name: productName, 
-                        category: category.id, 
-                        quantities, 
-                        totalQuantity, 
+                        name: productName, category: category.id, quantities, totalQuantity,
                         unit: row.unit?.toString().trim() || 'UND', 
-                        minStock: parseInt(row.minStock, 10) || 0, 
+                        minStock: parseInt(row.minStock, 10) || 0,
                         createdAt: serverTimestamp()
                     };
                     batch.set(newProdRef, productData);
@@ -1226,39 +1280,22 @@
                 }
                 await batch.commit();
                 this.showAlert('Sucesso', `${data.length} produtos processados do arquivo Excel.`);
-            }
-
+            },
             injectPanelContent() {
                 if (!this.state.dom) return;
+                const isAdmin = this.state.userRole === 'admin';
                 const locationsQuantityInputs = this.state.locations.map(loc => `<label class="block"><span class="text-gray-700">${loc.name}</span><input type="number" id="qty-${loc.id}" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0"></label>`).join('');
                 const tableHeaders = this.state.locations.map(loc => `<th class="p-3 text-center text-gray-700">${loc.name}</th>`).join('');
-
-                this.state.dom.panels.stock.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-gray-100 rounded-lg text-gray-900"></div><select id="stock-category-filter" class="p-2 bg-gray-100 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-gray-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar hidden mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-red-500 text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-red-600 transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div><div class="overflow-x-auto"><table class="w-full text-left min-w-[1400px]"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr><th class="p-3 w-4"><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"></th><th class="p-3 text-gray-700 sticky left-0 bg-gray-50">Produto</th><th class="p-3 text-center text-gray-700">Categoria</th><th class="p-3 text-center text-gray-700 font-bold">Total</th>${tableHeaders}<th class="p-3 text-right text-gray-700">Ações</th></tr></thead><tbody id="product-list" class="divide-y divide-gray-200"></tbody></table></div><div id="pagination-controls" class="flex justify-between items-center mt-4"></div><div id="empty-state" class="hidden text-center py-12"><i class="fas fa-box-open fa-4x text-gray-400"></i><p id="empty-state-message" class="mt-4 text-gray-500">Nenhum produto.</p></div></div>`;
+                const tableCheckboxHeader = isAdmin ? `<th class="p-3 w-4"><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"></th>` : `<th class="p-3 w-4"></th>`;
+                const tableActionsHeader = isAdmin ? `<th class="p-3 text-right text-gray-700">Ações</th>` : `<th></th>`;
+                
+                this.state.dom.panels.stock.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-gray-100 rounded-lg text-gray-900"></div><select id="stock-category-filter" class="p-2 bg-gray-100 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-gray-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar hidden mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-red-500 text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-red-600 transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div><div class="overflow-x-auto"><table class="w-full text-left min-w-[1400px]"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr>${tableCheckboxHeader}<th class="p-3 text-gray-700 sticky left-0 bg-gray-50">Produto</th><th class="p-3 text-center text-gray-700">Categoria</th><th class="p-3 text-center text-gray-700 font-bold">Total</th>${tableHeaders}${tableActionsHeader}</tr></thead><tbody id="product-list" class="divide-y divide-gray-200"></tbody></table></div><div id="pagination-controls" class="flex justify-between items-center mt-4"></div><div id="empty-state" class="hidden text-center py-12"><i class="fas fa-box-open fa-4x text-gray-400"></i><p id="empty-state-message" class="mt-4 text-gray-500">Nenhum produto.</p></div></div>`;
                 this.state.dom.panels.register.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Gerenciar Categorias</h2><form id="add-category-form" class="flex gap-2 mb-4"><input type="text" id="category-name" placeholder="Nova categoria" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12"><i class="fas fa-plus"></i></button></form><div id="category-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Adicionar Produto</h2><form id="add-product-form" class="space-y-4"><label class="block"><span class="text-gray-700">Nome</span><input type="text" id="product-name" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Categoria</span><select id="product-category-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option value="">Selecione...</option></select></label><div class="grid grid-cols-2 gap-4">${locationsQuantityInputs}</div><div class="grid grid-cols-2 gap-4"><label class="block"><span class="text-gray-700">Est. Mínimo</span><input type="number" id="product-min-stock" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Unid.</span><select id="product-unit-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option>UND</option><option>CX</option><option>KG</option><option>G</option><option>L</option><option>ML</option></select></label></div><button type="submit" class="w-full mt-4 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-plus mr-2"></i>Adicionar Produto</button></form></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-file-excel mr-2 text-green-500"></i>Operações em Lote (Excel)</h2><div class="flex flex-col md:flex-row gap-6"><div class="flex-1 bg-gray-50 p-4 rounded-lg flex flex-col items-center text-center"><i class="fas fa-plus-circle fa-2x text-blue-500 mb-2"></i><h3 class="font-semibold mb-1 text-gray-900">Inserir Novos Produtos</h3><p class="text-sm text-gray-600 mb-3">Baixe o modelo, preencha e importe o arquivo Excel para adicionar vários produtos de uma vez.</p><div class="flex gap-2 w-full"><button id="download-template-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-download mr-2"></i>Baixar Modelo</button><input type="file" id="excel-insert-input" accept=".xlsx, .xls" class="hidden"><button id="upload-insert-trigger-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition"><i class="fas fa-upload mr-2"></i>Importar</button></div><p id="excel-insert-filename" class="text-xs mt-2 text-gray-500"></p></div></div></div>`;
                 this.state.dom.panels.outputs.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 max-w-2xl mx-auto"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Registrar Saída de Estoque</h2><form id="add-output-form" class="space-y-4"><div><label for="output-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="output-product-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="">Selecione um produto...</option></select></div><div id="output-location-selector" class="space-y-2"></div><div><label for="output-quantity" class="block text-sm mb-1 text-gray-700">Quantidade da Saída</label><input type="number" id="output-quantity" min="1" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required disabled></div><div><label for="output-motive-select" class="block text-sm mb-1 text-gray-700">Motivo da Saída</label><select id="output-motive-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="Venda">Venda</option><option value="Perda">Perda</option><option value="Uso Interno">Uso Interno</option><option value="Outro">Outro</option></select></div><p id="output-stock-info" class="text-sm text-gray-500 font-medium h-5"></p><button type="submit" class="w-full mt-4 bg-red-600 text-white font-bold p-2 rounded-lg hover:bg-red-700 transition"><i class="fas fa-arrow-circle-up mr-2"></i>Registrar Saída</button></form></div>`;
                 this.state.dom.panels.reports.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 mb-8"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Dashboard de Movimentações</h2><div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border"><div><label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Gráfico</label><div id="chart-type-selector" class="flex rounded-md shadow-sm"><button data-type="bar" class="chart-type-btn relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Barra</button><button data-type="line" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Linha</button><button data-type="pie" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Pizza</button></div></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Período</label><select id="period-selector" class="dashboard-control block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="7days">Últimos 7 dias</option><option value="30days">Últimos 30 dias</option><option value="this_month">Este Mês</option><option value="last_month">Mês Passado</option><option value="custom">Personalizado</option></select></div><div id="custom-date-range-selector" class="hidden md:col-span-1 grid grid-cols-2 gap-4"><div><label for="dashboard-date-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="dashboard-date-start" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="dashboard-date-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="dashboard-date-end" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div></div></div><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><div class="md:col-span-2 bg-gray-50 p-4 rounded-lg h-96"><canvas id="movements-chart"></canvas></div><div class="space-y-4"><div class="bg-amber-100 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-amber-800">Alerta de Estoque Baixo</h3><ul id="low-stock-list" class="space-y-2 max-h-40 overflow-y-auto"></ul><p id="low-stock-empty" class="text-sm text-gray-500 hidden">Tudo em ordem!</p></div><div class="bg-gray-50 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-green-800">Top 5 Entradas Recentes</h3><ul id="top-entradas-list" class="space-y-2"></ul></div><div class="bg-gray-50 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-red-800">Top 5 Saídas Recentes</h3><ul id="top-saidas-list" class="space-y-2"></ul></div></div></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-history mr-2 text-indigo-500"></i>Relatório Histórico</h2><div class="flex items-end gap-4"><div class="flex-grow"><label for="report-date" class="block text-sm font-medium text-gray-700">Verificar estoque na data:</label><input type="date" id="report-date" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg"></div><button id="generate-report-btn" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Gerar Relatório</button></div><div id="report-output" class="hidden mt-6"><div id="print-area"><h3 id="report-title" class="text-xl font-bold text-center"></h3><p id="report-subtitle" class="text-center text-gray-500 mb-4"></p><table class="w-full text-left"><thead class="border-b-2 border-gray-300"><tr><th class="p-3">Produto</th><th class="p-3 text-center">Categoria</th><th class="p-3 text-center">Unidade</th><th class="p-3 text-center">Qtd. em Estoque</th></tr></thead><tbody id="report-list" class="divide-y divide-gray-200"></tbody></table></div><button id="print-report-btn" class="mt-4 bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-800 transition float-right"><i class="fas fa-print mr-2"></i>Imprimir</button></div></div>`;
-                this.state.dom.panels.settings.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit">
-                        <h2 class="text-2xl font-semibold mb-4 text-gray-900">Gerenciar Localidades</h2>
-                        <form id="add-location-form" class="flex gap-2 mb-4">
-                            <input type="text" id="location-name" placeholder="Nova localidade" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required>
-                            <button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12"><i class="fas fa-plus"></i></button>
-                        </form>
-                        <div id="location-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div>
-                    </div>
-                    <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit">
-                        <h2 class="text-2xl font-semibold mb-4 text-gray-900">Configurações de Exibição</h2>
-                        <div class="space-y-4">
-                             <div>
-                                 <label for="items-per-page-input" class="block text-sm font-medium text-gray-700">Itens por página na tabela</label>
-                                 <input type="number" id="items-per-page-input" min="1" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg">
-                             </div>
-                             <button id="save-settings-btn" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition">Salvar Configurações</button>
-                        </div>
-                    </div>
-                </div>`;
-            }
-
+                this.state.dom.panels.settings.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"> <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"> <h2 class="text-2xl font-semibold mb-4 text-gray-900">Gerenciar Localidades</h2> <form id="add-location-form" class="flex gap-2 mb-4"> <input type="text" id="location-name" placeholder="Nova localidade" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required> <button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12"><i class="fas fa-plus"></i></button> </form> <div id="location-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div> </div> <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"> <h2 class="text-2xl font-semibold mb-4 text-gray-900">Configurações de Exibição</h2> <div class="space-y-4"> <div> <label for="items-per-page-input" class="block text-sm font-medium text-gray-700">Itens por página na tabela</label> <input type="number" id="items-per-page-input" min="1" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg"> </div> <button id="save-settings-btn" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition">Salvar Configurações</button> </div> </div> </div>`;
+                this.applyRolePermissions();
+            },
             updateOutputQuantityLock() {
                 const quantityInput = document.getElementById('output-quantity');
                 const selectedLocationRadio = document.querySelector('input[name="output-location"]:checked');
@@ -1274,15 +1311,13 @@
                 quantityInput.max = maxQuantity;
                 quantityInput.disabled = false;
                 quantityInput.placeholder = `Máx: ${maxQuantity}`;
-            }
-
+            },
             handleOutputProductSelection(productId) {
                 const stockInfoEl = document.getElementById('output-stock-info');
                 const locationSelectorEl = document.getElementById('output-location-selector');
                 const quantityInput = document.getElementById('output-quantity');
                 if (!stockInfoEl || !locationSelectorEl || !quantityInput) return;
                 
-                // Reset and disable controls when product changes
                 stockInfoEl.textContent = '';
                 locationSelectorEl.innerHTML = '';
                 quantityInput.value = '';
@@ -1307,11 +1342,87 @@
                         }
                         return '';
                     }).join('');
-
                     locationSelectorEl.innerHTML = locationOptionsHtml ? `<p class="text-sm font-medium text-gray-700 mb-2">De onde está saindo?</p><div class="grid grid-cols-1 sm:grid-cols-2 gap-2">${locationOptionsHtml}</div>` : '<p class="text-sm text-red-500">Este produto não tem estoque em nenhuma localidade.</p>';
                 }
-            }
-        }
+            },
+            handleContentChange(e) {
+             const target = e.target;
+             if (['stock-category-filter', 'stock-status-filter', 'date-filter-start', 'date-filter-end'].includes(target.id)) {
+                 this.state.currentPage = 1;
+                 this.renderProducts();
+             }
+             if (target.id === 'output-product-select') this.handleOutputProductSelection(target.value);
+             if (target.id === 'excel-insert-input') {
+                 const file = target.files?.[0];
+                 const filenameEl = document.getElementById('excel-insert-filename');
+                 if(file && filenameEl) {
+                     this.handleExcelParse(file, filenameEl);
+                 }
+             }
+             if (target.id === 'select-all-checkbox') {
+                 const isChecked = target.checked;
+                 document.querySelectorAll('.product-checkbox').forEach(cb => cb.checked = isChecked);
+             }
+             if (target.classList.contains('product-checkbox') || target.id === 'select-all-checkbox') {
+                 this.handleSelectionChange();
+             }
+             if (target.name === 'output-location') {
+                 this.updateOutputQuantityLock();
+             }
+             if (target.id === 'period-selector') {
+                 const period = target.value;
+                 this.state.dashboardSettings.period = period;
+                 const customDateSelector = document.getElementById('custom-date-range-selector');
+                 if (period === 'custom') {
+                     customDateSelector.classList.remove('hidden');
+                     customDateSelector.classList.add('grid');
+                 } else {
+                     customDateSelector.classList.add('hidden');
+                     customDateSelector.classList.remove('grid');
+                     this.updateDashboardView();
+                 }
+             }
+             if (target.id === 'dashboard-date-start' || target.id === 'dashboard-date-end') {
+                 this.state.dashboardSettings.startDate = document.getElementById('dashboard-date-start').value;
+                 this.state.dashboardSettings.endDate = document.getElementById('dashboard-date-end').value;
+                 if (this.state.dashboardSettings.startDate && this.state.dashboardSettings.endDate) {
+                     this.updateDashboardView();
+                 }
+             }
+            },
+            handleContentInput(e) {
+                const target = e.target;
+                if (target.id === 'search-product-input') {
+                    this.state.currentPage = 1;
+                    this.renderProducts();
+                }
+                if (target.id === 'output-quantity') {
+                    const max = parseInt(target.max, 10);
+                    if (!isNaN(max) && parseInt(target.value, 10) > max) {
+                        target.value = max;
+                    }
+                }
+            },
+            async handleSaveSettings() {
+                const input = document.getElementById('items-per-page-input');
+                if (!input) return;
+                const itemsPerPage = parseInt(input.value, 10);
+                if (isNaN(itemsPerPage) || itemsPerPage <= 0) {
+                    return this.showAlert('Erro', 'Número de itens por página inválido.', true);
+                }
+                
+                this.setLoading(true);
+                try {
+                    await setDoc(this.state.firestoreRefs.settings, { itemsPerPage }, { merge: true });
+                    this.showAlert('Sucesso!', 'Configurações salvas.');
+                } catch(error) {
+                    this.showAlert('Erro', 'Não foi possível salvar as configurações.', true);
+                } finally {
+                    this.setLoading(false);
+                }
+            },
+        });
+
 
         new StockApp();
     </script>

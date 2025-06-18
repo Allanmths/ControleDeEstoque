@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html>More actions
 <html lang="pt-br">
 
 <head>
@@ -15,8 +15,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <!-- MODIFICADO: Adicionado dependências do Toastify.js -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
     <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <!-- FIM MODIFICADO -->
     <style>
         body { font-family: 'Inter', sans-serif; }
         .modal-backdrop, #sidebar-overlay { background-color: rgba(0, 0, 0, 0.5); }
@@ -41,6 +43,7 @@
         #toggle-advanced-filters i { transition: transform 0.3s ease-in-out; }
         #toggle-advanced-filters.open i { transform: rotate(180deg); }
         [data-role-required] { display: none; }
+        /* MODIFICADO: Estilos para o indicador de carregamento da tabela */
         #table-loading-indicator {
             position: absolute;
             top: 0;
@@ -54,13 +57,16 @@
             z-index: 10;
             border-radius: 0.75rem; /* rounded-xl from parent div */
         }
+        /* FIM MODIFICADO */
     </style>
 </head>
 
 <body class="bg-gray-100 text-gray-900 min-h-screen">
 
+    <!-- MODIFICADO: Seção de Autenticação começa oculta para aguardar a verificação do JS -->
     <div id="auth-section" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-gray-100">
         <div id="auth-container" class="w-full max-w-md">
+            <!-- Formulário de Login -->
             <div id="login-form-container">
                 <div class="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 text-center">
                     <i class="fas fa-boxes-stacked fa-2x text-blue-500 mb-4"></i>
@@ -74,6 +80,7 @@
                     <p class="mt-6 text-sm">Não tem uma conta? <a href="#" id="show-register-link" class="font-semibold text-blue-600 hover:underline">Registre-se</a></p>
                 </div>
             </div>
+            <!-- Formulário de Registro -->
             <div id="register-form-container" class="hidden">
                 <div class="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 text-center">
                     <i class="fas fa-user-plus fa-2x text-blue-500 mb-4"></i>
@@ -90,6 +97,7 @@
         </div>
     </div>
 
+    <!-- Sidebar Menu -->
     <div id="sidebar-menu" class="fixed top-0 left-0 h-full w-64 bg-white shadow-lg z-50 transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col">
         <div class="flex-grow">
             <div class="p-4 border-b border-gray-200">
@@ -121,10 +129,12 @@
     </div>
     <div id="sidebar-overlay" class="fixed inset-0 z-40 hidden"></div>
 
+    <!-- Loading Overlay (começa visível por padrão) -->
     <div id="loading-overlay" class="fixed inset-0 bg-stone-900 bg-opacity-75 flex items-center justify-center z-[60]">
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
     </div>
 
+    <!-- Main App Section (permanece oculta inicialmente) -->
     <div id="app-section" class="hidden">
         <div class="container mx-auto p-4 md:p-8 max-w-7xl">
             <header class="mb-8 text-center relative">
@@ -134,7 +144,7 @@
                 <h1 class="text-4xl md:text-5xl font-bold text-gray-900"><i class="fas fa-boxes-stacked mr-3 text-blue-500"></i>Estoque HCM</h1>
                 <p id="user-welcome-message" class="text-gray-500 mt-2">Controle de Estoque da Adega.</p>
             </header>
-            
+
             <main id="tab-content">
                 <div id="panel-reports" class="tab-panel"></div>
                 <div id="panel-stock" class="tab-panel hidden"></div>
@@ -144,20 +154,27 @@
             </main>
         </div>
     </div>
-    
+
+    <!-- Modals -->
     <div id="edit-modal" class="fixed inset-0 modal-backdrop items-center justify-center z-50 hidden"><div class="bg-white w-full max-w-lg p-6 rounded-2xl shadow-2xl m-4"><h3 class="text-xl font-semibold mb-4 text-gray-900">Editar Produto</h3><p id="edit-product-name" class="mb-4 text-gray-600"></p><div id="edit-quantities-container" class="space-y-4"></div><div class="mt-6 flex justify-end space-x-4"><button id="cancel-edit" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancelar</button><button id="save-edit" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">Salvar</button></div></div></div>
     <div id="delete-modal" class="fixed inset-0 modal-backdrop items-center justify-center z-50 hidden"><div class="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl m-4 text-center"><i class="fas fa-triangle-exclamation fa-3x text-red-500 mb-4"></i><h3 class="text-xl font-semibold mb-2 text-gray-900">Confirmar Exclusão</h3><p id="delete-modal-text" class="mb-6 text-gray-600"></p><div class="flex justify-center space-x-4"><button id="cancel-delete" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancelar</button><button id="confirm-delete" class="px-6 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition">Excluir</button></div></div></div>
+    <!-- REMOVIDO: Bloco do alert-modal antigo -->
+    <!-- <div id="alert-modal" class="fixed inset-0 modal-backdrop items-center justify-center z-[70] hidden"><div class="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl m-4 text-center"><i id="alert-modal-icon" class="fa-solid fa-circle-check fa-3x text-green-500 mb-4"></i><h3 id="alert-modal-title" class="text-xl font-semibold mb-2 text-gray-900">Sucesso!</h3><p id="alert-modal-message" class="mb-6 text-gray-600">Operação concluída.</p><button id="alert-modal-close" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">OK</button></div></div> -->
 
+    <!-- Firebase SDK e Script da Aplicação -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        // MODIFICADO: Adicionados imports necessários para queries do Firestore
-        import { 
-            getFirestore, collection, addDoc, doc, updateDoc, deleteDoc, 
-            query, writeBatch, runTransaction, serverTimestamp, setDoc, getDoc,
-            getDocs, where, orderBy, limit, startAfter 
-        } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, updateDoc, deleteDoc, query, writeBatch, runTransaction, serverTimestamp, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // MODIFICADO: Função helper de debounce
+        /**
+         * Cria uma função debounced que atrasa a execução da função fornecida até que um determinado tempo tenha passado
+         * sem que a função seja chamada novamente.
+         * @param {function} func A função a ser debounced.
+         * @param {number} delay O atraso em milissegundos antes que a função seja executada.
+         * @returns {function} A função debounced.
+         */
         const debounce = (func, delay) => {
             let timeoutId;
             return function(...args) {
@@ -166,7 +183,9 @@
                 timeoutId = setTimeout(() => func.apply(context, args), delay);
             };
         };
-        
+        // FIM MODIFICADO
+
+        // MANTENHA A SUA CONFIGURAÇÃO ORIGINAL AQUI
         const hardcodedFirebaseConfig = {
             apiKey: "AIzaSyDVxDoPVP-uhWwfXsdlouk5uv-jt-P6tL8",
             authDomain: "controledeestoque-7ea51.firebaseapp.com",
@@ -175,7 +194,7 @@
             messagingSenderId: "355699807496",
             appId: "1:355699807496:web:6432766da431e535b888bd"
         };
-        
+
         const firebaseConfig = typeof __firebase_config !== 'undefined' && __firebase_config
             ? JSON.parse(__firebase_config)
             : hardcodedFirebaseConfig;
@@ -190,11 +209,6 @@
                 products: [], categories: [], locations: [], movements: [],
                 selectedProducts: [],
                 currentPage: 1, itemsPerPage: 10,
-                // NOVO: Estados para paginação do lado do servidor
-                lastVisibleProductDoc: null,    // Referência ao último documento da página atual
-                firstVisibleProductDocs: [],  // Array de referências aos primeiros documentos de cada página buscada
-                hasNextPage: true,              // Indica se há uma próxima página (otimização para UI)
-                // FIM NOVO
                 firestoreRefs: null, dom: null, chartInstance: null,
                 deleteQueue: { id: null, type: null, isBulk: false },
                 isAuthReady: false,
@@ -214,22 +228,19 @@
                 this.app = initializeApp(firebaseConfig);
                 this.auth = getAuth(this.app);
                 this.db = getFirestore(this.app);
-                
-                // REFATORADO: A função debounced agora chama fetchAndRenderProducts
-                this.debouncedFetchNewProducts = debounce(() => {
-                    this.fetchAndRenderProducts({ navigationType: 'new' });
-                }, 500); // 500ms de delay para busca
-
+                // MODIFICADO: Cria a função debounced para renderizar produtos
+                this.debouncedRenderProducts = debounce(this.renderProducts.bind(this), 300);
+                // FIM MODIFICADO
                 document.addEventListener('DOMContentLoaded', this.init.bind(this));
             }
 
             init() {
                 this.cacheDomElements();
-                this.injectPanelContent(); // Injeta o HTML primeiro
-                this.setupEventListeners(); // Depois configura os listeners
+                this.injectPanelContent();
+                this.setupEventListeners();
                 this.handleAuthentication();
             }
-            
+
             cacheDomElements() {
                 this.state.dom = {
                     loadingOverlay: document.getElementById('loading-overlay'),
@@ -242,15 +253,19 @@
                     panels: { stock: document.getElementById('panel-stock'), register: document.getElementById('panel-register'), outputs: document.getElementById('panel-outputs'), reports: document.getElementById('panel-reports'), settings: document.getElementById('panel-settings') },
                     sidebar: { menu: document.getElementById('sidebar-menu'), nav: document.getElementById('sidebar-nav'), overlay: document.getElementById('sidebar-overlay'), toggleBtn: document.getElementById('menu-toggle-btn'), logoutBtn: document.getElementById('logout-btn') },
                     modals: {
+                        // REMOVIDO: Referência ao alert-modal
+                        // alert: { self: document.getElementById('alert-modal'), title: document.getElementById('alert-modal-title'), message: document.getElementById('alert-modal-message'), icon: document.getElementById('alert-modal-icon'), closeBtn: document.getElementById('alert-modal-close') },
                         edit: { self: document.getElementById('edit-modal'), productName: document.getElementById('edit-product-name'), quantitiesContainer: document.getElementById('edit-quantities-container'), saveBtn: document.getElementById('save-edit'), cancelBtn: document.getElementById('cancel-edit') },
                         delete: { self: document.getElementById('delete-modal'), text: document.getElementById('delete-modal-text'), confirmBtn: document.getElementById('confirm-delete'), cancelBtn: document.getElementById('cancel-delete') },
+                    }
                     },
+                    // MODIFICADO: Adicionada referência ao indicador de carregamento da tabela
                     tableLoadingIndicator: document.getElementById('table-loading-indicator')
+                    // FIM MODIFICADO
                 };
             }
-            
+
             setupEventListeners() {
-                // ... (listeners de auth, sidebar, modais permanecem os mesmos)
                 const { dom } = this.state;
                 if (!dom) return;
 
@@ -259,6 +274,8 @@
                 document.getElementById('show-register-link').addEventListener('click', (e) => { e.preventDefault(); this.toggleAuthForm(true); });
                 document.getElementById('show-login-link').addEventListener('click', (e) => { e.preventDefault(); this.toggleAuthForm(false); });
                 dom.sidebar.logoutBtn.addEventListener('click', (e) => { e.preventDefault(); this.handleLogout(); });
+                // REMOVIDO: Listener para o botão de fechar do alert-modal antigo
+                // dom.modals.alert.closeBtn.addEventListener('click', () => dom.modals.alert.self.classList.replace('flex', 'hidden'));
                 dom.modals.edit.cancelBtn.addEventListener('click', () => this.closeEditModal());
                 dom.modals.edit.saveBtn.addEventListener('click', () => this.handleSaveEdit());
                 dom.modals.delete.cancelBtn.addEventListener('click', () => this.closeDeleteModal());
@@ -273,13 +290,15 @@
                         this.toggleSidebar(false);
                     }
                 });
-                // MODIFICADO: Os listeners de conteúdo agora estão mais cientes da nova lógica de busca
                 dom.contentEl.addEventListener('submit', (e) => this.handleFormSubmit(e));
                 dom.contentEl.addEventListener('click', (e) => this.handleContentClick(e));
                 dom.contentEl.addEventListener('change', (e) => this.handleContentChange(e));
                 dom.contentEl.addEventListener('input', (e) => this.handleContentInput(e));
             }
 
+            // --- AUTHENTICATION & PERMISSIONS ---
+
+            // MODIFICADO: A lógica de autenticação agora controla a exibição inicial.
             handleAuthentication() {
                 onAuthStateChanged(this.auth, async (user) => {
                     if (user) {
@@ -291,554 +310,33 @@
                             this.state.userRole = userDoc.data().role;
                         } else {
                             this.state.userRole = 'viewer';
-                            await setDoc(userDocRef, { email: user.email, role: "viewer", createdAt: serverTimestamp() });
-                            console.warn("User document not found in Firestore, created with 'viewer' role.");
+                            console.warn("User document not found in Firestore, defaulting to 'viewer'.");
                         }
-                        
+
                         this.state.isAuthReady = true;
                         await this.initializeAppForUser();
                         this.showAppUI();
-                        this.switchTab('reports'); // Ou a última aba visitada, se guardada
                     } else {
                         this.state.currentUser = null;
                         this.state.userRole = null;
                         this.state.isAuthReady = false;
                         this.clearAllListeners();
                         this.showAuthUI();
-                        // NOVO: Resetar estado de paginação no logout
-                        this.state.currentPage = 1;
-                        this.state.lastVisibleProductDoc = null;
-                        this.state.firstVisibleProductDocs = [];
-                        this.state.hasNextPage = true;
                     }
+                    // Esconde a tela de loading somente após decidir o que mostrar
                     this.setLoading(false);
                 });
             }
 
-            showAppUI() {
-                this.state.dom.authSection.classList.add('hidden');
-                this.state.dom.authSection.classList.remove('flex');
-                this.state.dom.appSection.classList.remove('hidden');
-            }
-
-            showAuthUI() {
-                this.state.dom.authSection.classList.remove('hidden');
-                this.state.dom.authSection.classList.add('flex');
-                this.state.dom.appSection.classList.add('hidden');
-                this.state = {
-                    ...this.state, // Mantém dom, auth, db, etc.
-                    products: [], categories: [], locations: [], movements: [],
-                    selectedProducts: [],
-                    currentPage: 1, 
-                    lastVisibleProductDoc: null,
-                    firstVisibleProductDocs: [],
-                    hasNextPage: true,
-                    // Não resetar itemsPerPage aqui, pois é uma configuração global
-                };
-            }
-            
-            async initializeAppForUser() {
-                const basePath = `artifacts/${appId}/public/data`;
-                this.state.firestoreRefs = {
-                    products: collection(this.db, `${basePath}/products`),
-                    categories: collection(this.db, `${basePath}/categories`),
-                    movements: collection(this.db, `${basePath}/movements`),
-                    locations: collection(this.db, `${basePath}/locations`),
-                    settings: doc(this.db, `${basePath}/settings/main`),
-                    users: collection(this.db, `users`),
-                };
-                
-                this.clearAllListeners();
-                this.state.unsubscribers.push(this.listenForSettingsUpdates());
-                this.state.unsubscribers.push(this.listenForLocationUpdates()); // Precisa de locais antes de renderizar produtos
-                this.state.unsubscribers.push(this.listenForCategoryUpdates()); // Precisa de categorias para filtros
-                
-                // REFATORADO: Chamar fetchAndRenderProducts em vez de listenForProductUpdates
-                // A primeira busca é feita aqui.
-                await this.fetchAndRenderProducts({ navigationType: 'new' }); 
-                
-                this.state.unsubscribers.push(this.listenForMovements()); // Para dashboard, etc.
-                
-                this.applyRolePermissions();
-            }
-
-            clearAllListeners() {
-                this.state.unsubscribers.forEach(unsub => unsub());
-                this.state.unsubscribers = [];
-            }
-
-            // NOVO: Função para construir a query de produtos dinamicamente
-            buildProductQuery(startAfterDoc = null) {
-                if (!this.state.firestoreRefs || !this.state.firestoreRefs.products) {
-                    console.error("Product collection reference not available.");
-                    // Retorna uma query que não resultará em nada ou lança um erro
-                    return query(collection(this.db, 'dummy_empty_collection_path_for_error')); 
-                }
-                const baseProductsRef = this.state.firestoreRefs.products;
-                let q = query(baseProductsRef); // Inicia a query base
-            
-                const queryConstraints = [];
-            
-                // Filtro por termo de busca (nome do produto - "começa com")
-                const searchTerm = document.getElementById('search-product-input')?.value.trim().toLowerCase() || '';
-                if (searchTerm) {
-                    // NOTA: Esta técnica "começa com" funciona bem para prefixos.
-                    // Para uma busca "contém" mais robusta, considere soluções de terceiros como Algolia ou Typesense.
-                    queryConstraints.push(where('name', '>=', searchTerm));
-                    queryConstraints.push(where('name', '<=', searchTerm + '\uf8ff')); 
-                }
-            
-                // Filtro por categoria
-                const categoryFilter = document.getElementById('stock-category-filter')?.value || 'all';
-                if (categoryFilter !== 'all' && categoryFilter !== '') {
-                    queryConstraints.push(where('category', '==', categoryFilter));
-                }
-
-                // NOTA: Filtros de Status de Estoque e Intervalo de Datas:
-                // A implementação destes filtros diretamente na query do Firestore PODE SER COMPLEXA
-                // se combinados com ordenação por um campo diferente (ex: 'name') devido às
-                // limitações de consulta do Firestore (ex: um filtro de intervalo requer que a ordenação
-                // principal seja pelo mesmo campo do intervalo).
-                // Para esta refatoração, esses filtros não estão incluídos na query do servidor
-                // para manter a simplicidade e a ordenação principal por 'name'.
-                // Se necessários, podem exigir:
-                // 1. Campos calculados/denormalizados no Firestore (ex: 'isLowStock' boolean).
-                // 2. Ordenação primária pelo campo de data se o filtro de data for um intervalo.
-                // 3. Múltiplas queries ou filtragem no cliente após a busca da página (menos ideal).
-
-                // Ordenação (obrigatória para paginação consistente com cursores)
-                // NOTA: Se você filtrar por 'category' e ordenar por 'name',
-                // você PRECISARÁ criar um índice composto no Firestore.
-                // Ex: category ASC, name ASC.
-                // O console do Firebase geralmente sugere o índice necessário se ele estiver faltando.
-                queryConstraints.push(orderBy('name')); // Ordenação padrão
-            
-                // Paginação (cursor)
-                if (startAfterDoc) {
-                    queryConstraints.push(startAfter(startAfterDoc));
-                }
-            
-                // Limite de itens por página
-                queryConstraints.push(limit(this.state.itemsPerPage));
-            
-                return query(baseProductsRef, ...queryConstraints);
-            }
-
-            // REFATORADO: Função central para buscar e renderizar produtos com paginação e filtros do servidor
-            async fetchAndRenderProducts({ navigationType = 'new' } = {}) {
-                if (!this.state.isAuthReady || !this.state.firestoreRefs) {
-                    console.log("App not ready or firestoreRefs not set, skipping product fetch.");
-                    return;
-                }
-                
-                this.setLoading(true, true); // Indicador de carregamento da tabela
-            
-                let startAfterDocCursor = null;
-            
-                if (navigationType === 'new') {
-                    this.state.currentPage = 1;
-                    this.state.lastVisibleProductDoc = null;
-                    this.state.firstVisibleProductDocs = [];
-                    // startAfterDocCursor permanece null para a primeira página
-                } else if (navigationType === 'next') {
-                    if (!this.state.lastVisibleProductDoc) {
-                        console.warn("Next page requested but no lastVisibleProductDoc available.");
-                        this.setLoading(false, true);
-                        this.state.hasNextPage = false; // Não há mais para onde ir
-                        this.renderPaginationControls(); // Atualiza UI dos botões
-                        return;
-                    }
-                    this.state.currentPage++;
-                    startAfterDocCursor = this.state.lastVisibleProductDoc;
-                } else if (navigationType === 'prev') {
-                    if (this.state.currentPage <= 1) {
-                        console.warn("Previous page requested but already on first page or invalid state.");
-                        this.setLoading(false, true);
-                        return; // Não faz nada se já está na primeira página
-                    }
-                    this.state.currentPage--;
-                    if (this.state.currentPage === 1) {
-                        startAfterDocCursor = null; // Para a primeira página, não há cursor 'startAfter'
-                    } else {
-                        // O cursor é o primeiro doc da página ANTERIOR à que estamos navegando
-                        // Ex: se vamos para a página 2, usamos o primeiro doc da página 1.
-                        // firstVisibleProductDocs é 0-indexed, currentPage é 1-indexed.
-                        // Para ir para currentPage=2, precisamos do firstVisibleProductDocs[0]
-                        startAfterDocCursor = this.state.firstVisibleProductDocs[this.state.currentPage - 2];
-                        if (!startAfterDocCursor) {
-                             console.error(`Cannot go to previous page ${this.state.currentPage}: missing cursor for page ${this.state.currentPage -1}. Resetting to page 1.`);
-                             // Fallback: se o cursor estiver faltando por algum motivo, reseta para a primeira página.
-                             await this.fetchAndRenderProducts({ navigationType: 'new' });
-                             return;
-                        }
-                    }
-                }
-            
-                const q = this.buildProductQuery(startAfterDocCursor);
-            
-                try {
-                    const querySnapshot = await getDocs(q);
-                    const docs = querySnapshot.docs;
-                    this.state.products = docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            
-                    this.state.hasNextPage = docs.length === this.state.itemsPerPage;
-            
-                    if (docs.length > 0) {
-                        this.state.lastVisibleProductDoc = docs[docs.length - 1];
-            
-                        // Armazena o primeiro documento da página atual que acabamos de buscar
-                        // Garante que o array tem tamanho suficiente
-                        while (this.state.firstVisibleProductDocs.length < this.state.currentPage) {
-                           this.state.firstVisibleProductDocs.push(null);
-                        }
-                        this.state.firstVisibleProductDocs[this.state.currentPage - 1] = docs[0];
-                        
-                        // Se estamos voltando e a página buscada é menor que o total de cursores armazenados,
-                        // removemos os cursores "futuros" que não são mais válidos.
-                        if (navigationType === 'prev' || navigationType === 'new') {
-                             this.state.firstVisibleProductDocs.splice(this.state.currentPage);
-                        }
-
-                    } else {
-                        // Nenhum documento retornado
-                        if (navigationType === 'new') {
-                            this.state.lastVisibleProductDoc = null;
-                            this.state.firstVisibleProductDocs = [];
-                        }
-                        // Se for 'next' e não vier nada, hasNextPage já foi setado para false.
-                        // lastVisibleProductDoc não deve ser zerado, pois é o cursor da última página válida.
-                    }
-            
-                    this.renderProducts(); // Renderiza os produtos da página atual
-                    // this.updateAllViews(); // Pode ser muito pesado, renderProducts deve ser suficiente aqui
-                } catch (error) {
-                    console.error("Error fetching products: ", error);
-                    this.showAlert("Erro ao buscar produtos: " + error.message, true);
-                    // Em caso de erro, pode ser útil resetar para um estado seguro
-                    this.state.products = [];
-                    this.state.hasNextPage = false;
-                    this.renderProducts();
-                } finally {
-                    this.setLoading(false, true);
-                }
-            }
-            
-            // REMOVIDO: listenForProductUpdates foi substituído por fetchAndRenderProducts
-            // listenForProductUpdates() { ... }
-
-            listenForSettingsUpdates() {
-                if (!this.state.firestoreRefs) return () => {};
-                return onAuthStateChanged(this.auth, (user) => { // Garante que settings só são lidas se logado
-                    if (user && this.state.firestoreRefs.settings) {
-                        const unsub = onSnapshot(this.state.firestoreRefs.settings, async (docSnap) => {
-                            const oldItemsPerPage = this.state.itemsPerPage;
-                            if (docSnap.exists()) {
-                                const settingsData = docSnap.data();
-                                this.state.itemsPerPage = settingsData.itemsPerPage || 10;
-                            } else if (this.state.userRole === 'admin') {
-                                try {
-                                    await setDoc(this.state.firestoreRefs.settings, { itemsPerPage: 10 });
-                                    this.state.itemsPerPage = 10;
-                                } catch (e) { console.error("Error setting default settings:", e); }
-                            }
-                            this.renderSettings(); // Atualiza a UI das configurações
-                            
-                            // MODIFICADO: Se itemsPerPage mudou, refaz a busca da primeira página
-                            if (this.state.itemsPerPage !== oldItemsPerPage && this.state.isAuthReady) {
-                                await this.fetchAndRenderProducts({ navigationType: 'new' });
-                            }
-                        });
-                        this.state.unsubscribers.push(unsub); // Adiciona para limpar depois
-                    }
-                });
-            }
-
-            // MODIFICADO: renderProducts agora apenas renderiza this.state.products (que é a página atual)
-            renderProducts() {
-                const productList = document.getElementById('product-list');
-                const emptyState = document.getElementById('empty-state');
-                if (!productList || !emptyState || !this.state.dom.tableLoadingIndicator) return;
-            
-                // O estado de carregamento da tabela é gerenciado por fetchAndRenderProducts
-            
-                // `this.state.products` já contém apenas os produtos da página atual
-                const productsToRender = this.state.products; 
-            
-                if (productsToRender.length === 0) {
-                    emptyState.classList.remove('hidden');
-                    productList.innerHTML = '';
-                    const searchVal = document.getElementById('search-product-input')?.value;
-                    const catVal = document.getElementById('stock-category-filter')?.value;
-                    if (searchVal || (catVal && catVal !=='all')) {
-                         document.getElementById('empty-state-message').textContent = 'Nenhum produto encontrado com os filtros atuais.';
-                    } else {
-                         document.getElementById('empty-state-message').textContent = 'Nenhum produto cadastrado.';
-                    }
-                } else {
-                    emptyState.classList.add('hidden');
-                    productList.innerHTML = productsToRender.map(product => {
-                        const category = this.state.categories.find(c => c.id === product.category);
-                        const isLowStock = product.totalQuantity <= product.minStock;
-                        const isSelected = this.state.selectedProducts.includes(product.id);
-                        const quantitiesHtml = this.state.locations.map(loc => `<td class="p-3 text-center text-gray-700">${product.quantities?.[loc.id] || 0}</td>`).join('');
-                        const actionButtons = this.state.userRole === 'admin' ? `
-                            <button data-action="edit" data-id="${product.id}" class="text-blue-500 hover:text-blue-700 p-2"><i class="fas fa-edit"></i></button>
-                            <button data-action="delete" data-id="${product.id}" class="text-red-500 hover:text-red-700 p-2"><i class="fas fa-trash"></i></button>
-                        ` : '';
-                        const checkbox = this.state.userRole === 'admin' ? `<input type="checkbox" class="product-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-id="${product.id}" ${isSelected ? 'checked' : ''}>` : '';
-                        return `
-                            <tr class="hover:bg-gray-200 transition-colors ${isLowStock ? 'low-stock-warning' : ''} ${isSelected ? 'bg-blue-100' : ''}" data-product-id="${product.id}">
-                                <td class="p-3 text-center">${checkbox}</td>
-                                <td class="p-3 font-medium text-gray-900 sticky left-0 bg-white dark:bg-slate-800">${product.name} ${isLowStock ? '<i class="fas fa-exclamation-triangle text-amber-500 ml-1" title="Estoque baixo!"></i>' : ''}</td>
-                                <td class="p-3 text-center text-gray-700">${category?.name || 'N/A'}</td>
-                                <td class="p-3 text-center font-bold text-gray-900">${product.totalQuantity || 0}</td>
-                                ${quantitiesHtml}
-                                <td class="p-3 text-right">${actionButtons}</td>
-                            </tr>`;
-                    }).join('');
-                }
-                this.renderPaginationControls(); // Atualiza os controles de paginação
-                this.renderBulkActionBar(); // Atualiza a barra de ações em lote
-            }
-
-            // MODIFICADO: renderPaginationControls adaptado para paginação server-side
-            renderPaginationControls() {
-                const controlsContainer = document.getElementById('pagination-controls');
-                if (!controlsContainer) return;
-
-                // Se não há produtos e não estamos na primeira página (ou seja, uma tentativa de ir além do fim)
-                // ou se há apenas uma página de resultados, não mostra controles.
-                if ( (this.state.products.length === 0 && this.state.currentPage > 1) ||
-                     (this.state.currentPage === 1 && !this.state.hasNextPage && this.state.products.length === 0) ) {
-                    controlsContainer.innerHTML = '';
-                    return;
-                }
-                // Se só tem uma página e ela tem produtos, ainda não mostra controles
-                 if (this.state.currentPage === 1 && !this.state.hasNextPage && this.state.products.length > 0 && this.state.products.length <= this.state.itemsPerPage) {
-                    if (this.state.products.length < this.state.itemsPerPage && this.state.products.length > 0) { // Se menos que uma página cheia e é a única
-                         const startItem = 1;
-                         const endItem = this.state.products.length;
-                         controlsContainer.innerHTML = `<span class="text-sm text-gray-700">Mostrando <span class="font-semibold">${startItem}</span> a <span class="font-semibold">${endItem}</span> de <span class="font-semibold">${endItem}</span></span><div></div>`;
-                         return;
-                    }
-                     controlsContainer.innerHTML = '';
-                     return;
-                 }
-
-
-                const startItem = (this.state.currentPage - 1) * this.state.itemsPerPage + 1;
-                const endItem = startItem + this.state.products.length - 1;
-                
-                // Texto de contagem de itens (sem o total global "de Z")
-                let countText = '';
-                if (this.state.products.length > 0) {
-                    countText = `Mostrando <span class="font-semibold">${startItem}</span> a <span class="font-semibold">${endItem}</span>`;
-                } else if (this.state.currentPage > 1) { // Estava em uma página e clicou próximo e não veio nada
-                     countText = `Não há mais itens.`;
-                }
-
-
-                controlsContainer.innerHTML = `
-                    <span class="text-sm text-gray-700">${countText}</span>
-                    <div>
-                        <button data-action="page-prev" 
-                                class="px-3 h-8 text-sm font-medium text-white bg-gray-800 rounded-l hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed" 
-                                ${this.state.currentPage === 1 ? 'disabled' : ''}>
-                            Anterior
-                        </button>
-                        <button data-action="page-next" 
-                                class="px-3 h-8 text-sm font-medium text-white bg-gray-800 rounded-r border-0 border-l border-gray-700 hover:bg-gray-900 disabled:opacity-50 disabled:cursor-not-allowed" 
-                                ${!this.state.hasNextPage ? 'disabled' : ''}>
-                            Próximo
-                        </button>
-                    </div>`;
-            }
-
-            // REMOVIDO: getFilteredProducts não é mais necessário para a lógica principal de renderização de produtos.
-            // A filtragem principal agora ocorre no servidor via buildProductQuery.
-            // Se alguma filtragem client-side adicional for estritamente necessária após a busca,
-            // ela precisaria ser reimplementada e aplicada a this.state.products.
-            // getFilteredProducts() { ... }
-
-
-            handleContentClick(e) {
-                const button = e.target.closest('button');
-                if (!button) return;
-
-                // ... (lógica de chart-type-btn, delete, edit, bulk-delete, etc., permanece a mesma)
-                 if (button.classList.contains('chart-type-btn')) {
-                    this.state.dashboardSettings.chartType = button.dataset.type;
-                    this.updateDashboardView();
-                    return;
-                }
-
-                const { action, id } = button.dataset;
-                const isAdmin = this.state.userRole === 'admin';
-
-                if ((action?.startsWith('delete') || action === 'edit' || button.id === 'bulk-delete-btn') && !isAdmin) {
-                    return this.showAlert('Você não tem permissão para realizar esta ação.', true);
-                }
-
-                if (action === 'delete-category' && id) this.openDeleteModal(id, 'category');
-                if (action === 'delete-location' && id) this.openDeleteModal(id, 'location');
-                if (action === 'edit' && id) this.openEditModal(id);
-                if (action === 'delete' && id) this.openDeleteModal(id, 'product');
-                if (button.id === 'bulk-delete-btn') this.openDeleteModal(null, 'product', true);
-                
-                // MODIFICADO: Ações de paginação agora chamam fetchAndRenderProducts
-                if (action === 'page-prev') { 
-                    this.fetchAndRenderProducts({ navigationType: 'prev' });
-                }
-                if (action === 'page-next') {
-                    this.fetchAndRenderProducts({ navigationType: 'next' });
-                }
-
-                if (button.id === 'toggle-advanced-filters') {
-                    document.getElementById('advanced-filters-wrapper').classList.toggle('open');
-                    button.classList.toggle('open');
-                }
-                if (button.id === 'clear-filters-btn') this.clearFilters(); // clearFilters também chamará fetch
-                if (button.id === 'generate-report-btn') this.handleGenerateReport();
-                if (button.id === 'print-report-btn') window.print();
-                
-                if (isAdmin) {
-                    if (button.id === 'download-template-btn') this.handleDownloadTemplate();
-                    if (button.id === 'upload-insert-trigger-btn') document.getElementById('excel-insert-input').click();
-                    if (button.id === 'export-pdf-btn') this.handleExportPdfWithCurrentPage(); // Modificado para usar apenas página atual
-                    if (button.id === 'save-settings-btn') this.handleSaveSettings();
-                }
-            }
-            
-            // MODIFICADO: clearFilters agora reseta a paginação e busca novos dados
-            clearFilters() {
-                document.getElementById('search-product-input').value = '';
-                document.getElementById('stock-category-filter').value = 'all';
-                document.getElementById('stock-status-filter').value = 'all'; // Este filtro não é server-side atualmente
-                document.getElementById('date-filter-start').value = '';   // Este filtro não é server-side atualmente
-                document.getElementById('date-filter-end').value = '';     // Este filtro não é server-side atualmente
-                
-                this.fetchAndRenderProducts({ navigationType: 'new' });
-            }
-
-            handleContentChange(e) {
-                const target = e.target;
-
-                // MODIFICADO: Filtros de categoria disparam nova busca
-                if (target.id === 'stock-category-filter') {
-                    this.fetchAndRenderProducts({ navigationType: 'new' });
-                }
-                
-                // NOTA: Os filtros de status e data não estão implementados no servidor nesta refatoração.
-                // Se fossem, também chamariam fetchAndRenderProducts.
-                // Ex: if (['stock-status-filter', 'date-filter-start', 'date-filter-end'].includes(target.id)) {
-                //    this.fetchAndRenderProducts({ navigationType: 'new' });
-                // }
-
-
-                if (target.id === 'output-product-select') this.handleOutputProductSelection(target.value);
-                if (target.id === 'excel-insert-input') {
-                    const file = target.files?.[0];
-                    const filenameEl = document.getElementById('excel-insert-filename');
-                    if(file && filenameEl) {
-                        this.handleExcelParse(file, filenameEl);
-                    }
-                }
-                if (target.id === 'select-all-checkbox') {
-                    const isChecked = target.checked;
-                    document.querySelectorAll('.product-checkbox').forEach(cb => cb.checked = isChecked);
-                }
-                if (target.classList.contains('product-checkbox') || target.id === 'select-all-checkbox') {
-                    this.handleSelectionChange();
-                }
-                if (target.name === 'output-location') {
-                    this.updateOutputQuantityLock();
-                }
-                if (target.id === 'period-selector') {
-                    const period = target.value;
-                    this.state.dashboardSettings.period = period;
-                    const customDateSelector = document.getElementById('custom-date-range-selector');
-                    if (period === 'custom') {
-                        customDateSelector.classList.remove('hidden');
-                        customDateSelector.classList.add('grid');
-                    } else {
-                        customDateSelector.classList.add('hidden');
-                        customDateSelector.classList.remove('grid');
-                        this.updateDashboardView();
-                    }
-                }
-                if (target.id === 'dashboard-date-start' || target.id === 'dashboard-date-end') {
-                    this.state.dashboardSettings.startDate = document.getElementById('dashboard-date-start').value;
-                    this.state.dashboardSettings.endDate = document.getElementById('dashboard-date-end').value;
-                    if (this.state.dashboardSettings.startDate && this.state.dashboardSettings.endDate) {
-                        this.updateDashboardView();
-                    }
-                }
-            }
-
-            handleContentInput(e) {
-                const target = e.target;
-                // MODIFICADO: Busca por texto agora usa a função debounced que chama fetchAndRenderProducts
-                if (target.id === 'search-product-input') {
-                    this.debouncedFetchNewProducts();
-                }
-
-                if (target.id === 'output-quantity') {
-                    const max = parseInt(target.max, 10);
-                    if (!isNaN(max) && parseInt(target.value, 10) > max) {
-                        target.value = max;
-                    }
-                }
-            }
-
-            // MODIFICADO: Exportar PDF agora usa os produtos da página atual (this.state.products)
-            handleExportPdfWithCurrentPage() {
-                // const filteredProducts = this.getFilteredProducts(); // REMOVIDO
-                const productsToExport = this.state.products; // USA PRODUTOS DA PÁGINA ATUAL
-                if (productsToExport.length === 0) {
-                    this.showAlert("Nenhum produto na página atual para exportar.", true);
-                    return;
-                }
-
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF({ orientation: 'landscape' });
-                doc.text(`Relatório de Estoque (Página ${this.state.currentPage}) - ${new Date().toLocaleDateString()}`, 14, 16);
-                const head = [['Produto', 'Categoria', ...this.state.locations.map(l => l.name), 'Total']];
-                const body = productsToExport.map(p => [
-                    p.name, 
-                    this.state.categories.find(c => c.id === p.category)?.name || 'N/A', 
-                    ...this.state.locations.map(l => p.quantities?.[l.id] || 0), 
-                    p.totalQuantity
-                ]);
-                doc.autoTable({
-                    head: head, body: body, startY: 20,
-                    headStyles: { fillColor: [22, 163, 74] },
-                    styles: { fontSize: 8 },
-                });
-                doc.save(`estoque_pagina_${this.state.currentPage}_${new Date().toISOString().slice(0,10)}.pdf`);
-            }
-
-            // ... (O restante das funções como handleLogin, handleRegister, handleLogout,
-            // addCategory, addProduct, addOutput, logMovement, renderCategories, renderSettings,
-            // updateAllViews (embora seu uso possa ser reduzido), populateProductSelects, showAlert,
-            // toggleSidebar, switchTab, modais, dashboard, relatórios, etc., permanecem em grande parte
-            // como estavam, a menos que fossem diretamente impactadas pela remoção de
-            // getFilteredProducts ou pela nova lógica de busca.
-            // A função updateAllViews, por exemplo, não precisa mais chamar renderProducts(),
-            // pois renderProducts() é chamado por fetchAndRenderProducts().
-            // A seguir, estão as funções que não precisaram de grandes modificações estruturais
-            // para esta refatoração específica, mas podem precisar de ajustes finos
-            // dependendo de como interagem com a lista de produtos agora paginada.)
-
-
-            // --- Funções que geralmente permanecem as mesmas ou com pequenas adaptações ---
-             async handleLogin(form) {
+            async handleLogin(form) {
                 const email = form.querySelector('#login-email').value;
                 const password = form.querySelector('#login-password').value;
                 this.setLoading(true);
                 try {
                     await signInWithEmailAndPassword(this.auth, email, password);
+                    // onAuthStateChanged irá gerenciar a mudança de UI
                 } catch (error) {
-                    this.showAlert(this.getFriendlyAuthError(error.code), true); 
+                    this.showAlert(this.getFriendlyAuthError(error.code), true); // Removido 'Erro de Login' como título
                     this.setLoading(false);
                 }
             }
@@ -854,30 +352,49 @@
                         role: "viewer",
                         createdAt: serverTimestamp()
                     });
+                    // onAuthStateChanged irá gerenciar a mudança de UI
                 } catch (error) {
-                    this.showAlert(this.getFriendlyAuthError(error.code), true); 
+                    this.showAlert(this.getFriendlyAuthError(error.code), true); // Removido 'Erro de Registro' como título
                     this.setLoading(false);
                 }
             }
 
             async handleLogout() {
                 this.setLoading(true);
-                try {
-                    await signOut(this.auth);
-                } catch(error) {
-                    console.error("Error signing out: ", error);
-                    this.showAlert("Erro ao sair.", true);
-                    this.setLoading(false); // Garante que o loading é desativado mesmo em erro
-                }
-                // onAuthStateChanged irá gerenciar a mudança de UI e reset de estado
+                await signOut(this.auth);
+                // onAuthStateChanged irá gerenciar a mudança de UI
             }
-            
+
             toggleAuthForm(showRegister) {
                 this.state.dom.loginFormContainer.classList.toggle('hidden', showRegister);
                 this.state.dom.registerFormContainer.classList.toggle('hidden', !showRegister);
             }
-            
+
+            // MODIFICADO: Funções para mostrar/ocultar as seções principais da UI
+            showAppUI() {
+                this.state.dom.authSection.classList.add('hidden');
+                this.state.dom.authSection.classList.remove('flex');
+                this.state.dom.appSection.classList.remove('hidden');
+            }
+
+            showAuthUI() {
+                this.state.dom.authSection.classList.remove('hidden');
+                this.state.dom.authSection.classList.add('flex');
+                this.state.dom.appSection.classList.add('hidden');
+                // Limpa o estado da aplicação para um novo login
+                this.state = {
+                    ...this.state,
+                    products: [],
+                    categories: [],
+                    locations: [],
+                    movements: [],
+                    selectedProducts: [],
+                    currentPage: 1,
+                };
+            }
+
             applyRolePermissions() {
+                // ... (O restante das funções permanece igual ao seu código original) ...
                 const { userRole } = this.state;
                 const welcomeEl = document.getElementById('user-welcome-message');
                 if (welcomeEl) {
@@ -894,7 +411,7 @@
                 if (userRole === 'viewer' && activeTabEl && activeTabEl.getAttribute('data-role-required') === 'admin') {
                    this.switchTab('reports');
                 }
-                this.updateViewsPostPermissionChange(); // Chama uma função mais seletiva
+                this.updateAllViews();
             }
 
             getFriendlyAuthError(code) {
@@ -904,14 +421,40 @@
                     case 'auth/invalid-email': return 'O formato do e-mail é inválido.';
                     case 'auth/weak-password': return 'A senha deve ter pelo menos 6 caracteres.';
                     case 'auth/email-already-in-use': return 'Este e-mail já está cadastrado.';
-                    default: return `Ocorreu um erro (${code}). Tente novamente.`;
+                    default: return 'Ocorreu um erro. Tente novamente.';
                 }
             }
-            
+
+            async initializeAppForUser() {
+                const basePath = `artifacts/${appId}/public/data`;
+                this.state.firestoreRefs = {
+                    products: collection(this.db, `${basePath}/products`),
+                    categories: collection(this.db, `${basePath}/categories`),
+                    movements: collection(this.db, `${basePath}/movements`),
+                    locations: collection(this.db, `${basePath}/locations`),
+                    settings: doc(this.db, `${basePath}/settings/main`),
+                    users: collection(this.db, `users`),
+                };
+
+                this.clearAllListeners();
+                this.state.unsubscribers.push(this.listenForSettingsUpdates());
+                this.state.unsubscribers.push(this.listenForLocationUpdates());
+                this.state.unsubscribers.push(this.listenForCategoryUpdates());
+                this.state.unsubscribers.push(this.listenForProductUpdates());
+                this.state.unsubscribers.push(this.listenForMovements());
+
+                this.applyRolePermissions();
+            }
+
+            clearAllListeners() {
+                this.state.unsubscribers.forEach(unsub => unsub());
+                this.state.unsubscribers = [];
+            }
+
             async handleFormSubmit(e) {
                 e.preventDefault();
                 if (this.state.userRole !== 'admin') {
-                    return this.showAlert('Você não tem permissão para realizar esta ação.', true);
+                    return this.showAlert('Você não tem permissão para realizar esta ação.', true); // Removido 'Acesso Negado' como título
                 }
                 const form = e.target;
                 this.setLoading(true);
@@ -921,91 +464,85 @@
                     if (form.id === 'add-output-form') await this.handleAddOutput(form);
                     if (form.id === 'add-location-form') await this.handleAddLocation(form);
                 } catch (error) {
-                    this.showAlert(error.message, true); 
+                    this.showAlert(error.message, true); // Removido 'Erro' como título
                 } finally {
                     this.setLoading(false);
                 }
             }
-            
+
+            handleContentClick(e) {
+                const button = e.target.closest('button');
+                if (!button) return;
+
+                if (button.classList.contains('chart-type-btn')) {
+                    this.state.dashboardSettings.chartType = button.dataset.type;
+                    this.updateDashboardView();
+                    return;
+                }
+
+                const { action, id } = button.dataset;
+                const isAdmin = this.state.userRole === 'admin';
+
+                if ((action?.startsWith('delete') || action === 'edit' || button.id === 'bulk-delete-btn') && !isAdmin) {
+                    return this.showAlert('Você não tem permissão para realizar esta ação.', true); // Removido 'Acesso Negado' como título
+                }
+
+                if (action === 'delete-category' && id) this.openDeleteModal(id, 'category');
+                if (action === 'delete-location' && id) this.openDeleteModal(id, 'location');
+                if (action === 'edit' && id) this.openEditModal(id);
+                if (action === 'delete' && id) this.openDeleteModal(id, 'product');
+                if (button.id === 'bulk-delete-btn') this.openDeleteModal(null, 'product', true);
+
+                if (action === 'page-prev') { this.state.currentPage--; this.renderProducts(); }
+                if (action === 'page-next') { this.state.currentPage++; this.renderProducts(); }
+                if (button.id === 'toggle-advanced-filters') {
+                    document.getElementById('advanced-filters-wrapper').classList.toggle('open');
+                    button.classList.toggle('open');
+                }
+                if (button.id === 'clear-filters-btn') this.clearFilters();
+                if (button.id === 'generate-report-btn') this.handleGenerateReport();
+                if (button.id === 'print-report-btn') window.print();
+
+                if (isAdmin) {
+                    if (button.id === 'download-template-btn') this.handleDownloadTemplate();
+                    if (button.id === 'upload-insert-trigger-btn') document.getElementById('excel-insert-input').click();
+                    if (button.id === 'export-pdf-btn') this.handleExportPdf();
+                    if (button.id === 'save-settings-btn') this.handleSaveSettings();
+                }
+            }
+
             async handleSaveEdit() {
-                if (this.state.userRole !== 'admin') return this.showAlert('Você não tem permissão para salvar edições.', true);
+                if (this.state.userRole !== 'admin') return this.showAlert('Você não tem permissão para salvar edições.', true); // Removido 'Acesso Negado' como título
                 const { self, quantitiesContainer } = this.state.dom.modals.edit;
                 const id = self.dataset.productId;
                 if (!id) return;
-
-                // Encontra o produto na lista da página atual. Para consistência, idealmente buscaria do DB.
-                // Mas para uma edição rápida, usar o estado local é aceitável, assumindo que não mudou drasticamente.
-                const oldProduct = this.state.products.find(p => p.id === id); 
-                if (!oldProduct) { // Se não estiver na página atual, busca do DB
-                     const docRef = doc(this.state.firestoreRefs.products, id);
-                     const docSnap = await getDoc(docRef);
-                     if (!docSnap.exists()) return this.showAlert('Produto não encontrado para edição.', true);
-                     // oldProduct = {id: docSnap.id, ...docSnap.data()}; // Isso não é necessário aqui, só precisamos do ID
-                }
-
+                const oldProduct = this.state.products.find(p => p.id === id);
+                if (!oldProduct) return this.showAlert('Produto não encontrado.', true); // Removido 'Erro' como título
                 const newQuantities = {};
                 let newTotalQuantity = 0;
                 this.state.locations.forEach(loc => {
-                    const qtyInput = quantitiesContainer.querySelector(`#edit-qty-${loc.id}`);
-                    if (qtyInput) { // Verifica se o input existe
-                        const qty = parseInt(qtyInput.value, 10) || 0;
-                        newQuantities[loc.id] = qty;
-                        newTotalQuantity += qty;
-                    } else {
-                        // Se o input não existe (ex: localidade adicionada depois), mantém a quantidade antiga se existir
-                        if (oldProduct && oldProduct.quantities && oldProduct.quantities[loc.id] !== undefined) {
-                            newQuantities[loc.id] = oldProduct.quantities[loc.id];
-                            newTotalQuantity += oldProduct.quantities[loc.id];
-                        } else {
-                            newQuantities[loc.id] = 0; // Default para 0 se não existia antes nem no form
-                        }
-                    }
+                    const qty = parseInt(quantitiesContainer.querySelector(`#edit-qty-${loc.id}`).value, 10) || 0;
+                    newQuantities[loc.id] = qty;
+                    newTotalQuantity += qty;
                 });
-
                 try {
-                    const productRef = doc(this.state.firestoreRefs.products, id);
-                    const productSnapshot = await getDoc(productRef); // Pega o estado mais recente do produto
-                    if (!productSnapshot.exists()) throw new Error("Produto não existe mais no banco de dados.");
-                    const currentProductData = productSnapshot.data();
-                    
-                    await updateDoc(productRef, {
+                    await updateDoc(doc(this.state.firestoreRefs.products, id), {
                         quantities: newQuantities,
                         totalQuantity: newTotalQuantity
                     });
-
-                    const quantityDiff = newTotalQuantity - (currentProductData.totalQuantity || 0);
+                    const quantityDiff = newTotalQuantity - oldProduct.totalQuantity;
                     if (quantityDiff !== 0) {
                         await this.logMovement(id, quantityDiff > 0 ? 'entrada' : 'saida', Math.abs(quantityDiff), 'Ajuste via Edição');
                     }
-                    this.showAlert('Produto atualizado.'); 
+                    this.showAlert('Produto atualizado.'); // Removido 'Sucesso!' como título
                     this.closeEditModal();
-                    // REFATORADO: Recarrega os dados da página atual para refletir a mudança
-                    await this.fetchAndRenderProducts({ navigationType: 'current' }); // 'current' poderia ser uma nova opção para refetch
-                                                                                      // Ou simplesmente assumir que a paginação não muda
-                                                                                      // Por segurança, vamos usar new, ou criar uma lógica para 'current'
-                    // Para simplificar, vamos assumir que a edição não muda a ordem/filtro fundamental
-                    // e que o item editado ainda estaria na mesma página.
-                    // Uma forma mais segura é refazer a query da página atual:
-                    const currentStartDoc = this.state.currentPage === 1 ? null : this.state.firstVisibleProductDocs[this.state.currentPage - 2];
-                    const q = this.buildProductQuery(currentStartDoc);
-                    const querySnapshot = await getDocs(q);
-                    this.state.products = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                    if (querySnapshot.docs.length > 0) {
-                        this.state.lastVisibleProductDoc = querySnapshot.docs[querySnapshot.docs.length - 1];
-                         if (this.state.firstVisibleProductDocs[this.state.currentPage - 1]) { // Só atualiza se já existia
-                             this.state.firstVisibleProductDocs[this.state.currentPage - 1] = querySnapshot.docs[0];
-                         }
-                    }
-                    this.renderProducts();
-
-
                 } catch (error) {
-                    this.showAlert(`Não foi possível salvar: ${error.message}`, true); 
+                    this.showAlert(`Não foi possível salvar: ${error.message}`, true); // Removido 'Erro' como título
                 }
             }
 
             async handleDelete() {
-                if (this.state.userRole !== 'admin') return this.showAlert('Você não tem permissão para excluir.', true);
+                if (this.state.userRole !== 'admin') return this.showAlert('Você não tem permissão para excluir.', true); // Removido 'Acesso Negado' como título
                 const { id, type, isBulk } = this.state.deleteQueue;
                 if (!type) return;
                 this.setLoading(true);
@@ -1016,57 +553,33 @@
                             batch.delete(doc(this.state.firestoreRefs.products, productId));
                         });
                         await batch.commit();
-                        this.showAlert(`${this.state.selectedProducts.length} produtos excluídos.`);
+                        this.showAlert(`${this.state.selectedProducts.length} produtos excluídos.`); // Removido 'Sucesso!' como título
                         this.state.selectedProducts = [];
-                        this.handleSelectionChange(); // Atualiza a UI da barra de seleção
+                        this.handleSelectionChange();
                     } else if (id) {
                         if (type === 'product') {
                             await deleteDoc(doc(this.state.firestoreRefs.products, id));
-                            this.showAlert('Produto excluído.');
+                            this.showAlert('Produto excluído.'); // Removido 'Sucesso!' como título
                         } else if (type === 'category') {
-                            // Verificar se a categoria está em uso ANTES de tentar excluir
-                            // Isso pode ser feito com uma query, mas para simplificar,
-                            // vamos confiar na lógica que desabilita o botão se em uso.
-                            // Uma verificação mais robusta seria:
-                            const productsInCatQuery = query(this.state.firestoreRefs.products, where('category', '==', id), limit(1));
-                            const productsInCatSnapshot = await getDocs(productsInCatQuery);
-                            if (!productsInCatSnapshot.empty) {
-                                throw new Error(`Existem produtos nesta categoria. Não é possível excluí-la.`);
-                            }
+                            if (this.state.products.some(p => p.category === id)) throw new Error(`Existem produtos nesta categoria. Não é possível excluí-la.`);
                             await deleteDoc(doc(this.state.firestoreRefs.categories, id));
-                            this.showAlert('Categoria excluída.');
+                            this.showAlert('Categoria excluída.'); // Removido 'Sucesso!' como título
                         } else if (type === 'location') {
-                            // Similar à categoria, verificar se a localidade está em uso.
-                            // O Firestore não permite query em chaves de mapa diretamente de forma simples.
-                            // A lógica original de desabilitar o botão é a principal defesa aqui.
-                            // Uma verificação mais robusta exigiria iterar produtos ou um campo denormalizado.
-                            const productsWithLocationSnap = await getDocs(this.state.firestoreRefs.products);
-                            const isLocationUsed = productsWithLocationSnap.docs.some(pDoc => {
-                                const pData = pDoc.data();
-                                return pData.quantities && pData.quantities[id] && pData.quantities[id] > 0;
-                            });
-                            if (isLocationUsed) {
+                            if (this.state.products.some(p => p.quantities[id] && p.quantities[id] > 0)) {
                                 throw new Error('Esta localidade está em uso por produtos com estoque e não pode ser excluída.');
                             }
                             await deleteDoc(doc(this.state.firestoreRefs.locations, id));
-                            this.showAlert('Localidade excluída.');
+                            this.showAlert('Localidade excluída.'); // Removido 'Sucesso!' como título
                         }
                     }
-                    // REFATORADO: Recarrega os dados da página atual após exclusão
-                    await this.fetchAndRenderProducts({ navigationType: 'new' }); // Resetar para a primeira página é mais seguro
-                                                                                // Ou tentar manter a página atual:
-                    // const currentStartDoc = this.state.currentPage === 1 ? null : this.state.firstVisibleProductDocs[this.state.currentPage - 2];
-                    // await this.fetchAndRenderProducts({navigationType: this.state.currentPage === 1? 'new' : 'current', startAfterDoc: currentStartDoc})
-                    // A opção 'new' é mais simples de implementar e mais robusta a edge cases de paginação.
-
                 } catch (error) {
-                    this.showAlert(error.message, true); 
+                    this.showAlert(error.message, true); // Removido 'Erro' como título
                 } finally {
                     this.closeDeleteModal();
                     this.setLoading(false);
                 }
             }
-            
+
             listenForLocationUpdates() {
                  if (!this.state.firestoreRefs) return () => {};
                 const createDefaultLocations = async () => {
@@ -1079,56 +592,69 @@
                     defaultLocations.forEach(loc => {
                         batch.set(doc(this.state.firestoreRefs.locations, loc.id), { name: loc.name });
                     });
-                    try {
-                        await batch.commit();
-                    } catch (e) { console.error("Error creating default locations:", e); }
+                    await batch.commit();
                 };
-                const unsub = onSnapshot(query(this.state.firestoreRefs.locations), async (snapshot) => {
+                return onSnapshot(query(this.state.firestoreRefs.locations), async (snapshot) => {
                     if (this.state.userRole === 'admin' && snapshot.empty) {
-                        await createDefaultLocations(); // Tenta criar se vazio e admin
-                        return; // A snapshot vazia será seguida por uma com dados
+                        await createDefaultLocations();
+                        return;
                     }
-                    this.state.locations = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => a.name.localeCompare(b.name));
-                    this.injectPanelContent(); // Re-injeta paineis que dependem de locations (ex: formulário de produto)
-                    this.updateViewsPostPermissionChange(); // Atualiza UI relacionada
-                    // Se as locations mudam, pode ser necessário refazer a busca de produtos se a exibição deles depende disso (ex: colunas)
-                    // this.fetchAndRenderProducts({ navigationType: 'new' }); // CUIDADO: pode causar loops se mal gerenciado.
-                                                                           // Apenas se a query de produtos mudar com locations.
-                                                                           // No nosso caso, as colunas mudam, então renderProducts é chamado
-                                                                           // fetchAndRenderProducts já chama renderProducts.
-                    if (this.state.isAuthReady) { // Só busca produtos se o app já está pronto
-                         await this.fetchAndRenderProducts({ navigationType: 'new' });
-                    }
+                    this.state.locations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => a.name.localeCompare(b.name));
+                    this.injectPanelContent();
+                    this.updateAllViews();
                 });
-                this.state.unsubscribers.push(unsub);
+            }
+
+            listenForSettingsUpdates() {
+                if (!this.state.firestoreRefs) return () => {};
+                return onSnapshot(this.state.firestoreRefs.settings, async (docSnap) => {
+                    if (docSnap.exists()) {
+                        const settingsData = docSnap.data();
+                        this.state.itemsPerPage = settingsData.itemsPerPage || 10;
+                    } else if (this.state.userRole === 'admin') {
+                        await setDoc(this.state.firestoreRefs.settings, { itemsPerPage: 10 });
+                        this.state.itemsPerPage = 10;
+                    }
+                    this.renderSettings();
+                    this.renderProducts();
+                });
+            }
+
+            listenForProductUpdates() {
+                if (!this.state.firestoreRefs) return () => {};
+                return onSnapshot(query(this.state.firestoreRefs.products), (snapshot) => {
+                    this.state.products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    this.updateAllViews();
+                });
             }
 
             listenForCategoryUpdates() {
                 if (!this.state.firestoreRefs) return () => {};
-                 const unsub = onSnapshot(query(this.state.firestoreRefs.categories), (snapshot) => {
+                return onSnapshot(query(this.state.firestoreRefs.categories), (snapshot) => {
                     this.state.categories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => a.name.localeCompare(b.name));
-                    this.updateViewsPostPermissionChange(); // Atualiza selects de categoria, etc.
-                    // Se o filtro de categoria estiver ativo e as categorias mudarem, pode ser necessário refazer a busca
-                    const categoryFilterEl = document.getElementById('stock-category-filter');
-                    if (categoryFilterEl && categoryFilterEl.value !== 'all' && this.state.isAuthReady) {
-                        //this.fetchAndRenderProducts({ navigationType: 'new' });
-                    }
-                    // A atualização dos selects é feita em renderCategories -> updateViewsPostPermissionChange -> populateProductSelects
+                    this.updateAllViews();
                 });
-                this.state.unsubscribers.push(unsub);
-            }
-            
-            listenForMovements() {
-                if (!this.state.firestoreRefs) return () => {};
-                const unsub = onSnapshot(query(this.state.firestoreRefs.movements), (snapshot) => {
-                    this.state.movements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    this.updateDashboardView();
-                    // this.renderLowStockAlerts(); // renderLowStockAlerts é chamado por renderDashboard
-                    // this.renderTopMovements(); // renderTopMovements é chamado por renderDashboard
-                });
-                this.state.unsubscribers.push(unsub);
             }
 
+            listenForMovements() {
+                if (!this.state.firestoreRefs) return () => {};
+                return onSnapshot(query(this.state.firestoreRefs.movements), (snapshot) => {
+                    this.state.movements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    this.updateDashboardView();
+                    this.renderLowStockAlerts();
+                    this.renderTopMovements();
+                });
+            }
+
+            setLoading(isLoading) {
+                if (this.state.dom && this.state.dom.loadingOverlay) {
+                  this.state.dom.loadingOverlay.style.display = isLoading ? 'flex' : 'none';
+            // MODIFICADO: Função setLoading para controlar overlay geral ou indicador da tabela
+            /**
+             * Controla a visibilidade do overlay de carregamento da página ou do indicador de carregamento da tabela.
+             * @param {boolean} isLoading Se o carregamento está ativo.
+             * @param {boolean} isTableOnly Se true, controla apenas o indicador da tabela. Caso contrário, controla o overlay geral.
+             */
             setLoading(isLoading, isTableOnly = false) {
                 if (isTableOnly && this.state.dom && this.state.dom.tableLoadingIndicator) {
                     this.state.dom.tableLoadingIndicator.style.display = isLoading ? 'flex' : 'none';
@@ -1136,32 +662,14 @@
                     this.state.dom.loadingOverlay.style.display = isLoading ? 'flex' : 'none';
                 }
             }
-            // --- FIM Funções que geralmente permanecem as mesmas ---
+            // FIM MODIFICADO
 
+            // --- A PARTIR DAQUI, O RESTANTE DO CÓDIGO PERMANECE O MESMO ---
+            // ... (copie e cole o resto das funções da classe StockApp aqui, sem alterações)
+        }
 
-            // As funções abaixo são mantidas como no seu código original,
-            // pois a refatoração principal não as altera diretamente.
-            // ... (handleAddCategory, handleAddLocation, handleAddProduct, handleAddOutput, logMovement)
-            // ... (renderCategories, renderSettings, populateProductSelects, showAlert)
-            // ... (toggleSidebar, switchTab, openEditModal, closeEditModal, openDeleteModal, closeDeleteModal)
-            // ... (renderDashboard, updateDashboardView, renderMovementsChart, renderLowStockAlerts, renderTopMovements)
-            // ... (handleGenerateReport, handleSelectionChange, renderBulkActionBar, handleDownloadTemplate)
-            // ... (handleExcelParse, handleBulkInsert, injectPanelContent, updateOutputQuantityLock, handleOutputProductSelection)
-            // ... (handleSaveSettings)
-
-            // NOVO: Função para atualizar apenas as visualizações necessárias após mudança de permissão ou dados básicos.
-            updateViewsPostPermissionChange() {
-                 this.renderCategories(); // Atualiza a lista de categorias e os selects
-                 this.populateProductSelects(); // Preenche selects de produto em formulários
-                 this.renderDashboard(); // Atualiza o dashboard
-                 this.renderSettings(); // Atualiza a UI de configurações (ex: lista de localidades)
-                 // renderProducts() é chamado por fetchAndRenderProducts(), não precisa aqui diretamente.
-            }
-
-            // Mantenha as seguintes funções como estão no seu código original,
-            // pois a lógica delas não foi o foco principal desta refatoração de paginação.
-            // Elas podem precisar de ajustes se interagirem com a lista de `this.state.products`
-            // de uma forma que agora é incompatível com a paginação.
+        // COPIAR O Object.assign e o new StockApp() aqui
+        Object.assign(StockApp.prototype, {
             async handleAddCategory(form) {
                 const name = form.querySelector('#category-name').value.trim();
                 if (name && this.state.firestoreRefs) {
@@ -1171,7 +679,7 @@
                 } else {
                     throw new Error("Nome da categoria inválido.");
                 }
-            }
+            },
             async handleAddLocation(form) {
                 const name = form.querySelector('#location-name').value.trim();
                 if (name && this.state.firestoreRefs) {
@@ -1185,7 +693,7 @@
                 } else {
                     throw new Error("Nome da localidade inválido.");
                 }
-            }
+            },
             async handleAddProduct(form) {
                 const quantities = {};
                 let totalQuantity = 0;
@@ -1204,7 +712,7 @@
                     unit: form.querySelector('#product-unit-select').value,
                     quantities,
                     totalQuantity,
-                    createdAt: serverTimestamp() // Importante para filtros de data, se implementados no servidor
+                    createdAt: serverTimestamp()
                 };
                 if (productData.name && productData.category && productData.unit) {
                     const newProdRef = await addDoc(this.state.firestoreRefs.products, productData);
@@ -1213,11 +721,10 @@
                     }
                     form.reset();
                     this.showAlert('Produto adicionado!');
-                    await this.fetchAndRenderProducts({ navigationType: 'new' }); // Recarrega para mostrar novo produto
                 } else {
                     throw new Error("Dados do produto inválidos. Verifique nome, categoria e unidade.");
                 }
-            }
+            },
             async handleAddOutput(form) {
                 const productId = form.querySelector('#output-product-select').value;
                 const quantity = parseInt(form.querySelector('#output-quantity').value, 10);
@@ -1236,31 +743,70 @@
                     const newQuantities = { ...productData.quantities, [locationId]: currentQuantityInLocation - quantity };
                     const newTotalQuantity = Object.values(newQuantities).reduce((sum, qty) => sum + qty, 0);
                     transaction.update(productRef, { quantities: newQuantities, totalQuantity: newTotalQuantity });
-                    const movementRef = doc(collection(this.db, this.state.firestoreRefs.movements.path)); // Use .path
+                    const movementRef = doc(collection(this.db, this.state.firestoreRefs.movements.path));
                     transaction.set(movementRef, { productId, type: 'saida', quantity, motive, location: locationId, date: serverTimestamp() });
                 });
                 this.showAlert('Saída registrada com sucesso.');
                 form.reset();
-                const outputStockInfo = document.getElementById('output-stock-info');
-                if(outputStockInfo) outputStockInfo.textContent = '';
-                const outputLocationSelector = document.getElementById('output-location-selector');
-                if(outputLocationSelector) outputLocationSelector.innerHTML = '';
-                await this.fetchAndRenderProducts({ navigationType: 'new' }); // Recarrega para refletir estoque atualizado
-            }
+                document.getElementById('output-stock-info').textContent = '';
+                document.getElementById('output-location-selector').innerHTML = '';
+            },
             async logMovement(productId, type, quantity, motive) {
-                if (!this.state.firestoreRefs || !this.state.firestoreRefs.movements) return;
-                try {
-                    await addDoc(this.state.firestoreRefs.movements, { productId, type, quantity, motive, date: serverTimestamp() });
-                } catch (e) { console.error("Error logging movement:", e); }
-            }
+                if (!this.state.firestoreRefs) return;
+                await addDoc(this.state.firestoreRefs.movements, { productId, type, quantity, motive, date: serverTimestamp() });
+            },
+            renderProducts() {
+                const productList = document.getElementById('product-list');
+                const emptyState = document.getElementById('empty-state');
+                if (!productList || !emptyState || this.state.locations.length === 0) return;
+
+                // MODIFICADO: Mostra o indicador de carregamento da tabela antes da filtragem/renderização
+                this.setLoading(true, true);
+
+                const filteredProducts = this.getFilteredProducts();
+                const paginatedProducts = filteredProducts.slice((this.state.currentPage - 1) * this.state.itemsPerPage, this.state.currentPage * this.state.itemsPerPage);
+                
+                if (filteredProducts.length === 0) {
+                    emptyState.classList.remove('hidden');
+                    productList.innerHTML = '';
+                    document.getElementById('empty-state-message').textContent = this.state.products.length === 0 ? 'Nenhum produto cadastrado.' : 'Nenhum produto encontrado com os filtros atuais.';
+                } else {
+                    emptyState.classList.add('hidden');
+                    productList.innerHTML = paginatedProducts.map(product => {
+                        const category = this.state.categories.find(c => c.id === product.category);
+                        const isLowStock = product.totalQuantity <= product.minStock;
+                        const isSelected = this.state.selectedProducts.includes(product.id);
+                        const quantitiesHtml = this.state.locations.map(loc => `<td class="p-3 text-center text-gray-700">${product.quantities?.[loc.id] || 0}</td>`).join('');
+                        const actionButtons = this.state.userRole === 'admin' ? `
+                            <button data-action="edit" data-id="${product.id}" class="text-blue-500 hover:text-blue-700 p-2"><i class="fas fa-edit"></i></button>
+                            <button data-action="delete" data-id="${product.id}" class="text-red-500 hover:text-red-700 p-2"><i class="fas fa-trash"></i></button>
+                        ` : '';
+                        const checkbox = this.state.userRole === 'admin' ? `<input type="checkbox" class="product-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-id="${product.id}" ${isSelected ? 'checked' : ''}>` : '';
+                        return `
+                            <tr class="hover:bg-gray-200 transition-colors ${isLowStock ? 'low-stock-warning' : ''} ${isSelected ? 'bg-blue-100' : ''}" data-product-id="${product.id}">
+                                <td class="p-3 text-center">${checkbox}</td>
+                                <td class="p-3 font-medium text-gray-900 sticky left-0 bg-white">${product.name} ${isLowStock ? '<i class="fas fa-exclamation-triangle text-amber-500 ml-1" title="Estoque baixo!"></i>' : ''}</td>
+                                <td class="p-3 text-center text-gray-700">${category?.name || 'N/A'}</td>
+                                <td class="p-3 text-center font-bold text-gray-900">${product.totalQuantity || 0}</td>
+                                ${quantitiesHtml}
+                                <td class="p-3 text-right">${actionButtons}</td>
+                            </tr>`;
+                    }).join('');
+                }
+                this.renderPaginationControls(filteredProducts.length);
+                this.renderBulkActionBar();
+
+                // MODIFICADO: Esconde o indicador de carregamento da tabela após a renderização
+                this.setLoading(false, true);
+                // FIM MODIFICADO
+            },
             renderCategories() {
                 const categoryList = document.getElementById('category-list');
                 if (!categoryList) return;
                 categoryList.innerHTML = this.state.categories.length > 0 ? this.state.categories.map(cat => {
-                    const isUsed = this.state.products.some(p => p.category === cat.id); // Esta verificação agora é sobre a página atual de produtos
-                                                                                        // Para uma verificação completa, seria necessária uma query.
+                    const isUsed = this.state.products.some(p => p.category === cat.id);
                     const deleteButton = this.state.userRole === 'admin' ? `
-                        <button data-action="delete-category" data-id="${cat.id}" class="text-red-500 hover:text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed" ${isUsed ? 'disabled title="Categoria pode estar em uso. Verifique os produtos."' : ''}>
+                        <button data-action="delete-category" data-id="${cat.id}" class="text-red-500 hover:text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed" ${isUsed ? 'disabled title="Categoria em uso"' : ''}>
                             <i class="fas fa-times"></i>
                         </button>
                     ` : '';
@@ -1270,35 +816,26 @@
                             ${deleteButton}
                         </div>`;
                 }).join('') : '<p class="text-sm text-gray-500">Nenhuma categoria.</p>';
-                
                 const selects = [document.getElementById('product-category-select'), document.getElementById('stock-category-filter')];
                  selects.forEach(select => {
                     if (!select) return;
                     const currentValue = select.value;
-                    let options = select.id === 'stock-category-filter' ? '<option value="all">Todas as Categorias</option>' : '<option value="">Selecione...</option>';
+                    let options = select.id === 'stock-category-filter' ? '<option value="all">Todas</option>' : '<option value="">Selecione...</option>';
                     options += this.state.categories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
                     select.innerHTML = options;
-                    if (Array.from(select.options).some(opt => opt.value === currentValue)) {
-                        select.value = currentValue;
-                    } else if (select.id === 'stock-category-filter') {
-                        select.value = 'all'; // Default para 'all' se o valor antigo não existir mais
-                    } else {
-                         select.value = ''; // Default para 'selecione'
-                    }
+                    if (Array.from(select.options).some(opt => opt.value === currentValue)) select.value = currentValue;
                 });
-            }
+            },
             renderSettings() {
                 const locationsList = document.getElementById('location-list');
                 if (locationsList) {
                     locationsList.innerHTML = this.state.locations.length > 0 ? this.state.locations.map(loc => {
-                        // const isUsed = this.state.products.some(p => p.quantities && p.quantities[loc.id] > 0); // Verificação na página atual
-                        // Para uma verificação completa de "isUsed", uma query seria mais precisa.
-                        // Por ora, a exclusão em si fará uma verificação mais robusta.
+                        const isUsed = this.state.products.some(p => p.quantities && p.quantities[loc.id] > 0);
                          const deleteButton = this.state.userRole === 'admin' ? `
-                           <button data-action="delete-location" data-id="${loc.id}" class="text-red-500 hover:text-red-700">
+                           <button data-action="delete-location" data-id="${loc.id}" class="text-red-500 hover:text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed" ${isUsed ? 'disabled title="Localidade em uso"' : ''}>
                                <i class="fas fa-times"></i>
                            </button>
-                        ` : ''; // Removido 'disabled' daqui, a checagem será no handleDelete
+                        ` : '';
                         return `
                              <div class="flex justify-between items-center p-2 bg-gray-100 rounded-lg">
                                  <span class="text-gray-900">${loc.name}</span>
@@ -1311,96 +848,73 @@
                 if (itemsPerPageInput) {
                     itemsPerPageInput.value = this.state.itemsPerPage;
                 }
-            }
+            },
+            updateAllViews() {
+                 this.renderProducts();
+                 this.renderCategories();
+                 this.populateProductSelects();
+                 this.renderDashboard();
+                 this.renderSettings();
+            },
             populateProductSelects() {
                 const outputSelect = document.getElementById('output-product-select');
                 if (!outputSelect) return;
                 const currentValue = outputSelect.value;
                 let options = '<option value="">Selecione um produto...</option>';
-                // Para popular o select de saídas, idealmente teríamos todos os produtos.
-                // Esta é uma limitação da paginação server-side se o select precisar de todos.
-                // Solução: Fazer uma query separada para todos os nomes de produtos (pode ser pesado)
-                // ou limitar o select aos produtos da página atual (não ideal para saídas).
-                // Por agora, vamos manter a lógica original, que usava this.state.products (que era tudo).
-                // Se this.state.products for sempre paginado, este select não será completo.
-                // **NOTA:** Para uma melhor UX no select de saída, considere carregar todos os nomes de produto
-                // de forma assíncrona e separada, ou usar um componente de autocomplete que busque no servidor.
-                // Por ora, ele usará a lista de produtos carregada (que agora é paginada).
-                // Para uma solução simples, vamos buscar todos os produtos para este select específico,
-                // mas apenas os campos necessários (id, name).
-                if (this.state.firestoreRefs && this.state.firestoreRefs.products) {
-                    getDocs(query(this.state.firestoreRefs.products, orderBy('name'))).then(snapshot => {
-                        const allProductsForSelect = snapshot.docs.map(d => ({id: d.id, name: d.data().name}));
-                        let selectOptions = '<option value="">Selecione um produto...</option>';
-                        selectOptions += allProductsForSelect.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-                        outputSelect.innerHTML = selectOptions;
-                        if (Array.from(outputSelect.options).some(opt => opt.value === currentValue)) {
-                             outputSelect.value = currentValue;
-                        } else {
-                            outputSelect.value = "";
-                        }
-                    }).catch(err => console.error("Error fetching all products for select:", err));
-                }
-            }
+                const sortedProducts = [...this.state.products].sort((a,b) => a.name.localeCompare(b.name));
+                options += sortedProducts.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+                outputSelect.innerHTML = options;
+                outputSelect.value = currentValue;
+            },
+            // MODIFICADO: Função showAlert para usar Toastify.js
             showAlert(message, isError = false) {
                 Toastify({
-                    text: message, duration: 3000, newWindow: true, close: true,
-                    gravity: "top", position: "right", stopOnFocus: true,
+                    text: message,
+                    duration: 3000, // Notificação desaparece após 3 segundos
+                    newWindow: true,
+                    close: true,
+                    gravity: "top", // Posição superior
+                    position: "right", // Posição direita
+                    stopOnFocus: true, // Permite que a notificação permaneça na tela se o usuário interagir com ela
                     style: {
-                        background: isError ? 'linear-gradient(to right, #ef4444, #dc2626)' : 'linear-gradient(to right, #22c55e, #16a34a)',
-                        borderRadius: '8px', fontSize: '14px', padding: '12px 20px'
+                        background: isError 
+                            ? 'linear-gradient(to right, #ef4444, #dc2626)' // Vermelho para erro
+                            : 'linear-gradient(to right, #22c55e, #16a34a)', // Verde para sucesso
+                        borderRadius: '8px', // Bordas arredondadas
+                        fontSize: '14px',
+                        padding: '12px 20px'
                     },
+                    onClick: function(){} // Callback after click
                 }).showToast();
-            }
+            },
+            // FIM MODIFICADO
             toggleSidebar(show) {
                 const { menu, overlay } = this.state.dom.sidebar;
                 menu.classList.toggle('-translate-x-full', !show);
                 overlay.classList.toggle('hidden', !show);
-            }
+            },
             switchTab(tabId) {
                 document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
-                const panel = document.getElementById(`panel-${tabId}`);
-                if (panel) panel.classList.remove('hidden');
+                document.getElementById(`panel-${tabId}`)?.classList.remove('hidden');
                 document.querySelectorAll('.sidebar-link').forEach(l => l.classList.toggle('bg-gray-200', l.dataset.tab === tabId));
                 if (tabId === 'reports') this.renderDashboard();
-            }
+            },
             openEditModal(productId) {
-                // Encontra o produto na lista da página atual.
-                let product = this.state.products.find(p => p.id === productId);
-
-                const openModalWithProduct = (prod) => {
-                    const { self, productName, quantitiesContainer } = this.state.dom.modals.edit;
-                    self.dataset.productId = prod.id;
-                    productName.textContent = prod.name;
-                    const quantitiesHtml = this.state.locations.map(loc => `
-                        <div>
-                            <label for="edit-qty-${loc.id}" class="block text-sm font-medium text-gray-700">${loc.name}</label>
-                            <input type="number" id="edit-qty-${loc.id}" value="${prod.quantities?.[loc.id] || 0}" min="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0">
-                        </div>
-                    `).join('');
-                    quantitiesContainer.innerHTML = `<div class="grid grid-cols-2 gap-4">${quantitiesHtml}</div>`;
-                    self.classList.replace('hidden', 'flex');
-                };
-
-                if (product) {
-                    openModalWithProduct(product);
-                } else { // Se não estiver na página atual, busca do DB
-                    this.setLoading(true);
-                    getDoc(doc(this.state.firestoreRefs.products, productId)).then(docSnap => {
-                        this.setLoading(false);
-                        if (docSnap.exists()) {
-                            openModalWithProduct({id: docSnap.id, ...docSnap.data()});
-                        } else {
-                            this.showAlert('Produto não encontrado.', true);
-                        }
-                    }).catch(err => {
-                        this.setLoading(false);
-                        this.showAlert('Erro ao buscar produto para edição.', true);
-                        console.error(err);
-                    });
-                }
-            }
-            closeEditModal() { this.state.dom.modals.edit.self.classList.replace('flex', 'hidden'); }
+                const product = this.state.products.find(p => p.id === productId);
+                if (!product) return this.showAlert('Produto não encontrado.', true); // Removido 'Erro' como título
+                const { self, productName, quantitiesContainer } = this.state.dom.modals.edit;
+                self.dataset.productId = productId;
+                productName.textContent = product.name;
+                const quantitiesHtml = this.state.locations.map(loc => `
+                    <div>
+                        <label for="edit-qty-${loc.id}" class="block text-sm font-medium text-gray-700">${loc.name}</label>
+                        <input type="number" id="edit-qty-${loc.id}" value="${product.quantities?.[loc.id] || 0}" min="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0">
+                    </div>
+                `).join('');
+                quantitiesContainer.innerHTML = `<div class="grid grid-cols-2 gap-4">${quantitiesHtml}</div>`;
+                self.classList.replace('hidden', 'flex');
+            },
+            closeEditModal() { this.state.dom.modals.edit.self.classList.replace('flex', 'hidden'); },
             openDeleteModal(id, type, isBulk = false) {
                 this.state.deleteQueue = { id, type, isBulk };
                 const { self, text } = this.state.dom.modals.delete;
@@ -1408,25 +922,23 @@
                     text.textContent = `Tem certeza que deseja excluir os ${this.state.selectedProducts.length} produtos selecionados? Esta ação não pode ser desfeita.`;
                 } else {
                     let itemName = '';
-                    // Para obter o nome, o ideal é buscar do DB se não estiver na página atual.
-                    // Para simplificar, tentamos da página atual, depois um placeholder.
-                    if (type === 'product') itemName = this.state.products.find(p => p.id === id)?.name || `Produto ID: ${id}`;
-                    else if (type === 'category') itemName = this.state.categories.find(c => c.id === id)?.name || `Categoria ID: ${id}`;
-                    else if (type === 'location') itemName = this.state.locations.find(l => l.id === id)?.name || `Localidade ID: ${id}`;
+                    if (type === 'product') itemName = this.state.products.find(p => p.id === id)?.name;
+                    else if (type === 'category') itemName = this.state.categories.find(c => c.id === id)?.name;
+                    else if (type === 'location') itemName = this.state.locations.find(l => l.id === id)?.name;
                     text.textContent = `Tem certeza que deseja excluir "${itemName || ''}"? Esta ação não pode ser desfeita.`;
                 }
                 self.classList.replace('hidden', 'flex');
-            }
+            },
             closeDeleteModal() {
                 this.state.dom.modals.delete.self.classList.replace('flex', 'hidden');
                 this.state.deleteQueue = { id: null, type: null, isBulk: false };
-            }
+            },
             renderDashboard() {
                 if (!document.getElementById('panel-reports')?.isConnected) return;
                 this.updateDashboardView();
                 this.renderLowStockAlerts();
                 this.renderTopMovements();
-            }
+            },
             updateDashboardView() {
                 if(!this.state.isAuthReady) return;
                 const { chartType } = this.state.dashboardSettings;
@@ -1440,7 +952,7 @@
                     }
                 });
                 this.renderMovementsChart();
-            }
+            },
             renderMovementsChart() {
                 const ctx = document.getElementById('movements-chart')?.getContext('2d');
                 if (!ctx) return;
@@ -1496,13 +1008,11 @@
                         dataMap.set(dateString, { entrada: 0, saida: 0 });
                     }
                     filteredMovements.forEach(mov => {
-                        if (mov.date && mov.date.toDate) { // Check if toDate exists
-                            const movDateStr = mov.date.toDate().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-                            if (dataMap.has(movDateStr)) {
-                                const dayData = dataMap.get(movDateStr);
-                                if (mov.type === 'entrada') dayData.entrada += mov.quantity;
-                                else dayData.saida += mov.quantity;
-                            }
+                        const movDateStr = mov.date.toDate().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                        if (dataMap.has(movDateStr)) {
+                            const dayData = dataMap.get(movDateStr);
+                            if (mov.type === 'entrada') dayData.entrada += mov.quantity;
+                            else dayData.saida += mov.quantity;
                         }
                     });
                     const entradasData = labels.map(label => dataMap.get(label).entrada);
@@ -1532,12 +1042,10 @@
                     };
                 }
                 this.state.chartInstance = new Chart(ctx, chartConfig);
-            }
+            },
             renderLowStockAlerts() {
                 const listEl = document.getElementById('low-stock-list'), emptyEl = document.getElementById('low-stock-empty');
                 if (!listEl || !emptyEl) return;
-                // NOTA: Low stock alerts agora refletem apenas os produtos na página atual.
-                // Para um alerta global, seria necessário buscar todos os produtos ou ter um summary no DB.
                 const lowStockProducts = this.state.products.filter(p => p.minStock > 0 && p.totalQuantity <= p.minStock);
                 if (lowStockProducts.length > 0) {
                     listEl.innerHTML = lowStockProducts.map(p => `<li class="text-sm"><span class="font-semibold">${p.name}</span>: <span class="text-red-500 font-bold">${p.totalQuantity}</span> / ${p.minStock} ${p.unit}</li>`).join('');
@@ -1545,82 +1053,60 @@
                 } else {
                     listEl.classList.add('hidden'); emptyEl.classList.remove('hidden');
                 }
-            }
+            },
             renderTopMovements() {
                 const renderList = (elementId, data) => {
                     const listEl = document.getElementById(elementId);
                     if (!listEl) return;
                     if(data.length > 0) {
                         listEl.innerHTML = data.map(mov => {
-                             // Nome do produto: tenta da página atual, senão um placeholder. Para nomes corretos sempre, precisaria de uma busca extra.
                             const product = this.state.products.find(p => p.id === mov.productId);
-                            const productName = product ? product.name : `Produto ID ${mov.productId.substring(0,6)}...`;
-                            return `<li class="text-sm truncate" title="${productName} (ID: ${mov.productId})"><strong>${mov.quantity}x</strong> ${productName}</li>`;
+                            const productName = product ? product.name : 'Produto Excluído';
+                            return `<li class="text-sm truncate" title="${productName}"><strong>${mov.quantity}x</strong> ${productName}</li>`;
                         }).join('');
                     } else {
                         listEl.innerHTML = `<li class="text-sm text-gray-500">Nenhuma movimentação.</li>`;
                     }
                 };
-                const sorted = [...this.state.movements].sort((a,b) => (b.date?.seconds || 0) - (a.date?.seconds || 0) );
+                const sorted = [...this.state.movements].sort((a,b) => b.date?.seconds - a.date?.seconds);
                 renderList('top-entradas-list', sorted.filter(m => m.type === 'entrada').slice(0, 5));
                 renderList('top-saidas-list', sorted.filter(m => m.type === 'saida').slice(0, 5));
-            }
+            },
             async handleGenerateReport() {
                 const dateInput = document.getElementById('report-date'), reportOutput = document.getElementById('report-output');
-                if (!dateInput || !reportOutput || !dateInput.value) return this.showAlert('Selecione uma data para gerar o relatório.', true);
+                if (!dateInput || !reportOutput || !dateInput.value) return this.showAlert('Selecione uma data para gerar o relatório.', true); // Removido 'Atenção' como título
                 const targetDate = new Date(dateInput.value); targetDate.setUTCHours(23, 59, 59, 999);
                 this.setLoading(true);
                 const historicalStock = {};
-
-                // Para o relatório histórico, precisamos de TODOS os produtos e movimentações,
-                // não apenas os da página atual. Isso requer queries separadas.
-                const allProductsSnap = await getDocs(this.state.firestoreRefs.products);
-                const allMovementsSnap = await getDocs(this.state.firestoreRefs.movements);
-
-                allProductsSnap.docs.forEach(pDoc => {
-                    const pData = pDoc.data();
-                    const createdAt = pData.createdAt?.toDate();
-                    if(createdAt && createdAt <= targetDate) { // Só considera produtos criados até a data do relatório
-                        historicalStock[pDoc.id] = { ...pData, id: pDoc.id, quantityAtDate: 0 }; // Inicia com 0
+                this.state.products.forEach(p => {
+                    const createdAt = p.createdAt?.toDate();
+                    if(createdAt <= targetDate) {
+                        historicalStock[p.id] = { ...p, quantity: 0 };
                     }
                 });
-
-                allMovementsSnap.docs.forEach(mDoc => {
-                    const mov = mDoc.data();
-                    const movDate = mov.date?.toDate();
-                    if (movDate && movDate <= targetDate && historicalStock[mov.productId]) {
-                        // Lógica original de cálculo de estoque histórico
-                        const productData = historicalStock[mov.productId];
-                        const productCreatedAt = productData.createdAt?.toDate();
-
-                        // Se o movimento é de criação (entrada inicial) e na mesma data da criação do produto, define a quantidade.
-                        if ((mov.motive === 'Criação de Produto' || mov.motive === 'Importação Excel') &&
-                            productCreatedAt && productCreatedAt.getTime() === movDate.getTime() && mov.type === 'entrada') {
-                            productData.quantityAtDate = mov.quantity;
-                        } 
-                        // Para outros movimentos (ou movimentos de criação que não batem exatamente com timestamp de criação)
-                        // ou se a quantidade já foi definida pela criação, ajusta.
-                        else if (!((mov.motive === 'Criação de Produto' || mov.motive === 'Importação Excel') && mov.type === 'entrada' && productData.quantityAtDate === mov.quantity)) {
-                             productData.quantityAtDate += (mov.type === 'entrada' ? mov.quantity : -mov.quantity);
+                this.state.movements.filter(m => m.date.toDate() <= targetDate).forEach(m => {
+                    if (historicalStock[m.productId]) {
+                        const isCreationMovement = m.motive === 'Criação de Produto' || m.motive === 'Importação Excel';
+                        const productCreatedAt = this.state.products.find(p => p.id === m.productId)?.createdAt?.toDate();
+                        if (isCreationMovement && productCreatedAt && productCreatedAt.getTime() === m.date.toDate().getTime()) {
+                            historicalStock[m.productId].quantity = m.quantity;
+                        } else if (!isCreationMovement) {
+                            historicalStock[m.productId].quantity += m.type === 'entrada' ? m.quantity : -m.quantity;
                         }
                     }
                 });
-                
-                document.getElementById('report-list').innerHTML = Object.values(historicalStock)
-                    .filter(p => p.quantityAtDate !== undefined) // Garante que apenas produtos relevantes são mostrados
-                    .sort((a,b) => a.name.localeCompare(b.name))
-                    .map(p => `
+                document.getElementById('report-list').innerHTML = Object.values(historicalStock).map(p => `
                     <tr class="border-t border-gray-200">
                         <td class="p-3">${p.name}</td>
                         <td class="p-3 text-center">${this.state.categories.find(c=>c.id === p.category)?.name || 'N/A'}</td>
                         <td class="p-3 text-center">${p.unit}</td>
-                        <td class="p-3 text-center font-bold">${p.quantityAtDate}</td>
+                        <td class="p-3 text-center font-bold">${p.quantity}</td>
                     </tr>`).join('');
                 document.getElementById('report-title').textContent = `Relatório de Estoque Histórico`;
                 document.getElementById('report-subtitle').textContent = `Posição em ${new Date(dateInput.value).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}`;
                 reportOutput.classList.remove('hidden');
                 this.setLoading(false);
-            }
+            },
             handleSelectionChange() {
                 this.state.selectedProducts = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.id);
                 const selectAllCheckbox = document.getElementById('select-all-checkbox');
@@ -1629,19 +1115,20 @@
                     selectAllCheckbox.checked = allVisibleCheckboxes.length > 0 && this.state.selectedProducts.length === allVisibleCheckboxes.length;
                 }
                 this.renderBulkActionBar();
-                // Não precisa chamar renderProducts() aqui, pois a seleção é apenas visual na tr
-                // A menos que a renderização da tr mude baseada na seleção (o que já faz com bg-blue-100)
-                // Para forçar a atualização visual caso o CSS não pegue:
-                const productRows = document.querySelectorAll('#product-list tr');
-                productRows.forEach(row => {
-                    const rowProductId = row.dataset.productId;
-                    if (this.state.selectedProducts.includes(rowProductId)) {
-                        row.classList.add('bg-blue-100');
-                    } else {
-                        row.classList.remove('bg-blue-100');
-                    }
-                });
-            }
+                this.renderProducts();
+            },
+            renderPaginationControls(totalItems) {
+                const controlsContainer = document.getElementById('pagination-controls');
+                if (!controlsContainer) return;
+                const totalPages = Math.ceil(totalItems / this.state.itemsPerPage);
+                if (totalPages <= 1) {
+                    controlsContainer.innerHTML = '';
+                    return;
+                }
+                const startItem = (this.state.currentPage - 1) * this.state.itemsPerPage + 1;
+                const endItem = Math.min(this.state.currentPage * this.state.itemsPerPage, totalItems);
+                controlsContainer.innerHTML = `<span class="text-sm text-gray-700">Mostrando <span class="font-semibold">${startItem}</span> a <span class="font-semibold">${endItem}</span> de <span class="font-semibold">${totalItems}</span></span><div><button data-action="page-prev" class="px-3 h-8 text-sm font-medium text-white bg-gray-800 rounded-l hover:bg-gray-900 disabled:opacity-50" ${this.state.currentPage === 1 ? 'disabled' : ''}>Anterior</button><button data-action="page-next" class="px-3 h-8 text-sm font-medium text-white bg-gray-800 rounded-r border-0 border-l border-gray-700 hover:bg-gray-900 disabled:opacity-50" ${this.state.currentPage === totalPages ? 'disabled' : ''}>Próximo</button></div>`;
+            },
             renderBulkActionBar() {
                 const actionBar = document.getElementById('bulk-action-bar');
                 const selectedCount = document.getElementById('selected-count');
@@ -1657,15 +1144,62 @@
                     actionBar.classList.remove('open');
                     setTimeout(() => actionBar.classList.add('hidden'), 300);
                 }
-            }
+            },
+            clearFilters() {
+                document.getElementById('search-product-input').value = '';
+                document.getElementById('stock-category-filter').value = 'all';
+                document.getElementById('stock-status-filter').value = 'all';
+                document.getElementById('date-filter-start').value = '';
+                document.getElementById('date-filter-end').value = '';
+                this.state.currentPage = 1;
+                this.renderProducts();
+            },
             handleDownloadTemplate() {
                 const headers = { name: "Exemplo Produto", category: "Exemplo Categoria", unit: "UND", minStock: 10 };
-                this.state.locations.forEach(l => headers[l.id] = 0); // Usa ID da localidade como header
+                this.state.locations.forEach(l => headers[l.id] = 0);
                 const worksheet = XLSX.utils.json_to_sheet([headers]);
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Produtos");
                 XLSX.writeFile(workbook, "modelo_importacao_estoque.xlsx");
-            }
+            },
+            getFilteredProducts() {
+                const categoryFilter = document.getElementById('stock-category-filter')?.value || 'all';
+                const searchTerm = document.getElementById('search-product-input')?.value.toLowerCase() || '';
+                const stockStatus = document.getElementById('stock-status-filter')?.value || 'all';
+                const startDateVal = document.getElementById('date-filter-start')?.value;
+                const endDateVal = document.getElementById('date-filter-end')?.value;
+                return this.state.products.filter(p => {
+                    const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
+                    const matchesSearch = p.name.toLowerCase().includes(searchTerm);
+                    const matchesStatus = stockStatus === 'all' || (stockStatus === 'low' && p.totalQuantity <= p.minStock) || (stockStatus === 'ok' && p.totalQuantity > p.minStock);
+                    const createdAt = p.createdAt?.toDate();
+                    const startDate = startDateVal ? new Date(startDateVal) : null;
+                    if (startDate) startDate.setUTCHours(0, 0, 0, 0);
+                    const endDate = endDateVal ? new Date(endDateVal) : null;
+                    if (endDate) endDate.setUTCHours(23, 59, 59, 999);
+                    const matchesDate = !createdAt || (!startDate && !endDate) || (createdAt >= startDate && createdAt <= endDate);
+                    return matchesCategory && matchesSearch && matchesStatus && matchesDate;
+                });
+            },
+            handleExportPdf() {
+                const filteredProducts = this.getFilteredProducts();
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'landscape' });
+                doc.text(`Relatório de Estoque - ${new Date().toLocaleDateString()}`, 14, 16);
+                const head = [['Produto', 'Categoria', ...this.state.locations.map(l => l.name), 'Total']];
+                const body = filteredProducts.map(p => [
+                    p.name, 
+                    this.state.categories.find(c => c.id === p.category)?.name || 'N/A', 
+                    ...this.state.locations.map(l => p.quantities?.[l.id] || 0), 
+                    p.totalQuantity
+                ]);
+                doc.autoTable({
+                    head: head, body: body, startY: 20,
+                    headStyles: { fillColor: [22, 163, 74] },
+                    styles: { fontSize: 8 },
+                });
+                doc.save(`estoque_${new Date().toISOString().slice(0,10)}.pdf`);
+            },
             handleExcelParse(file, filenameEl) {
                 this.setLoading(true);
                 filenameEl.textContent = `Carregando ${file.name}...`;
@@ -1679,59 +1213,40 @@
                         const json = XLSX.utils.sheet_to_json(worksheet);
                         await this.handleBulkInsert(json);
                     } catch (error) {
-                        this.showAlert(`Não foi possível ler o arquivo: ${error.message}`, true);
+                        this.showAlert(`Não foi possível ler o arquivo: ${error.message}`, true); // Removido 'Erro de Excel' como título
                     } finally {
                         filenameEl.textContent = '';
                         this.setLoading(false);
-                        const excelInput = document.getElementById('excel-insert-input');
-                        if (excelInput) excelInput.value = ''; // Limpa o input de arquivo
+                        document.getElementById('excel-insert-input').value = '';
                     }
                 };
                 reader.onerror = (error) => {
-                     this.showAlert(`Erro ao ler o arquivo: ${error}`, true);
+                     this.showAlert(`Erro ao ler o arquivo: ${error}`, true); // Removido 'Erro de Leitura' como título
                      filenameEl.textContent = '';
                      this.setLoading(false);
                 };
                 reader.readAsArrayBuffer(file);
-            }
+            },
             async handleBulkInsert(data) {
                 const batch = writeBatch(this.db);
-                const localCategories = [...this.state.categories]; // Copia para adicionar novas localmente
-                
-                // Pre-fetch all locations to map names to IDs if IDs are not directly in Excel
-                const locationNameMap = new Map(this.state.locations.map(loc => [loc.name.toLowerCase(), loc.id]));
-                const locationIdMap = new Map(this.state.locations.map(loc => [loc.id.toLowerCase(), loc.id]));
-
-
+                const localCategories = [...this.state.categories];
                 for (const row of data) {
                     let categoryName = row.category?.toString().trim();
                     let productName = row.name?.toString().trim();
-                    if (!productName || !categoryName) {
-                        console.warn("Skipping row due to missing product name or category:", row);
-                        continue;
-                    }
+                    if (!productName || !categoryName) continue;
                     let category = localCategories.find(c => c.name.toLowerCase() === categoryName.toLowerCase());
                     if (!category) {
                         const newCatRef = doc(collection(this.db, this.state.firestoreRefs.categories.path));
                         batch.set(newCatRef, { name: categoryName });
                         category = { id: newCatRef.id, name: categoryName };
-                        localCategories.push(category); // Adiciona à cópia local para reuso no mesmo batch
+                        localCategories.push(category);
                     }
                     const quantities = {}; let totalQuantity = 0;
-                    
-                    // Mapeia quantidades do Excel para as localidades corretas
                     this.state.locations.forEach(loc => {
-                        // Tenta encontrar a quantidade pela ID da localidade primeiro, depois pelo nome
-                        let qtyInRow = row[loc.id]; // Ex: row['estoque_seco']
-                        if (qtyInRow === undefined) {
-                            qtyInRow = row[loc.name]; // Ex: row['Estoque Seco']
-                        }
-                        
-                        const qty = parseInt(qtyInRow, 10) || 0;
+                        const qty = parseInt(row[loc.id], 10) || 0;
                         quantities[loc.id] = qty;
                         totalQuantity += qty;
                     });
-
                     const newProdRef = doc(collection(this.db, this.state.firestoreRefs.products.path));
                     const productData = {
                         name: productName, category: category.id, quantities, totalQuantity,
@@ -1746,144 +1261,36 @@
                     }
                 }
                 await batch.commit();
-                this.showAlert(`${data.length} produtos processados do arquivo Excel.`);
-                await this.fetchAndRenderProducts({ navigationType: 'new' }); // Recarrega os produtos
-            }
+                this.showAlert(`${data.length} produtos processados do arquivo Excel.`); // Removido 'Sucesso' como título
+            },
             injectPanelContent() {
-                if (!this.state.dom || !this.state.dom.panels) return; // Garante que DOM está pronto
+                if (!this.state.dom) return;
                 const isAdmin = this.state.userRole === 'admin';
                 const locationsQuantityInputs = this.state.locations.map(loc => `<label class="block"><span class="text-gray-700">${loc.name}</span><input type="number" id="qty-${loc.id}" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0"></label>`).join('');
-                const tableHeaders = this.state.locations.map(loc => `<th class="p-3 text-center text-gray-700 sticky z-0">${loc.name}</th>`).join(''); // sticky z-0 para ficar abaixo do header do nome
+                const tableHeaders = this.state.locations.map(loc => `<th class="p-3 text-center text-gray-700">${loc.name}</th>`).join('');
                 const tableCheckboxHeader = isAdmin ? `<th class="p-3 w-4"><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"></th>` : `<th class="p-3 w-4"></th>`;
                 const tableActionsHeader = isAdmin ? `<th class="p-3 text-right text-gray-700">Ações</th>` : `<th></th>`;
-                
-                // Painel de Estoque (panel-stock)
-                if (this.state.dom.panels.stock) {
-                    this.state.dom.panels.stock.innerHTML = `
-                        <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 relative">
-                            <div class="flex flex-wrap justify-between items-center mb-4 gap-4">
-                                <h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2>
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <div class="relative grow sm:grow-0">
-                                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
-                                        <input type="text" id="search-product-input" placeholder="Buscar por nome..." class="w-full p-2 pl-10 bg-gray-100 rounded-lg text-gray-900">
-                                    </div>
-                                    <select id="stock-category-filter" class="p-2 bg-gray-100 rounded-lg text-gray-900 grow sm:grow-0">
-                                        <option value="all">Todas as Categorias</option>
-                                    </select>
-                                    <button id="toggle-advanced-filters" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button>
-                                    <button id="export-pdf-btn" data-role-required="admin" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar Página</button>
-                                </div>
-                            </div>
-                            <div id="advanced-filters-wrapper">
-                                <div id="advanced-filters-content">
-                                    <div class="p-4 mb-4 bg-gray-50 rounded-lg border border-gray-200">
-                                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                                            <div>
-                                                <label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status (Cliente)</label>
-                                                <select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
-                                                    <option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option>
-                                                </select>
-                                                <p class="text-xs text-gray-500 mt-1">Este filtro é aplicado no cliente.</p>
-                                            </div>
-                                            <div>
-                                                <label for="date-filter-start" class="block text-sm font-medium text-gray-700">De (Criação - Cliente)</label>
-                                                <input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm">
-                                            </div>
-                                            <div>
-                                                <label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até (Criação - Cliente)</label>
-                                                <input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm">
-                                            </div>
-                                            <div class="flex justify-end">
-                                                <button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div id="bulk-action-bar" class="bulk-action-bar hidden mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
-                                <span id="selected-count" class="text-sm font-medium text-blue-800"></span>
-                                <button id="bulk-delete-btn" class="bg-red-500 text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-red-600 transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button>
-                            </div>
-                            <div id="table-loading-indicator" class="hidden"><i class="fas fa-spinner animate-spin fa-2x text-blue-500"></i></div>
-                            <div class="overflow-x-auto">
-                                <table class="w-full text-left min-w-[1000px]"><!-- min-w ajustado -->
-                                    <thead class="border-b-2 border-gray-200 bg-gray-50 sticky top-0 z-10">
-                                        <tr>
-                                            ${tableCheckboxHeader}
-                                            <th class="p-3 text-gray-700 sticky left-0 bg-gray-50 z-20">Produto</th>
-                                            <th class="p-3 text-center text-gray-700">Categoria</th>
-                                            <th class="p-3 text-center text-gray-700 font-bold">Total</th>
-                                            ${tableHeaders}
-                                            ${tableActionsHeader}
-                                        </tr>
-                                    </thead>
-                                    <tbody id="product-list" class="divide-y divide-gray-200"></tbody>
-                                </table>
-                            </div>
-                            <div id="pagination-controls" class="flex justify-between items-center mt-4"></div>
-                            <div id="empty-state" class="hidden text-center py-12">
-                                <i class="fas fa-box-open fa-4x text-gray-400"></i>
-                                <p id="empty-state-message" class="mt-4 text-gray-500">Nenhum produto.</p>
-                            </div>
-                        </div>`;
-                }
-
-                // Outros painéis (register, outputs, reports, settings) - HTML original
-                if (this.state.dom.panels.register) {
-                    this.state.dom.panels.register.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Gerenciar Categorias</h2><form id="add-category-form" class="flex gap-2 mb-4"><input type="text" id="category-name" placeholder="Nova categoria" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12"><i class="fas fa-plus"></i></button></form><div id="category-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Adicionar Produto</h2><form id="add-product-form" class="space-y-4"><label class="block"><span class="text-gray-700">Nome</span><input type="text" id="product-name" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Categoria</span><select id="product-category-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option value="">Selecione...</option></select></label><div class="grid grid-cols-2 gap-4">${locationsQuantityInputs}</div><div class="grid grid-cols-2 gap-4"><label class="block"><span class="text-gray-700">Est. Mínimo</span><input type="number" id="product-min-stock" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Unid.</span><select id="product-unit-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option>UND</option><option>CX</option><option>KG</option><option>G</option><option>L</option><option>ML</option></select></label></div><button type="submit" class="w-full mt-4 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-plus mr-2"></i>Adicionar Produto</button></form></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-file-excel mr-2 text-green-500"></i>Operações em Lote (Excel)</h2><div class="flex flex-col md:flex-row gap-6"><div class="flex-1 bg-gray-50 p-4 rounded-lg flex flex-col items-center text-center"><i class="fas fa-plus-circle fa-2x text-blue-500 mb-2"></i><h3 class="font-semibold mb-1 text-gray-900">Inserir Novos Produtos</h3><p class="text-sm text-gray-600 mb-3">Baixe o modelo, preencha e importe o arquivo Excel para adicionar vários produtos de uma vez.</p><div class="flex gap-2 w-full"><button id="download-template-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-download mr-2"></i>Baixar Modelo</button><input type="file" id="excel-insert-input" accept=".xlsx, .xls" class="hidden"><button id="upload-insert-trigger-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition"><i class="fas fa-upload mr-2"></i>Importar</button></div><p id="excel-insert-filename" class="text-xs mt-2 text-gray-500"></p></div></div></div>`;
-                }
-                if (this.state.dom.panels.outputs) {
-                    this.state.dom.panels.outputs.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 max-w-2xl mx-auto"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Registrar Saída de Estoque</h2><form id="add-output-form" class="space-y-4"><div><label for="output-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="output-product-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="">Selecione um produto...</option></select></div><div id="output-location-selector" class="space-y-2"></div><div><label for="output-quantity" class="block text-sm mb-1 text-gray-700">Quantidade da Saída</label><input type="number" id="output-quantity" min="1" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required disabled></div><div><label for="output-motive-select" class="block text-sm mb-1 text-gray-700">Motivo da Saída</label><select id="output-motive-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="Venda">Venda</option><option value="Perda">Perda</option><option value="Uso Interno">Uso Interno</option><option value="Outro">Outro</option></select></div><p id="output-stock-info" class="text-sm text-gray-500 font-medium h-5"></p><button type="submit" class="w-full mt-4 bg-red-600 text-white font-bold p-2 rounded-lg hover:bg-red-700 transition"><i class="fas fa-arrow-circle-up mr-2"></i>Registrar Saída</button></form></div>`;
-                }
-                if (this.state.dom.panels.reports) {
-                    this.state.dom.panels.reports.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 mb-8"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Dashboard de Movimentações</h2><div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border"><div><label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Gráfico</label><div id="chart-type-selector" class="flex rounded-md shadow-sm"><button data-type="bar" class="chart-type-btn relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Barra</button><button data-type="line" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Linha</button><button data-type="pie" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Pizza</button></div></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Período</label><select id="period-selector" class="dashboard-control block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="7days">Últimos 7 dias</option><option value="30days">Últimos 30 dias</option><option value="this_month">Este Mês</option><option value="last_month">Mês Passado</option><option value="custom">Personalizado</option></select></div><div id="custom-date-range-selector" class="hidden md:col-span-1 grid grid-cols-2 gap-4"><div><label for="dashboard-date-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="dashboard-date-start" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="dashboard-date-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="dashboard-date-end" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div></div></div><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><div class="md:col-span-2 bg-gray-50 p-4 rounded-lg h-96"><canvas id="movements-chart"></canvas></div><div class="space-y-4"><div class="bg-amber-100 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-amber-800">Alerta de Estoque Baixo (Página Atual)</h3><ul id="low-stock-list" class="space-y-2 max-h-40 overflow-y-auto"></ul><p id="low-stock-empty" class="text-sm text-gray-500 hidden">Tudo em ordem!</p></div><div class="bg-gray-50 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-green-800">Top 5 Entradas Recentes</h3><ul id="top-entradas-list" class="space-y-2"></ul></div><div class="bg-gray-50 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-red-800">Top 5 Saídas Recentes</h3><ul id="top-saidas-list" class="space-y-2"></ul></div></div></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-history mr-2 text-indigo-500"></i>Relatório Histórico</h2><div class="flex items-end gap-4"><div class="flex-grow"><label for="report-date" class="block text-sm font-medium text-gray-700">Verificar estoque na data:</label><input type="date" id="report-date" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg"></div><button id="generate-report-btn" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Gerar Relatório</button></div><div id="report-output" class="hidden mt-6"><div id="print-area"><h3 id="report-title" class="text-xl font-bold text-center"></h3><p id="report-subtitle" class="text-center text-gray-500 mb-4"></p><table class="w-full text-left"><thead class="border-b-2 border-gray-300"><tr><th class="p-3">Produto</th><th class="p-3 text-center">Categoria</th><th class="p-3 text-center">Unidade</th><th class="p-3 text-center">Qtd. em Estoque</th></tr></thead><tbody id="report-list" class="divide-y divide-gray-200"></tbody></table></div><button id="print-report-btn" class="mt-4 bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-800 transition float-right"><i class="fas fa-print mr-2"></i>Imprimir</button></div></div>`;
-                }
-                if (this.state.dom.panels.settings) {
-                    this.state.dom.panels.settings.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"> <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"> <h2 class="text-2xl font-semibold mb-4 text-gray-900">Gerenciar Localidades</h2> <form id="add-location-form" class="flex gap-2 mb-4"> <input type="text" id="location-name" placeholder="Nova localidade" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required> <button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12"><i class="fas fa-plus"></i></button> </form> <div id="location-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div> </div> <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"> <h2 class="text-2xl font-semibold mb-4 text-gray-900">Configurações de Exibição</h2> <div class="space-y-4"> <div> <label for="items-per-page-input" class="block text-sm font-medium text-gray-700">Itens por página na tabela</label> <input type="number" id="items-per-page-input" min="1" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg"> </div> <button id="save-settings-btn" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition">Salvar Configurações</button> </div> </div> </div>`;
-                }
-                
-                this.applyRolePermissions(); // Aplica permissões após re-injetar
-                // Atualiza elementos específicos que dependem de dados (como selects de categoria)
-                this.renderCategories(); 
-                this.renderSettings();
-                this.populateProductSelects(); // Importante para o form de saída
-            }
+                this.state.dom.panels.stock.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-gray-100 rounded-lg text-gray-900"></div><select id="stock-category-filter" class="p-2 bg-gray-100 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-gray-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar hidden mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-red-500 text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-red-600 transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div><div class="overflow-x-auto"><table class="w-full text-left min-w-[1400px]"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr>${tableCheckboxHeader}<th class="p-3 text-gray-700 sticky left-0 bg-gray-50">Produto</th><th class="p-3 text-center text-gray-700">Categoria</th><th class="p-3 text-center text-gray-700 font-bold">Total</th>${tableHeaders}${tableActionsHeader}</tr></thead><tbody id="product-list" class="divide-y divide-gray-200"></tbody></table></div><div id="pagination-controls" class="flex justify-between items-center mt-4"></div><div id="empty-state" class="hidden text-center py-12"><i class="fas fa-box-open fa-4x text-gray-400"></i><p id="empty-state-message" class="mt-4 text-gray-500">Nenhum produto.</p></div></div>`;
+                this.state.dom.panels.stock.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 relative"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-gray-100 rounded-lg text-gray-900"></div><select id="stock-category-filter" class="p-2 bg-gray-100 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-gray-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar hidden mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-red-500 text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-red-600 transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div><!-- MODIFICADO: Adicionado indicador de carregamento da tabela --><div id="table-loading-indicator" class="hidden"><i class="fas fa-spinner animate-spin fa-2x text-blue-500"></i></div><!-- FIM MODIFICADO --><div class="overflow-x-auto"><table class="w-full text-left min-w-[1400px]"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr>${tableCheckboxHeader}<th class="p-3 text-gray-700 sticky left-0 bg-gray-50">Produto</th><th class="p-3 text-center text-gray-700">Categoria</th><th class="p-3 text-center text-gray-700 font-bold">Total</th>${tableHeaders}${tableActionsHeader}</tr></thead><tbody id="product-list" class="divide-y divide-gray-200"></tbody></table></div><div id="pagination-controls" class="flex justify-between items-center mt-4"></div><div id="empty-state" class="hidden text-center py-12"><i class="fas fa-box-open fa-4x text-gray-400"></i><p id="empty-state-message" class="mt-4 text-gray-500">Nenhum produto.</p></div></div>`;
+                this.state.dom.panels.register.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Gerenciar Categorias</h2><form id="add-category-form" class="flex gap-2 mb-4"><input type="text" id="category-name" placeholder="Nova categoria" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12"><i class="fas fa-plus"></i></button></form><div id="category-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Adicionar Produto</h2><form id="add-product-form" class="space-y-4"><label class="block"><span class="text-gray-700">Nome</span><input type="text" id="product-name" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Categoria</span><select id="product-category-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option value="">Selecione...</option></select></label><div class="grid grid-cols-2 gap-4">${locationsQuantityInputs}</div><div class="grid grid-cols-2 gap-4"><label class="block"><span class="text-gray-700">Est. Mínimo</span><input type="number" id="product-min-stock" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Unid.</span><select id="product-unit-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option>UND</option><option>CX</option><option>KG</option><option>G</option><option>L</option><option>ML</option></select></label></div><button type="submit" class="w-full mt-4 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-plus mr-2"></i>Adicionar Produto</button></form></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-file-excel mr-2 text-green-500"></i>Operações em Lote (Excel)</h2><div class="flex flex-col md:flex-row gap-6"><div class="flex-1 bg-gray-50 p-4 rounded-lg flex flex-col items-center text-center"><i class="fas fa-plus-circle fa-2x text-blue-500 mb-2"></i><h3 class="font-semibold mb-1 text-gray-900">Inserir Novos Produtos</h3><p class="text-sm text-gray-600 mb-3">Baixe o modelo, preencha e importe o arquivo Excel para adicionar vários produtos de uma vez.</p><div class="flex gap-2 w-full"><button id="download-template-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-download mr-2"></i>Baixar Modelo</button><input type="file" id="excel-insert-input" accept=".xlsx, .xls" class="hidden"><button id="upload-insert-trigger-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition"><i class="fas fa-upload mr-2"></i>Importar</button></div><p id="excel-insert-filename" class="text-xs mt-2 text-gray-500"></p></div></div></div>`;
+                this.state.dom.panels.outputs.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 max-w-2xl mx-auto"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Registrar Saída de Estoque</h2><form id="add-output-form" class="space-y-4"><div><label for="output-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="output-product-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="">Selecione um produto...</option></select></div><div id="output-location-selector" class="space-y-2"></div><div><label for="output-quantity" class="block text-sm mb-1 text-gray-700">Quantidade da Saída</label><input type="number" id="output-quantity" min="1" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required disabled></div><div><label for="output-motive-select" class="block text-sm mb-1 text-gray-700">Motivo da Saída</label><select id="output-motive-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="Venda">Venda</option><option value="Perda">Perda</option><option value="Uso Interno">Uso Interno</option><option value="Outro">Outro</option></select></div><p id="output-stock-info" class="text-sm text-gray-500 font-medium h-5"></p><button type="submit" class="w-full mt-4 bg-red-600 text-white font-bold p-2 rounded-lg hover:bg-red-700 transition"><i class="fas fa-arrow-circle-up mr-2"></i>Registrar Saída</button></form></div>`;
+                this.state.dom.panels.reports.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 mb-8"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Dashboard de Movimentações</h2><div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border"><div><label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Gráfico</label><div id="chart-type-selector" class="flex rounded-md shadow-sm"><button data-type="bar" class="chart-type-btn relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Barra</button><button data-type="line" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Linha</button><button data-type="pie" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Pizza</button></div></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Período</label><select id="period-selector" class="dashboard-control block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="7days">Últimos 7 dias</option><option value="30days">Últimos 30 dias</option><option value="this_month">Este Mês</option><option value="last_month">Mês Passado</option><option value="custom">Personalizado</option></select></div><div id="custom-date-range-selector" class="hidden md:col-span-1 grid grid-cols-2 gap-4"><div><label for="dashboard-date-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="dashboard-date-start" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="dashboard-date-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="dashboard-date-end" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div></div></div><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><div class="md:col-span-2 bg-gray-50 p-4 rounded-lg h-96"><canvas id="movements-chart"></canvas></div><div class="space-y-4"><div class="bg-amber-100 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-amber-800">Alerta de Estoque Baixo</h3><ul id="low-stock-list" class="space-y-2 max-h-40 overflow-y-auto"></ul><p id="low-stock-empty" class="text-sm text-gray-500 hidden">Tudo em ordem!</p></div><div class="bg-gray-50 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-green-800">Top 5 Entradas Recentes</h3><ul id="top-entradas-list" class="space-y-2"></ul></div><div class="bg-gray-50 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-red-800">Top 5 Saídas Recentes</h3><ul id="top-saidas-list" class="space-y-2"></ul></div></div></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-history mr-2 text-indigo-500"></i>Relatório Histórico</h2><div class="flex items-end gap-4"><div class="flex-grow"><label for="report-date" class="block text-sm font-medium text-gray-700">Verificar estoque na data:</label><input type="date" id="report-date" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg"></div><button id="generate-report-btn" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Gerar Relatório</button></div><div id="report-output" class="hidden mt-6"><div id="print-area"><h3 id="report-title" class="text-xl font-bold text-center"></h3><p id="report-subtitle" class="text-center text-gray-500 mb-4"></p><table class="w-full text-left"><thead class="border-b-2 border-gray-300"><tr><th class="p-3">Produto</th><th class="p-3 text-center">Categoria</th><th class="p-3 text-center">Unidade</th><th class="p-3 text-center">Qtd. em Estoque</th></tr></thead><tbody id="report-list" class="divide-y divide-gray-200"></tbody></table></div><button id="print-report-btn" class="mt-4 bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-800 transition float-right"><i class="fas fa-print mr-2"></i>Imprimir</button></div></div>`;
+                this.state.dom.panels.settings.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"> <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"> <h2 class="text-2xl font-semibold mb-4 text-gray-900">Gerenciar Localidades</h2> <form id="add-location-form" class="flex gap-2 mb-4"> <input type="text" id="location-name" placeholder="Nova localidade" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required> <button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12"><i class="fas fa-plus"></i></button> </form> <div id="location-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div> </div> <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"> <h2 class="text-2xl font-semibold mb-4 text-gray-900">Configurações de Exibição</h2> <div class="space-y-4"> <div> <label for="items-per-page-input" class="block text-sm font-medium text-gray-700">Itens por página na tabela</label> <input type="number" id="items-per-page-input" min="1" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg"> </div> <button id="save-settings-btn" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition">Salvar Configurações</button> </div> </div> </div>`;
+                this.applyRolePermissions();
+            },
             updateOutputQuantityLock() {
                 const quantityInput = document.getElementById('output-quantity');
                 const selectedLocationRadio = document.querySelector('input[name="output-location"]:checked');
-                if (!quantityInput || !selectedLocationRadio) {
-                    if(quantityInput) quantityInput.disabled = true;
-                    return;
-                }
+                if (!selectedLocationRadio || !quantityInput) return;
                 const productId = document.getElementById('output-product-select').value;
-                
-                // O produto pode não estar na this.state.products (página atual).
-                // Para este caso, uma busca rápida no DB pelo produto específico é mais robusta.
-                if (!productId) {
-                    quantityInput.disabled = true;
-                    return;
-                }
-
-                getDoc(doc(this.state.firestoreRefs.products, productId)).then(docSnap => {
-                    if (docSnap.exists()) {
-                        const product = docSnap.data();
-                        const locationId = selectedLocationRadio.value;
-                        const maxQuantity = product.quantities?.[locationId] || 0;
-                        quantityInput.max = maxQuantity;
-                        quantityInput.disabled = false;
-                        quantityInput.placeholder = `Máx: ${maxQuantity}`;
-                        if (parseInt(quantityInput.value) > maxQuantity) quantityInput.value = maxQuantity;
-
-                    } else {
-                         quantityInput.disabled = true;
-                         quantityInput.placeholder = `Produto não encontrado`;
-                    }
-                }).catch(err => {
-                    console.error("Error fetching product for output lock:", err);
-                    quantityInput.disabled = true;
-                });
-            }
+                const product = this.state.products.find(p => p.id === productId);
+                if (!product) return;
+                const locationId = selectedLocationRadio.value;
+                const maxQuantity = product.quantities?.[locationId] || 0;
+                quantityInput.max = maxQuantity;
+                quantityInput.disabled = false;
+                quantityInput.placeholder = `Máx: ${maxQuantity}`;
+            },
             handleOutputProductSelection(productId) {
                 const stockInfoEl = document.getElementById('output-stock-info');
                 const locationSelectorEl = document.getElementById('output-location-selector');
@@ -1894,59 +1301,110 @@
                 quantityInput.value = '';
                 quantityInput.removeAttribute('max');
                 quantityInput.disabled = true;
+                quantityToInput.disabled = true;
                 quantityInput.placeholder = '';
                 if (!productId) return;
-
-                // Busca o produto específico do DB para ter dados atualizados e completos.
-                getDoc(doc(this.state.firestoreRefs.products, productId)).then(docSnap => {
-                    if (docSnap.exists()) {
-                        const product = docSnap.data();
-                        stockInfoEl.textContent = `Estoque Total: ${product.totalQuantity} ${product.unit}`;
-                        const locationOptionsHtml = this.state.locations.map(loc => {
-                            const qty = product.quantities?.[loc.id] || 0;
-                            if (qty > 0) {
-                                return `
-                                    <label class="flex items-center space-x-3 p-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
-                                        <input type="radio" name="output-location" value="${loc.id}" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
-                                        <span class="text-gray-800">${loc.name}: <span class="font-semibold">${qty}</span></span>
-                                    </label>
-                                   `;
-                            }
-                            return '';
-                        }).join('');
-                        locationSelectorEl.innerHTML = locationOptionsHtml ? `<p class="text-sm font-medium text-gray-700 mb-2">De onde está saindo?</p><div class="grid grid-cols-1 sm:grid-cols-2 gap-2">${locationOptionsHtml}</div>` : '<p class="text-sm text-red-500">Este produto não tem estoque em nenhuma localidade.</p>';
-                    } else {
-                        stockInfoEl.textContent = 'Produto não encontrado.';
+                const product = this.state.products.find(p => p.id === productId);
+                if (product) {
+                    stockInfoEl.textContent = `Estoque Total: ${product.totalQuantity} ${product.unit}`;
+                    const locationOptionsHtml = this.state.locations.map(loc => {
+                        const qty = product.quantities?.[loc.id] || 0;
+                        if (qty > 0) {
+                            return `
+                                <label class="flex items-center space-x-3 p-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
+                                    <input type="radio" name="output-location" value="${loc.id}" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                    <span class="text-gray-800">${loc.name}: <span class="font-semibold">${qty}</span></span>
+                                </label>
+                               `;
+                        }
+                        return '';
+                    }).join('');
+                    locationSelectorEl.innerHTML = locationOptionsHtml ? `<p class="text-sm font-medium text-gray-700 mb-2">De onde está saindo?</p><div class="grid grid-cols-1 sm:grid-cols-2 gap-2">${locationOptionsHtml}</div>` : '<p class="text-sm text-red-500">Este produto não tem estoque em nenhuma localidade.</p>';
+                }
+            },
+            handleContentChange(e) {
+             const target = e.target;
+             if (['stock-category-filter', 'stock-status-filter', 'date-filter-start', 'date-filter-end'].includes(target.id)) {
+                 this.state.currentPage = 1;
+                 this.renderProducts();
+             }
+             if (target.id === 'output-product-select') this.handleOutputProductSelection(target.value);
+             if (target.id === 'excel-insert-input') {
+                 const file = target.files?.[0];
+                 const filenameEl = document.getElementById('excel-insert-filename');
+                 if(file && filenameEl) {
+                     this.handleExcelParse(file, filenameEl);
+                 }
+             }
+             if (target.id === 'select-all-checkbox') {
+                 const isChecked = target.checked;
+                 document.querySelectorAll('.product-checkbox').forEach(cb => cb.checked = isChecked);
+             }
+             if (target.classList.contains('product-checkbox') || target.id === 'select-all-checkbox') {
+                 this.handleSelectionChange();
+             }
+             if (target.name === 'output-location') {
+                 this.updateOutputQuantityLock();
+             }
+             if (target.id === 'period-selector') {
+                 const period = target.value;
+                 this.state.dashboardSettings.period = period;
+                 const customDateSelector = document.getElementById('custom-date-range-selector');
+                 if (period === 'custom') {
+                     customDateSelector.classList.remove('hidden');
+                     customDateSelector.classList.add('grid');
+                 } else {
+                     customDateSelector.classList.add('hidden');
+                     customDateSelector.classList.remove('grid');
+                     this.updateDashboardView();
+                 }
+             }
+             if (target.id === 'dashboard-date-start' || target.id === 'dashboard-date-end') {
+                 this.state.dashboardSettings.startDate = document.getElementById('dashboard-date-start').value;
+                 this.state.dashboardSettings.endDate = document.getElementById('dashboard-date-end').value;
+                 if (this.state.dashboardSettings.startDate && this.state.dashboardSettings.endDate) {
+                     this.updateDashboardView();
+                 }
+             }
+            },
+            handleContentInput(e) {
+                const target = e.target;
+                if (target.id === 'search-product-input') {
+                    this.state.currentPage = 1;
+                    this.renderProducts();
+                    // MODIFICADO: Usa a função debounced para renderizar produtos
+                    this.debouncedRenderProducts();
+                    // FIM MODIFICADO
+                }
+                if (target.id === 'output-quantity') {
+                    const max = parseInt(target.max, 10);
+                    if (!isNaN(max) && parseInt(target.value, 10) > max) {
+                        target.value = max;
                     }
-                }).catch(err => {
-                     console.error("Error fetching product for output selection:", err);
-                     stockInfoEl.textContent = 'Erro ao buscar produto.';
-                });
-            }
+                }
+            },
             async handleSaveSettings() {
                 const input = document.getElementById('items-per-page-input');
                 if (!input) return;
                 const itemsPerPage = parseInt(input.value, 10);
                 if (isNaN(itemsPerPage) || itemsPerPage <= 0) {
-                    return this.showAlert('Número de itens por página inválido.', true);
+                    return this.showAlert('Número de itens por página inválido.', true); // Removido 'Erro' como título
                 }
-                
+
                 this.setLoading(true);
                 try {
                     await setDoc(this.state.firestoreRefs.settings, { itemsPerPage }, { merge: true });
-                    this.showAlert('Configurações salvas.');
-                    // A mudança em itemsPerPage já é detectada por listenForSettingsUpdates,
-                    // que chamará fetchAndRenderProducts.
+                    this.showAlert('Configurações salvas.'); // Removido 'Sucesso!' como título
                 } catch(error) {
-                    this.showAlert('Não foi possível salvar as configurações.', true);
+                    this.showAlert('Não foi possível salvar as configurações.', true); // Removido 'Erro' como título
                 } finally {
                     this.setLoading(false);
                 }
-            }
-        }
+            },
+        });
 
         new StockApp();
-
+More actions
     </script>
 </body>
 </html>

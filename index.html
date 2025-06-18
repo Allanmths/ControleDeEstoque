@@ -15,6 +15,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <!-- MODIFICADO: Adicionado dependências do Toastify.js -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+    <!-- FIM MODIFICADO -->
     <style>
         body { font-family: 'Inter', sans-serif; }
         .modal-backdrop, #sidebar-overlay { background-color: rgba(0, 0, 0, 0.5); }
@@ -63,7 +67,7 @@
             </div>
             <!-- Formulário de Registro -->
             <div id="register-form-container" class="hidden">
-                 <div class="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 text-center">
+                <div class="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 text-center">
                     <i class="fas fa-user-plus fa-2x text-blue-500 mb-4"></i>
                     <h2 class="text-2xl font-bold text-gray-800 mb-1">Crie sua Conta</h2>
                     <p class="text-gray-500 mb-6">O registro cria uma conta com permissão de 'Visualizador'.</p>
@@ -139,7 +143,8 @@
     <!-- Modals -->
     <div id="edit-modal" class="fixed inset-0 modal-backdrop items-center justify-center z-50 hidden"><div class="bg-white w-full max-w-lg p-6 rounded-2xl shadow-2xl m-4"><h3 class="text-xl font-semibold mb-4 text-gray-900">Editar Produto</h3><p id="edit-product-name" class="mb-4 text-gray-600"></p><div id="edit-quantities-container" class="space-y-4"></div><div class="mt-6 flex justify-end space-x-4"><button id="cancel-edit" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancelar</button><button id="save-edit" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">Salvar</button></div></div></div>
     <div id="delete-modal" class="fixed inset-0 modal-backdrop items-center justify-center z-50 hidden"><div class="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl m-4 text-center"><i class="fas fa-triangle-exclamation fa-3x text-red-500 mb-4"></i><h3 class="text-xl font-semibold mb-2 text-gray-900">Confirmar Exclusão</h3><p id="delete-modal-text" class="mb-6 text-gray-600"></p><div class="flex justify-center space-x-4"><button id="cancel-delete" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancelar</button><button id="confirm-delete" class="px-6 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition">Excluir</button></div></div></div>
-    <div id="alert-modal" class="fixed inset-0 modal-backdrop items-center justify-center z-[70] hidden"><div class="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl m-4 text-center"><i id="alert-modal-icon" class="fa-solid fa-circle-check fa-3x text-green-500 mb-4"></i><h3 id="alert-modal-title" class="text-xl font-semibold mb-2 text-gray-900">Sucesso!</h3><p id="alert-modal-message" class="mb-6 text-gray-600">Operação concluída.</p><button id="alert-modal-close" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">OK</button></div></div>
+    <!-- REMOVIDO: Bloco do alert-modal antigo -->
+    <!-- <div id="alert-modal" class="fixed inset-0 modal-backdrop items-center justify-center z-[70] hidden"><div class="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl m-4 text-center"><i id="alert-modal-icon" class="fa-solid fa-circle-check fa-3x text-green-500 mb-4"></i><h3 id="alert-modal-title" class="text-xl font-semibold mb-2 text-gray-900">Sucesso!</h3><p id="alert-modal-message" class="mb-6 text-gray-600">Operação concluída.</p><button id="alert-modal-close" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700">OK</button></div></div> -->
 
     <!-- Firebase SDK e Script da Aplicação -->
     <script type="module">
@@ -181,11 +186,11 @@
 
             constructor() {
                 if (!firebaseConfig || !firebaseConfig.apiKey) {
-                     console.error("Firebase config is not set.");
-                     document.addEventListener('DOMContentLoaded', () => {
-                         document.body.innerHTML = `<div class="w-full h-screen flex items-center justify-center p-4"><div class="text-center bg-red-100 p-8 rounded-lg shadow-md"><h1 class="text-2xl font-bold text-red-800 mb-2">Erro de Configuração</h1><p class="text-red-700">As credenciais do Firebase não foram configuradas.</p></div></div>`;
-                     });
-                     return;
+                    console.error("Firebase config is not set.");
+                    document.addEventListener('DOMContentLoaded', () => {
+                        document.body.innerHTML = `<div class="w-full h-screen flex items-center justify-center p-4"><div class="text-center bg-red-100 p-8 rounded-lg shadow-md"><h1 class="text-2xl font-bold text-red-800 mb-2">Erro de Configuração</h1><p class="text-red-700">As credenciais do Firebase não foram configuradas.</p></div></div>`;
+                    });
+                    return;
                 }
                 this.app = initializeApp(firebaseConfig);
                 this.auth = getAuth(this.app);
@@ -212,7 +217,8 @@
                     panels: { stock: document.getElementById('panel-stock'), register: document.getElementById('panel-register'), outputs: document.getElementById('panel-outputs'), reports: document.getElementById('panel-reports'), settings: document.getElementById('panel-settings') },
                     sidebar: { menu: document.getElementById('sidebar-menu'), nav: document.getElementById('sidebar-nav'), overlay: document.getElementById('sidebar-overlay'), toggleBtn: document.getElementById('menu-toggle-btn'), logoutBtn: document.getElementById('logout-btn') },
                     modals: {
-                        alert: { self: document.getElementById('alert-modal'), title: document.getElementById('alert-modal-title'), message: document.getElementById('alert-modal-message'), icon: document.getElementById('alert-modal-icon'), closeBtn: document.getElementById('alert-modal-close') },
+                        // REMOVIDO: Referência ao alert-modal
+                        // alert: { self: document.getElementById('alert-modal'), title: document.getElementById('alert-modal-title'), message: document.getElementById('alert-modal-message'), icon: document.getElementById('alert-modal-icon'), closeBtn: document.getElementById('alert-modal-close') },
                         edit: { self: document.getElementById('edit-modal'), productName: document.getElementById('edit-product-name'), quantitiesContainer: document.getElementById('edit-quantities-container'), saveBtn: document.getElementById('save-edit'), cancelBtn: document.getElementById('cancel-edit') },
                         delete: { self: document.getElementById('delete-modal'), text: document.getElementById('delete-modal-text'), confirmBtn: document.getElementById('confirm-delete'), cancelBtn: document.getElementById('cancel-delete') },
                     }
@@ -228,7 +234,8 @@
                 document.getElementById('show-register-link').addEventListener('click', (e) => { e.preventDefault(); this.toggleAuthForm(true); });
                 document.getElementById('show-login-link').addEventListener('click', (e) => { e.preventDefault(); this.toggleAuthForm(false); });
                 dom.sidebar.logoutBtn.addEventListener('click', (e) => { e.preventDefault(); this.handleLogout(); });
-                dom.modals.alert.closeBtn.addEventListener('click', () => dom.modals.alert.self.classList.replace('flex', 'hidden'));
+                // REMOVIDO: Listener para o botão de fechar do alert-modal antigo
+                // dom.modals.alert.closeBtn.addEventListener('click', () => dom.modals.alert.self.classList.replace('flex', 'hidden'));
                 dom.modals.edit.cancelBtn.addEventListener('click', () => this.closeEditModal());
                 dom.modals.edit.saveBtn.addEventListener('click', () => this.handleSaveEdit());
                 dom.modals.delete.cancelBtn.addEventListener('click', () => this.closeDeleteModal());
@@ -289,7 +296,7 @@
                     await signInWithEmailAndPassword(this.auth, email, password);
                     // onAuthStateChanged irá gerenciar a mudança de UI
                 } catch (error) {
-                    this.showAlert("Erro de Login", this.getFriendlyAuthError(error.code), true);
+                    this.showAlert(this.getFriendlyAuthError(error.code), true); // Removido 'Erro de Login' como título
                     this.setLoading(false);
                 }
             }
@@ -307,7 +314,7 @@
                     });
                     // onAuthStateChanged irá gerenciar a mudança de UI
                 } catch (error) {
-                    this.showAlert("Erro de Registro", this.getFriendlyAuthError(error.code), true);
+                    this.showAlert(this.getFriendlyAuthError(error.code), true); // Removido 'Erro de Registro' como título
                     this.setLoading(false);
                 }
             }
@@ -407,7 +414,7 @@
             async handleFormSubmit(e) {
                 e.preventDefault();
                 if (this.state.userRole !== 'admin') {
-                    return this.showAlert('Acesso Negado', 'Você não tem permissão para realizar esta ação.', true);
+                    return this.showAlert('Você não tem permissão para realizar esta ação.', true); // Removido 'Acesso Negado' como título
                 }
                 const form = e.target;
                 this.setLoading(true);
@@ -417,7 +424,7 @@
                     if (form.id === 'add-output-form') await this.handleAddOutput(form);
                     if (form.id === 'add-location-form') await this.handleAddLocation(form);
                 } catch (error) {
-                    this.showAlert("Erro", error.message, true);
+                    this.showAlert(error.message, true); // Removido 'Erro' como título
                 } finally {
                     this.setLoading(false);
                 }
@@ -437,7 +444,7 @@
                 const isAdmin = this.state.userRole === 'admin';
 
                 if ((action?.startsWith('delete') || action === 'edit' || button.id === 'bulk-delete-btn') && !isAdmin) {
-                    return this.showAlert('Acesso Negado', 'Você não tem permissão para realizar esta ação.', true);
+                    return this.showAlert('Você não tem permissão para realizar esta ação.', true); // Removido 'Acesso Negado' como título
                 }
 
                 if (action === 'delete-category' && id) this.openDeleteModal(id, 'category');
@@ -465,12 +472,12 @@
             }
             
             async handleSaveEdit() {
-                if (this.state.userRole !== 'admin') return this.showAlert('Acesso Negado', 'Você não tem permissão para salvar edições.', true);
+                if (this.state.userRole !== 'admin') return this.showAlert('Você não tem permissão para salvar edições.', true); // Removido 'Acesso Negado' como título
                 const { self, quantitiesContainer } = this.state.dom.modals.edit;
                 const id = self.dataset.productId;
                 if (!id) return;
                 const oldProduct = this.state.products.find(p => p.id === id);
-                if (!oldProduct) return this.showAlert('Erro', 'Produto não encontrado.', true);
+                if (!oldProduct) return this.showAlert('Produto não encontrado.', true); // Removido 'Erro' como título
                 const newQuantities = {};
                 let newTotalQuantity = 0;
                 this.state.locations.forEach(loc => {
@@ -487,15 +494,15 @@
                     if (quantityDiff !== 0) {
                         await this.logMovement(id, quantityDiff > 0 ? 'entrada' : 'saida', Math.abs(quantityDiff), 'Ajuste via Edição');
                     }
-                    this.showAlert('Sucesso!', 'Produto atualizado.');
+                    this.showAlert('Produto atualizado.'); // Removido 'Sucesso!' como título
                     this.closeEditModal();
                 } catch (error) {
-                    this.showAlert('Erro', `Não foi possível salvar: ${error.message}`, true);
+                    this.showAlert(`Não foi possível salvar: ${error.message}`, true); // Removido 'Erro' como título
                 }
             }
 
             async handleDelete() {
-                if (this.state.userRole !== 'admin') return this.showAlert('Acesso Negado', 'Você não tem permissão para excluir.', true);
+                if (this.state.userRole !== 'admin') return this.showAlert('Você não tem permissão para excluir.', true); // Removido 'Acesso Negado' como título
                 const { id, type, isBulk } = this.state.deleteQueue;
                 if (!type) return;
                 this.setLoading(true);
@@ -506,27 +513,27 @@
                             batch.delete(doc(this.state.firestoreRefs.products, productId));
                         });
                         await batch.commit();
-                        this.showAlert('Sucesso!', `${this.state.selectedProducts.length} produtos excluídos.`);
+                        this.showAlert(`${this.state.selectedProducts.length} produtos excluídos.`); // Removido 'Sucesso!' como título
                         this.state.selectedProducts = [];
                         this.handleSelectionChange();
                     } else if (id) {
                         if (type === 'product') {
                             await deleteDoc(doc(this.state.firestoreRefs.products, id));
-                            this.showAlert('Sucesso!', 'Produto excluído.');
+                            this.showAlert('Produto excluído.'); // Removido 'Sucesso!' como título
                         } else if (type === 'category') {
                             if (this.state.products.some(p => p.category === id)) throw new Error(`Existem produtos nesta categoria. Não é possível excluí-la.`);
                             await deleteDoc(doc(this.state.firestoreRefs.categories, id));
-                            this.showAlert('Sucesso!', 'Categoria excluída.');
+                            this.showAlert('Categoria excluída.'); // Removido 'Sucesso!' como título
                         } else if (type === 'location') {
                             if (this.state.products.some(p => p.quantities[id] && p.quantities[id] > 0)) {
                                 throw new Error('Esta localidade está em uso por produtos com estoque e não pode ser excluída.');
                             }
                             await deleteDoc(doc(this.state.firestoreRefs.locations, id));
-                            this.showAlert('Sucesso!', 'Localidade excluída.');
+                            this.showAlert('Localidade excluída.'); // Removido 'Sucesso!' como título
                         }
                     }
                 } catch (error) {
-                    this.showAlert('Erro', error.message, true);
+                    this.showAlert(error.message, true); // Removido 'Erro' como título
                 } finally {
                     this.closeDeleteModal();
                     this.setLoading(false);
@@ -612,25 +619,25 @@
         // COPIAR O Object.assign e o new StockApp() aqui
         Object.assign(StockApp.prototype, {
             async handleAddCategory(form) {
-                 const name = form.querySelector('#category-name').value.trim();
-                 if (name && this.state.firestoreRefs) {
-                     await addDoc(this.state.firestoreRefs.categories, { name });
-                     form.reset();
-                     this.showAlert('Sucesso', 'Categoria adicionada!');
-                 } else {
-                     throw new Error("Nome da categoria inválido.");
-                 }
+                const name = form.querySelector('#category-name').value.trim();
+                if (name && this.state.firestoreRefs) {
+                    await addDoc(this.state.firestoreRefs.categories, { name });
+                    form.reset();
+                    this.showAlert('Categoria adicionada!');
+                } else {
+                    throw new Error("Nome da categoria inválido.");
+                }
             },
             async handleAddLocation(form) {
                 const name = form.querySelector('#location-name').value.trim();
                 if (name && this.state.firestoreRefs) {
                     const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
                     if (this.state.locations.some(loc => loc.id === id)) {
-                         throw new Error("Uma localidade com nome similar já existe.");
+                        throw new Error("Uma localidade com nome similar já existe.");
                     }
                     await setDoc(doc(this.state.firestoreRefs.locations, id), { name });
                     form.reset();
-                    this.showAlert('Sucesso', 'Localidade adicionada!');
+                    this.showAlert('Localidade adicionada!');
                 } else {
                     throw new Error("Nome da localidade inválido.");
                 }
@@ -661,7 +668,7 @@
                         await this.logMovement(newProdRef.id, 'entrada', totalQuantity, 'Criação de Produto');
                     }
                     form.reset();
-                    this.showAlert('Sucesso', 'Produto adicionado!');
+                    this.showAlert('Produto adicionado!');
                 } else {
                     throw new Error("Dados do produto inválidos. Verifique nome, categoria e unidade.");
                 }
@@ -687,7 +694,7 @@
                     const movementRef = doc(collection(this.db, this.state.firestoreRefs.movements.path));
                     transaction.set(movementRef, { productId, type: 'saida', quantity, motive, location: locationId, date: serverTimestamp() });
                 });
-                this.showAlert('Sucesso!', 'Saída registrada com sucesso.');
+                this.showAlert('Saída registrada com sucesso.');
                 form.reset();
                 document.getElementById('output-stock-info').textContent = '';
                 document.getElementById('output-location-selector').innerHTML = '';
@@ -798,14 +805,28 @@
                 outputSelect.innerHTML = options;
                 outputSelect.value = currentValue;
             },
-            showAlert(title, message, isError = false) {
-                const { self, title: titleEl, message: messageEl, icon: iconEl, closeBtn } = this.state.dom.modals.alert;
-                titleEl.textContent = title;
-                messageEl.textContent = message;
-                iconEl.className = `fa-3x mb-4 fa-solid ${isError ? 'fa-circle-xmark text-red-500' : 'fa-circle-check text-green-500'}`;
-                closeBtn.className = `px-6 py-2 text-white font-semibold rounded-lg ${isError ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700'}`;
-                self.classList.replace('hidden', 'flex');
+            // MODIFICADO: Função showAlert para usar Toastify.js
+            showAlert(message, isError = false) {
+                Toastify({
+                    text: message,
+                    duration: 3000, // Notificação desaparece após 3 segundos
+                    newWindow: true,
+                    close: true,
+                    gravity: "top", // Posição superior
+                    position: "right", // Posição direita
+                    stopOnFocus: true, // Permite que a notificação permaneça na tela se o usuário interagir com ela
+                    style: {
+                        background: isError 
+                            ? 'linear-gradient(to right, #ef4444, #dc2626)' // Vermelho para erro
+                            : 'linear-gradient(to right, #22c55e, #16a34a)', // Verde para sucesso
+                        borderRadius: '8px', // Bordas arredondadas
+                        fontSize: '14px',
+                        padding: '12px 20px'
+                    },
+                    onClick: function(){} // Callback after click
+                }).showToast();
             },
+            // FIM MODIFICADO
             toggleSidebar(show) {
                 const { menu, overlay } = this.state.dom.sidebar;
                 menu.classList.toggle('-translate-x-full', !show);
@@ -819,7 +840,7 @@
             },
             openEditModal(productId) {
                 const product = this.state.products.find(p => p.id === productId);
-                if (!product) return this.showAlert('Erro', 'Produto não encontrado.', true);
+                if (!product) return this.showAlert('Produto não encontrado.', true); // Removido 'Erro' como título
                 const { self, productName, quantitiesContainer } = this.state.dom.modals.edit;
                 self.dataset.productId = productId;
                 productName.textContent = product.name;
@@ -992,7 +1013,7 @@
             },
             async handleGenerateReport() {
                 const dateInput = document.getElementById('report-date'), reportOutput = document.getElementById('report-output');
-                if (!dateInput || !reportOutput || !dateInput.value) return this.showAlert('Atenção', 'Selecione uma data para gerar o relatório.', true);
+                if (!dateInput || !reportOutput || !dateInput.value) return this.showAlert('Selecione uma data para gerar o relatório.', true); // Removido 'Atenção' como título
                 const targetDate = new Date(dateInput.value); targetDate.setUTCHours(23, 59, 59, 999);
                 this.setLoading(true);
                 const historicalStock = {};
@@ -1131,7 +1152,7 @@
                         const json = XLSX.utils.sheet_to_json(worksheet);
                         await this.handleBulkInsert(json);
                     } catch (error) {
-                        this.showAlert('Erro de Excel', `Não foi possível ler o arquivo: ${error.message}`, true);
+                        this.showAlert(`Não foi possível ler o arquivo: ${error.message}`, true); // Removido 'Erro de Excel' como título
                     } finally {
                         filenameEl.textContent = '';
                         this.setLoading(false);
@@ -1139,9 +1160,9 @@
                     }
                 };
                 reader.onerror = (error) => {
-                       this.showAlert('Erro de Leitura', `Erro ao ler o arquivo: ${error}`, true);
-                       filenameEl.textContent = '';
-                       this.setLoading(false);
+                     this.showAlert(`Erro ao ler o arquivo: ${error}`, true); // Removido 'Erro de Leitura' como título
+                     filenameEl.textContent = '';
+                     this.setLoading(false);
                 };
                 reader.readAsArrayBuffer(file);
             },
@@ -1179,7 +1200,7 @@
                     }
                 }
                 await batch.commit();
-                this.showAlert('Sucesso', `${data.length} produtos processados do arquivo Excel.`);
+                this.showAlert(`${data.length} produtos processados do arquivo Excel.`); // Removido 'Sucesso' como título
             },
             injectPanelContent() {
                 if (!this.state.dom) return;
@@ -1226,12 +1247,12 @@
                     const locationOptionsHtml = this.state.locations.map(loc => {
                         const qty = product.quantities?.[loc.id] || 0;
                         if (qty > 0) {
-                           return `
-                            <label class="flex items-center space-x-3 p-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
-                                <input type="radio" name="output-location" value="${loc.id}" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
-                                <span class="text-gray-800">${loc.name}: <span class="font-semibold">${qty}</span></span>
-                            </label>
-                           `;
+                            return `
+                                <label class="flex items-center space-x-3 p-2 rounded-lg border border-gray-200 hover:bg-gray-50 cursor-pointer">
+                                    <input type="radio" name="output-location" value="${loc.id}" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+                                    <span class="text-gray-800">${loc.name}: <span class="font-semibold">${qty}</span></span>
+                                </label>
+                               `;
                         }
                         return '';
                     }).join('');
@@ -1301,15 +1322,15 @@
                 if (!input) return;
                 const itemsPerPage = parseInt(input.value, 10);
                 if (isNaN(itemsPerPage) || itemsPerPage <= 0) {
-                    return this.showAlert('Erro', 'Número de itens por página inválido.', true);
+                    return this.showAlert('Número de itens por página inválido.', true); // Removido 'Erro' como título
                 }
                 
                 this.setLoading(true);
                 try {
                     await setDoc(this.state.firestoreRefs.settings, { itemsPerPage }, { merge: true });
-                    this.showAlert('Sucesso!', 'Configurações salvas.');
+                    this.showAlert('Configurações salvas.'); // Removido 'Sucesso!' como título
                 } catch(error) {
-                    this.showAlert('Erro', 'Não foi possível salvar as configurações.', true);
+                    this.showAlert('Não foi possível salvar as configurações.', true); // Removido 'Erro' como título
                 } finally {
                     this.setLoading(false);
                 }

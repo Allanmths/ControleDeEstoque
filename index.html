@@ -173,18 +173,9 @@
             };
         };
         
-        const hardcodedFirebaseConfig = {
-            apiKey: "AIzaSyDVxDoPVP-uhWwfXsdlouk5uv-jt-P6tL8", // Substitua pela sua chave de API real
-            authDomain: "controledeestoque-7ea51.firebaseapp.com",
-            projectId: "controledeestoque-7ea51",
-            storageBucket: "controledeestoque-7ea51.appspot.com",
-            messagingSenderId: "355699807496",
-            appId: "1:355699807496:web:6432766da431e535b888bd"
-        };
-        
-        const firebaseConfig = typeof __firebase_config !== 'undefined' && __firebase_config
+        const firebaseConfig = typeof __firebase_config !== 'undefined'
             ? JSON.parse(__firebase_config)
-            : hardcodedFirebaseConfig;
+            : null;
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-stock-app';
 
@@ -206,8 +197,8 @@
             };
 
             constructor() {
-                if (!firebaseConfig || !firebaseConfig.apiKey || firebaseConfig.apiKey.includes("AIzaSy")) {
-                    console.error("Firebase config is not set or uses placeholder values.");
+                if (!firebaseConfig || !firebaseConfig.apiKey) {
+                    console.error("Firebase config is not provided or is invalid.");
                     document.addEventListener('DOMContentLoaded', () => {
                         document.body.innerHTML = `<div class="w-full h-screen flex items-center justify-center p-4"><div class="text-center bg-red-100 p-8 rounded-lg shadow-md"><h1 class="text-2xl font-bold text-red-800 mb-2">Erro de Configuração</h1><p class="text-red-700">As credenciais do Firebase não foram configuradas corretamente. Verifique o console para mais detalhes.</p></div></div>`;
                     });
@@ -986,7 +977,7 @@
                 const sortedProducts = [...this.state.products].sort((a,b) => a.name.localeCompare(b.name));
                 options += sortedProducts.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
                 outputSelect.innerHTML = options;
-                if (Array.from(outputSelect.options).some(opt => opt.value === currentValue)) {
+                if (Array.from(select.options).some(opt => opt.value === currentValue)) {
                     outputSelect.value = currentValue;
                 } else {
                     outputSelect.value = "";

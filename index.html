@@ -172,7 +172,7 @@
         };
         
         const hardcodedFirebaseConfig = {
-            apiKey: "AIzaSyDVxDoPVP-uhWwfXsdlouk5uv-jt-P6tL8",
+            apiKey: "AIzaSyDVxDoPVP-uhWwfXsdlouk5uv-jt-P6tL8", // Substitua pela sua chave de API real
             authDomain: "controledeestoque-7ea51.firebaseapp.com",
             projectId: "controledeestoque-7ea51",
             storageBucket: "controledeestoque-7ea51.appspot.com",
@@ -191,7 +191,7 @@
             auth;
             db;
             state = {
-                products: [], categories: [], locations: [], movements: [],
+                products: [], categories: [], locations: [], movements: [], allUsers: [], // Adicionado allUsers
                 selectedProducts: [],
                 currentPage: 1, itemsPerPage: 10,
                 firestoreRefs: null, dom: null, chartInstance: null,
@@ -203,10 +203,10 @@
             };
 
             constructor() {
-                if (!firebaseConfig || !firebaseConfig.apiKey) {
-                    console.error("Firebase config is not set.");
+                if (!firebaseConfig || !firebaseConfig.apiKey || firebaseConfig.apiKey === "YOUR_API_KEY") { // Checagem genérica
+                    console.error("Firebase config is not set or uses placeholder values.");
                     document.addEventListener('DOMContentLoaded', () => {
-                        document.body.innerHTML = `<div class="w-full h-screen flex items-center justify-center p-4"><div class="text-center bg-red-100 p-8 rounded-lg shadow-md"><h1 class="text-2xl font-bold text-red-800 mb-2">Erro de Configuração</h1><p class="text-red-700">As credenciais do Firebase não foram configuradas.</p></div></div>`;
+                        document.body.innerHTML = `<div class="w-full h-screen flex items-center justify-center p-4"><div class="text-center bg-red-100 p-8 rounded-lg shadow-md"><h1 class="text-2xl font-bold text-red-800 mb-2">Erro de Configuração</h1><p class="text-red-700">As credenciais do Firebase não foram configuradas corretamente. Verifique o console para mais detalhes.</p></div></div>`;
                     });
                     return;
                 }
@@ -219,7 +219,7 @@
 
             init() {
                 this.cacheDomElements();
-                this.injectPanelContent();
+                this.injectPanelContent(); // Chamado antes para ter os elementos base
                 this.setupEventListeners();
                 this.handleAuthentication();
             }
@@ -275,6 +275,7 @@
             // --- AUTHENTICATION & PERMISSIONS ---
             handleAuthentication() {
                 onAuthStateChanged(this.auth, async (user) => {
+                    this.setLoading(true); // Inicia o loading aqui
                     if (user) {
                         this.state.currentUser = user;
                         const userDocRef = doc(this.db, 'users', user.uid);
@@ -283,7 +284,10 @@
                         if (userDoc.exists()) {
                             this.state.userRole = userDoc.data().role;
                         } else {
-                            this.state.userRole = 'viewer';
+                            // Se o documento não existe, pode ser um usuário recém-registrado
+                            // ou um problema. Assume 'viewer' por segurança.
+                            // No registro, garantimos que o doc é criado.
+                            this.state.userRole = 'viewer'; 
                         }
                         
                         this.state.isAuthReady = true;
@@ -293,10 +297,11 @@
                         this.state.currentUser = null;
                         this.state.userRole = null;
                         this.state.isAuthReady = false;
+                        this.state.allUsers = []; // Limpa lista de usuários ao deslogar
                         this.clearAllListeners();
                         this.showAuthUI();
                     }
-                    this.setLoading(false);
+                    this.setLoading(false); // Finaliza o loading
                 });
             }
 
@@ -306,6 +311,7 @@
                 this.setLoading(true);
                 try {
                     await signInWithEmailAndPassword(this.auth, email, password);
+                    // onAuthStateChanged cuidará do resto
                 } catch (error) {
                     this.showAlert(this.getFriendlyAuthError(error.code), true);
                     this.setLoading(false);
@@ -318,11 +324,13 @@
                 this.setLoading(true);
                 try {
                     const userCredential = await createUserWithEmailAndPassword(this.auth, email, password);
+                    // Cria o documento do usuário com papel 'viewer'
                     await setDoc(doc(this.db, "users", userCredential.user.uid), {
                         email: userCredential.user.email,
-                        role: "viewer",
+                        role: "viewer", // Papel padrão no registro
                         createdAt: serverTimestamp()
                     });
+                    // onAuthStateChanged cuidará da transição para a UI do app
                 } catch (error) {
                     this.showAlert(this.getFriendlyAuthError(error.code), true);
                     this.setLoading(false);
@@ -332,6 +340,7 @@
             async handleLogout() {
                 this.setLoading(true);
                 await signOut(this.auth);
+                 // onAuthStateChanged cuidará da transição para a UI de auth
             }
             
             toggleAuthForm(showRegister) {
@@ -349,9 +358,10 @@
                 this.state.dom.authSection.classList.remove('hidden');
                 this.state.dom.authSection.classList.add('flex');
                 this.state.dom.appSection.classList.add('hidden');
+                // Limpa o estado relevante da aplicação ao mostrar UI de autenticação
                 this.state = {
                     ...this.state, products: [], categories: [], locations: [],
-                    movements: [], selectedProducts: [], currentPage: 1,
+                    movements: [], selectedProducts: [], currentPage: 1, allUsers: []
                 };
             }
             
@@ -361,17 +371,30 @@
                 if (welcomeEl) {
                     welcomeEl.textContent = `Bem-vindo! Você está logado como ${userRole === 'admin' ? 'Administrador' : 'Visualizador'}.`;
                 }
+                
                 document.querySelectorAll('[data-role-required]').forEach(el => {
                     const requiredRole = el.getAttribute('data-role-required');
-                    const displayStyle = (el.tagName === 'BUTTON' || el.tagName === 'A') && el.classList.contains('flex') ? 'flex' : 'block';
+                    const displayStyle = (el.tagName === 'BUTTON' || el.tagName === 'A' || el.tagName === 'DIV' && el.classList.contains('flex')) ? 'flex' : 'block';
                     el.style.display = userRole === requiredRole ? displayStyle : 'none';
                 });
+
+                // Assegura que a aba de configurações e o conteúdo de gerenciamento de usuários só apareçam para admin
+                const settingsPanel = this.state.dom.panels.settings;
+                const userManagementSection = document.getElementById('user-management-section');
+                if (settingsPanel) {
+                     settingsPanel.style.display = userRole === 'admin' ? 'block' : 'none';
+                }
+                if(userManagementSection) {
+                    userManagementSection.style.display = userRole === 'admin' ? 'block' : 'none';
+                }
+
+
                 const activeTab = document.querySelector('.sidebar-link.bg-gray-200')?.dataset.tab;
                 const activeTabEl = document.querySelector(`.sidebar-link[data-tab="${activeTab}"]`);
                 if (userRole === 'viewer' && activeTabEl?.getAttribute('data-role-required') === 'admin') {
-                   this.switchTab('reports');
+                   this.switchTab('reports'); // Redireciona para uma aba segura se a atual for restrita
                 }
-                this.updateAllViews();
+                this.updateAllViews(); // Isso re-renderizará as partes necessárias
             }
 
             getFriendlyAuthError(code) {
@@ -393,17 +416,26 @@
                     movements: collection(this.db, `${basePath}/movements`),
                     locations: collection(this.db, `${basePath}/locations`),
                     settings: doc(this.db, `${basePath}/settings/main`),
-                    users: collection(this.db, `users`),
+                    users: collection(this.db, `users`), // Referência para a coleção de usuários
                 };
                 
-                this.clearAllListeners();
+                this.clearAllListeners(); // Limpa listeners antigos antes de configurar novos
                 this.state.unsubscribers.push(this.listenForSettingsUpdates());
                 this.state.unsubscribers.push(this.listenForLocationUpdates());
                 this.state.unsubscribers.push(this.listenForCategoryUpdates());
                 this.state.unsubscribers.push(this.listenForProductUpdates());
                 this.state.unsubscribers.push(this.listenForMovements());
+                if (this.state.userRole === 'admin') { // Somente admins precisam ouvir todos os usuários
+                    this.state.unsubscribers.push(this.listenForUserUpdates());
+                }
                 
-                this.applyRolePermissions();
+                this.applyRolePermissions(); // Aplica permissões baseadas no papel
+                // Reinjeta conteúdo dos painéis que podem depender de dados carregados (como localidades)
+                this.injectPanelContent(); 
+                // Define a aba inicial ou a última aba ativa que seja permitida
+                const initialTab = document.querySelector('.sidebar-link.bg-gray-200')?.dataset.tab || 'reports';
+                this.switchTab(initialTab);
+
             }
 
             clearAllListeners() {
@@ -439,6 +471,15 @@
                     this.updateDashboardView();
                     return;
                 }
+                 if (button.classList.contains('save-user-role-btn')) {
+                    const userId = button.dataset.userId;
+                    const selectEl = document.getElementById(`role-select-${userId}`);
+                    if (userId && selectEl) {
+                        this.handleChangeUserRole(userId, selectEl.value);
+                    }
+                    return;
+                }
+
 
                 const { action, id } = button.dataset;
                 const isAdmin = this.state.userRole === 'admin';
@@ -557,11 +598,15 @@
                 return onSnapshot(query(this.state.firestoreRefs.locations), async (snapshot) => {
                     if (this.state.userRole === 'admin' && snapshot.empty) {
                         await createDefaultLocations();
+                        // O listener será chamado novamente após a criação, então não precisa de updateAllViews aqui.
                         return;
                     }
-                    this.state.locations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a,b) => a.name.localeCompare(b.name));
-                    this.injectPanelContent();
+                    this.state.locations = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })).sort((a,b) => a.name.localeCompare(b.name));
+                    this.injectPanelContent(); // Re-injeta para atualizar forms com novas localidades
                     this.updateAllViews();
+                }, (error) => {
+                    console.error("Erro ao ouvir atualizações de localidades:", error);
+                    this.showAlert("Erro ao carregar localidades.", true);
                 });
             }
 
@@ -571,39 +616,62 @@
                     if (docSnap.exists()) {
                         this.state.itemsPerPage = docSnap.data().itemsPerPage || 10;
                     } else if (this.state.userRole === 'admin') {
+                        // Se não existe e é admin, cria com valor padrão
                         await setDoc(this.state.firestoreRefs.settings, { itemsPerPage: 10 });
                         this.state.itemsPerPage = 10;
                     }
-                    this.renderSettings();
-                    this.renderProducts();
+                    this.renderSettings(); // Atualiza a UI de configurações
+                    this.renderProducts(); // Re-renderiza produtos, pois itemsPerPage pode ter mudado
+                }, (error) => {
+                    console.error("Erro ao ouvir atualizações de configurações:", error);
                 });
             }
 
             listenForProductUpdates() {
                 if (!this.state.firestoreRefs) return () => {};
                 return onSnapshot(query(this.state.firestoreRefs.products), (snapshot) => {
-                    this.state.products = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                    this.updateAllViews();
+                    this.state.products = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+                    this.updateAllViews(); // Atualiza todas as visualizações que dependem de produtos
+                }, (error) => {
+                    console.error("Erro ao ouvir atualizações de produtos:", error);
+                    this.showAlert("Erro ao carregar produtos.", true);
                 });
             }
 
             listenForCategoryUpdates() {
                 if (!this.state.firestoreRefs) return () => {};
                 return onSnapshot(query(this.state.firestoreRefs.categories), (snapshot) => {
-                    this.state.categories = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => a.name.localeCompare(b.name));
-                    this.updateAllViews();
+                    this.state.categories = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })).sort((a, b) => a.name.localeCompare(b.name));
+                    this.updateAllViews(); // Atualiza todas as visualizações que dependem de categorias
+                }, (error) => {
+                    console.error("Erro ao ouvir atualizações de categorias:", error);
+                    this.showAlert("Erro ao carregar categorias.", true);
                 });
             }
             
             listenForMovements() {
                 if (!this.state.firestoreRefs) return () => {};
                 return onSnapshot(query(this.state.firestoreRefs.movements), (snapshot) => {
-                    this.state.movements = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                    this.state.movements = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
                     this.updateDashboardView();
                     this.renderLowStockAlerts();
                     this.renderTopMovements();
+                }, (error) => {
+                    console.error("Erro ao ouvir atualizações de movimentações:", error);
                 });
             }
+
+            listenForUserUpdates() {
+                if (!this.state.firestoreRefs || this.state.userRole !== 'admin') return () => {}; // Só admins devem listar todos os usuários
+                return onSnapshot(query(this.state.firestoreRefs.users), (snapshot) => {
+                    this.state.allUsers = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
+                    this.renderUserManagement(); // Renderiza a tabela de gerenciamento de usuários
+                }, (error) => {
+                    console.error("Erro ao ouvir atualizações de usuários:", error);
+                    this.showAlert("Erro ao carregar lista de usuários.", true);
+                });
+            }
+
 
             setLoading(isLoading, isTableOnly = false) {
                 if (isTableOnly && this.state.dom && this.state.dom.tableLoadingIndicator) {
@@ -613,12 +681,6 @@
                 }
             }
             
-            // --- INÍCIO DA CORREÇÃO DO LOOP DE SELEÇÃO ---
-            
-            /**
-             * Lida com a mudança do checkbox "Selecionar Todos".
-             * @param {Event} e - O evento de mudança.
-             */
             handleSelectAllChange(e) {
                 const isChecked = e.target.checked;
                 const visibleCheckboxes = document.querySelectorAll('#product-list .product-checkbox');
@@ -626,46 +688,28 @@
                 visibleCheckboxes.forEach(checkbox => {
                     checkbox.checked = isChecked;
                 });
-
-                // Após alterar todos os checkboxes visíveis, atualiza o estado e a UI de uma vez.
                 this.updateSelectionState();
             }
 
-            /**
-             * Lida com a mudança de um único checkbox de produto.
-             */
             handleSingleCheckboxChange() {
                 this.updateSelectionState();
             }
 
-            /**
-             * Centraliza a lógica de atualização do estado de seleção e da UI.
-             * Esta função lê o estado atual dos checkboxes no DOM e atualiza o estado da aplicação
-             * e a interface (barra de ações, cor de fundo das linhas, etc.) SEM recarregar a tabela inteira.
-             */
             updateSelectionState() {
-                // 1. Atualiza o array de produtos selecionados no estado.
                 this.state.selectedProducts = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.id);
-
-                // 2. Atualiza o estado visual das linhas da tabela.
                 document.querySelectorAll('#product-list tr[data-product-id]').forEach(row => {
                     const id = row.dataset.productId;
                     row.classList.toggle('bg-blue-100', this.state.selectedProducts.includes(id));
                 });
                 
-                // 3. Sincroniza o estado do checkbox "Selecionar Todos".
                 const allVisibleCheckboxes = document.querySelectorAll('#product-list .product-checkbox');
                 const selectAllCheckbox = document.getElementById('select-all-checkbox');
                 if (selectAllCheckbox) {
                     const allVisibleSelected = allVisibleCheckboxes.length > 0 && Array.from(allVisibleCheckboxes).every(cb => cb.checked);
                     selectAllCheckbox.checked = allVisibleSelected;
                 }
-                
-                // 4. Renderiza a barra de ações em massa.
                 this.renderBulkActionBar();
             }
-
-            // --- FIM DA CORREÇÃO DO LOOP DE SELEÇÃO ---
         }
 
         Object.assign(StockApp.prototype, {
@@ -795,7 +839,7 @@
                     }).join('');
                 }
                 this.renderPaginationControls(filteredProducts.length);
-                this.updateSelectionState(); // Garante que a UI de seleção esteja correta após a renderização
+                this.updateSelectionState(); 
                 this.setLoading(false, true);
             },
             renderCategories() {
@@ -824,7 +868,7 @@
                     if (Array.from(select.options).some(opt => opt.value === currentValue)) select.value = currentValue;
                 });
             },
-            renderSettings() {
+            renderSettings() { // Renderiza configurações gerais (localidades, itens por página)
                 const locationsList = document.getElementById('location-list');
                 if (locationsList) {
                     locationsList.innerHTML = this.state.locations.length > 0 ? this.state.locations.map(loc => {
@@ -846,13 +890,66 @@
                 if (itemsPerPageInput) {
                     itemsPerPageInput.value = this.state.itemsPerPage;
                 }
+                // Chama renderUserManagement se o usuário for admin, pois faz parte das "Configurações"
+                if(this.state.userRole === 'admin') {
+                    this.renderUserManagement();
+                }
+            },
+             renderUserManagement() {
+                if (this.state.userRole !== 'admin') return; // Só para admins
+                const userListTbody = document.getElementById('user-list-tbody');
+                if (!userListTbody) return;
+
+                userListTbody.innerHTML = this.state.allUsers.map(user => {
+                    const isCurrentUser = this.state.currentUser && this.state.currentUser.uid === user.id;
+                    const roleSelectDisabled = isCurrentUser; // Admin não pode mudar seu próprio papel aqui
+
+                    return `
+                        <tr class="hover:bg-gray-50">
+                            <td class="p-3 text-sm text-gray-700">${user.email}</td>
+                            <td class="p-3 text-sm text-gray-700">
+                                <select id="role-select-${user.id}" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900 border-gray-300 focus:ring-blue-500 focus:border-blue-500" ${roleSelectDisabled ? 'disabled' : ''}>
+                                    <option value="viewer" ${user.role === 'viewer' ? 'selected' : ''}>Visualizador</option>
+                                    <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Administrador</option>
+                                </select>
+                            </td>
+                            <td class="p-3 text-right">
+                                ${!isCurrentUser ? `
+                                <button data-user-id="${user.id}" class="save-user-role-btn bg-blue-500 text-white text-xs font-semibold py-1 px-3 rounded-md hover:bg-blue-600 transition">
+                                    Salvar
+                                </button>` : '<span class="text-xs text-gray-500 italic">Você</span>'}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            },
+            async handleChangeUserRole(userId, newRole) {
+                if (this.state.userRole !== 'admin') {
+                    return this.showAlert('Apenas administradores podem alterar papéis.', true);
+                }
+                if (this.state.currentUser && this.state.currentUser.uid === userId) {
+                    return this.showAlert('Você não pode alterar seu próprio papel através desta interface.', true);
+                }
+
+                this.setLoading(true);
+                try {
+                    const userRef = doc(this.db, 'users', userId);
+                    await updateDoc(userRef, { role: newRole });
+                    this.showAlert(`Papel do usuário atualizado para ${newRole}.`);
+                    // O listener de `listenForUserUpdates` vai atualizar a lista na UI automaticamente.
+                } catch (error) {
+                    console.error("Erro ao atualizar papel do usuário:", error);
+                    this.showAlert('Não foi possível atualizar o papel do usuário.', true);
+                } finally {
+                    this.setLoading(false);
+                }
             },
             updateAllViews() {
                  this.renderCategories();
                  this.populateProductSelects();
-                 this.debouncedRenderProducts(); // Otimizado para usar debounce
+                 this.debouncedRenderProducts(); 
                  this.renderDashboard();
-                 this.renderSettings();
+                 this.renderSettings(); // Isso incluirá renderUserManagement se for admin
             },
             populateProductSelects() {
                 const outputSelect = document.getElementById('output-product-select');
@@ -894,14 +991,27 @@
                 overlay.classList.toggle('hidden', !show);
             },
             switchTab(tabId) {
+                // Verifica se a aba é permitida para o usuário atual
+                const targetLink = document.querySelector(`.sidebar-link[data-tab="${tabId}"]`);
+                if (targetLink && targetLink.dataset.roleRequired && targetLink.dataset.roleRequired !== this.state.userRole) {
+                    if (this.state.userRole === 'viewer' && targetLink.dataset.roleRequired === 'admin') {
+                        this.showAlert('Você não tem permissão para acessar esta aba.', true);
+                        return; // Não muda de aba
+                    }
+                }
+
                 document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
                 const panelToShow = document.getElementById(`panel-${tabId}`);
                 if (panelToShow) panelToShow.classList.remove('hidden');
                 
                 document.querySelectorAll('.sidebar-link').forEach(l => l.classList.toggle('bg-gray-200', l.dataset.tab === tabId));
                 
+                // Renderiza o conteúdo da aba específica
                 if (tabId === 'reports' && this.state.isAuthReady) this.renderDashboard();
                 if (tabId === 'stock' && this.state.isAuthReady) this.renderProducts();
+                if (tabId === 'settings' && this.state.isAuthReady && this.state.userRole === 'admin') {
+                    this.renderSettings(); // renderSettings já chama renderUserManagement
+                }
             },
             openEditModal(productId) {
                 const product = this.state.products.find(p => p.id === productId);
@@ -979,7 +1089,6 @@
                         break;
                 }
                 
-                // MODIFICAÇÃO: Filtrar movimentos de produtos que ainda existem
                 const existingProductIds = new Set(this.state.products.map(p => p.id));
                 const movementsForExistingProducts = this.state.movements.filter(mov => existingProductIds.has(mov.productId));
 
@@ -1049,7 +1158,9 @@
                         }
                     };
                 }
-                this.state.chartInstance = new Chart(ctx, chartConfig);
+                if (ctx && typeof Chart !== 'undefined') { // Garante que Chart.js está carregado
+                    this.state.chartInstance = new Chart(ctx, chartConfig);
+                }
             },
             renderLowStockAlerts() {
                 const listEl = document.getElementById('low-stock-list'), emptyEl = document.getElementById('low-stock-empty');
@@ -1069,9 +1180,6 @@
                     if(data.length > 0) {
                         listEl.innerHTML = data.map(mov => {
                             const product = this.state.products.find(p => p.id === mov.productId);
-                            // Se o produto foi excluído, product será undefined. 
-                            // O map já tratava isso, resultando em 'Produto Excluído',
-                            // mas agora estamos garantindo que esses movimentos nem entrem na lista.
                             const productName = product ? product.name : 'Produto Excluído'; 
                             return `<li class="text-sm truncate" title="${productName}"><strong>${mov.quantity}x</strong> ${productName}</li>`;
                         }).join('');
@@ -1080,7 +1188,6 @@
                     }
                 };
                 
-                // MODIFICAÇÃO: Filtrar movimentos de produtos que ainda existem ANTES de ordenar e fatiar.
                 const existingProductIds = new Set(this.state.products.map(p => p.id));
                 const movementsForExistingProducts = this.state.movements.filter(mov => existingProductIds.has(mov.productId));
 
@@ -1102,7 +1209,7 @@
                     }
                 });
                 this.state.movements.filter(m => m.date?.toDate() && m.date.toDate() <= targetDate).forEach(m => {
-                    if (historicalStock[m.productId]) { // Apenas processa movimentos de produtos que existem (ou existiam na data)
+                    if (historicalStock[m.productId]) { 
                         const productCreatedAt = this.state.products.find(p => p.id === m.productId)?.createdAt?.toDate();
                         const movementDate = m.date.toDate();
                         if ((m.motive === 'Criação de Produto' || m.motive === 'Importação Excel') && productCreatedAt && productCreatedAt.getTime() === movementDate.getTime()) {
@@ -1216,7 +1323,7 @@
                     }
             
                     return matchesCategory && matchesSearch && matchesStatus && matchesDate;
-                }).sort((a,b) => a.name.localeCompare(b.name)); // Adicionado ordenação
+                }).sort((a,b) => a.name.localeCompare(b.name)); 
             },
             handleExportPdf() {
                 const filteredProducts = this.getFilteredProducts();
@@ -1332,8 +1439,54 @@
                 this.state.dom.panels.register.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Gerenciar Categorias</h2><form id="add-category-form" class="flex gap-2 mb-4"><input type="text" id="category-name" placeholder="Nova categoria" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12"><i class="fas fa-plus"></i></button></form><div id="category-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Adicionar Produto</h2><form id="add-product-form" class="space-y-4"><label class="block"><span class="text-gray-700">Nome</span><input type="text" id="product-name" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Categoria</span><select id="product-category-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option value="">Selecione...</option></select></label><div class="grid grid-cols-2 gap-4">${locationsQuantityInputs}</div><div class="grid grid-cols-2 gap-4"><label class="block"><span class="text-gray-700">Est. Mínimo</span><input type="number" id="product-min-stock" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Unid.</span><select id="product-unit-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option>UND</option><option>CX</option><option>KG</option><option>G</option><option>L</option><option>ML</option></select></label></div><button type="submit" class="w-full mt-4 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-plus mr-2"></i>Adicionar Produto</button></form></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-file-excel mr-2 text-green-500"></i>Operações em Lote (Excel)</h2><div class="flex flex-col md:flex-row gap-6"><div class="flex-1 bg-gray-50 p-4 rounded-lg flex flex-col items-center text-center"><i class="fas fa-plus-circle fa-2x text-blue-500 mb-2"></i><h3 class="font-semibold mb-1 text-gray-900">Inserir Novos Produtos</h3><p class="text-sm text-gray-600 mb-3">Baixe o modelo, preencha e importe o arquivo Excel para adicionar vários produtos de uma vez.</p><div class="flex gap-2 w-full"><button id="download-template-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-download mr-2"></i>Baixar Modelo</button><input type="file" id="excel-insert-input" accept=".xlsx, .xls" class="hidden"><button id="upload-insert-trigger-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition"><i class="fas fa-upload mr-2"></i>Importar</button></div><p id="excel-insert-filename" class="text-xs mt-2 text-gray-500"></p></div></div></div>`;
                 this.state.dom.panels.outputs.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 max-w-2xl mx-auto"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Registrar Saída de Estoque</h2><form id="add-output-form" class="space-y-4"><div><label for="output-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="output-product-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="">Selecione um produto...</option></select></div><div id="output-location-selector" class="space-y-2"></div><div><label for="output-quantity" class="block text-sm mb-1 text-gray-700">Quantidade da Saída</label><input type="number" id="output-quantity" min="1" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required disabled></div><div><label for="output-motive-select" class="block text-sm mb-1 text-gray-700">Motivo da Saída</label><select id="output-motive-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="Venda">Venda</option><option value="Perda">Perda</option><option value="Uso Interno">Uso Interno</option><option value="Outro">Outro</option></select></div><p id="output-stock-info" class="text-sm text-gray-500 font-medium h-5"></p><button type="submit" class="w-full mt-4 bg-red-600 text-white font-bold p-2 rounded-lg hover:bg-red-700 transition"><i class="fas fa-arrow-circle-up mr-2"></i>Registrar Saída</button></form></div>`;
                 this.state.dom.panels.reports.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 mb-8"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Dashboard de Movimentações</h2><div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border"><div><label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Gráfico</label><div id="chart-type-selector" class="flex rounded-md shadow-sm"><button data-type="bar" class="chart-type-btn relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Barra</button><button data-type="line" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Linha</button><button data-type="pie" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Pizza</button></div></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Período</label><select id="period-selector" class="dashboard-control block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="7days">Últimos 7 dias</option><option value="30days">Últimos 30 dias</option><option value="this_month">Este Mês</option><option value="last_month">Mês Passado</option><option value="custom">Personalizado</option></select></div><div id="custom-date-range-selector" class="hidden md:col-span-1 grid grid-cols-2 gap-4"><div><label for="dashboard-date-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="dashboard-date-start" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="dashboard-date-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="dashboard-date-end" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div></div></div><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><div class="md:col-span-2 bg-gray-50 p-4 rounded-lg h-96"><canvas id="movements-chart"></canvas></div><div class="space-y-4"><div class="bg-amber-100 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-amber-800">Alerta de Estoque Baixo</h3><ul id="low-stock-list" class="space-y-2 max-h-40 overflow-y-auto"></ul><p id="low-stock-empty" class="text-sm text-gray-500 hidden">Tudo em ordem!</p></div><div class="bg-gray-50 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-green-800">Top 5 Entradas Recentes</h3><ul id="top-entradas-list" class="space-y-2"></ul></div><div class="bg-gray-50 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-red-800">Top 5 Saídas Recentes</h3><ul id="top-saidas-list" class="space-y-2"></ul></div></div></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-history mr-2 text-indigo-500"></i>Relatório Histórico</h2><div class="flex items-end gap-4"><div class="flex-grow"><label for="report-date" class="block text-sm font-medium text-gray-700">Verificar estoque na data:</label><input type="date" id="report-date" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg"></div><button id="generate-report-btn" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Gerar Relatório</button></div><div id="report-output" class="hidden mt-6"><div id="print-area"><h3 id="report-title" class="text-xl font-bold text-center"></h3><p id="report-subtitle" class="text-center text-gray-500 mb-4"></p><table class="w-full text-left"><thead class="border-b-2 border-gray-300"><tr><th class="p-3">Produto</th><th class="p-3 text-center">Categoria</th><th class="p-3 text-center">Unidade</th><th class="p-3 text-center">Qtd. em Estoque</th></tr></thead><tbody id="report-list" class="divide-y divide-gray-200"></tbody></table></div><button id="print-report-btn" class="mt-4 bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-800 transition float-right"><i class="fas fa-print mr-2"></i>Imprimir</button></div></div>`;
-                this.state.dom.panels.settings.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"> <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"> <h2 class="text-2xl font-semibold mb-4 text-gray-900">Gerenciar Localidades</h2> <form id="add-location-form" class="flex gap-2 mb-4"> <input type="text" id="location-name" placeholder="Nova localidade" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required> <button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12"><i class="fas fa-plus"></i></button> </form> <div id="location-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div> </div> <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"> <h2 class="text-2xl font-semibold mb-4 text-gray-900">Configurações de Exibição</h2> <div class="space-y-4"> <div> <label for="items-per-page-input" class="block text-sm font-medium text-gray-700">Itens por página na tabela</label> <input type="number" id="items-per-page-input" min="1" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg"> </div> <button id="save-settings-btn" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition">Salvar Configurações</button> </div> </div> </div>`;
-                this.applyRolePermissions();
+                
+                // Conteúdo da Aba de Configurações, incluindo Gerenciamento de Usuários
+                this.state.dom.panels.settings.innerHTML = `
+                <div class="space-y-8">
+                    <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
+                        <h2 class="text-2xl font-semibold mb-4 text-gray-900">Configurações Gerais</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-900 mb-2">Gerenciar Localidades</h3>
+                                <form id="add-location-form" class="flex gap-2 mb-4">
+                                    <input type="text" id="location-name" placeholder="Nova localidade" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required>
+                                    <button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12"><i class="fas fa-plus"></i></button>
+                                </form>
+                                <div id="location-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div>
+                            </div>
+                            <div>
+                                <h3 class="text-lg font-medium text-gray-900 mb-2">Configurações de Exibição</h3>
+                                <div class="space-y-4">
+                                    <div>
+                                        <label for="items-per-page-input" class="block text-sm font-medium text-gray-700">Itens por página na tabela</label>
+                                        <input type="number" id="items-per-page-input" min="1" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg">
+                                    </div>
+                                    <button id="save-settings-btn" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition">Salvar Configurações Gerais</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="user-management-section" class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200" data-role-required="admin">
+                        <h2 class="text-2xl font-semibold mb-6 text-gray-900"><i class="fas fa-users-cog mr-2"></i>Gerenciar Usuários</h2>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left">
+                                <thead class="border-b-2 border-gray-200 bg-gray-50">
+                                    <tr>
+                                        <th class="p-3 text-sm font-semibold text-gray-700">Email</th>
+                                        <th class="p-3 text-sm font-semibold text-gray-700">Papel</th>
+                                        <th class="p-3 text-sm font-semibold text-gray-700 text-right">Ação</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="user-list-tbody" class="divide-y divide-gray-200">
+                                    <!-- Usuários serão renderizados aqui por renderUserManagement() -->
+                                </tbody>
+                            </table>
+                        </div>
+                         <p class="mt-4 text-xs text-gray-500 italic">Administradores não podem alterar seu próprio papel através desta interface.</p>
+                    </div>
+                </div>`;
+                this.applyRolePermissions(); // Garante que data-role-required seja aplicado
             },
             updateOutputQuantityLock() {
                 const quantityInput = document.getElementById('output-quantity');
@@ -1420,13 +1573,11 @@
                  }
              }
              
-             // --- LÓGICA DE SELEÇÃO REFATORADA ---
              if (target.id === 'select-all-checkbox') {
                  this.handleSelectAllChange(e);
              } else if (target.classList.contains('product-checkbox')) {
                  this.handleSingleCheckboxChange(); 
              }
-             // --- FIM DA LÓGICA REFATORADA ---
              
              if (target.name === 'output-location') {
                  this.updateOutputQuantityLock();
@@ -1455,6 +1606,8 @@
                      this.updateDashboardView();
                  }
              }
+             // Não precisa de um listener específico para o select de papel do usuário,
+             // o botão "Salvar" ao lado dele no handleContentClick fará a ação.
             },
             handleContentInput(e) {
                 const target = e.target;
@@ -1473,7 +1626,8 @@
                     }
                 }
             },
-            async handleSaveSettings() {
+            async handleSaveSettings() { // Salva configurações gerais (itens por página)
+                if (this.state.userRole !== 'admin') return;
                 const input = document.getElementById('items-per-page-input');
                 if (!input) return;
                 const itemsPerPage = parseInt(input.value, 10);
@@ -1484,9 +1638,9 @@
                 this.setLoading(true);
                 try {
                     await setDoc(this.state.firestoreRefs.settings, { itemsPerPage }, { merge: true });
-                    this.showAlert('Configurações salvas.');
+                    this.showAlert('Configurações gerais salvas.');
                 } catch(error) {
-                    this.showAlert('Não foi possível salvar as configurações.', true);
+                    this.showAlert('Não foi possível salvar as configurações gerais.', true);
                 } finally {
                     this.setLoading(false);
                 }

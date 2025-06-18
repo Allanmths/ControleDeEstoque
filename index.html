@@ -1,4 +1,4 @@
-<!DOCTYPE html>More actions
+<!DOCTYPE html>
 <html lang="pt-br">
 
 <head>
@@ -144,7 +144,7 @@
                 <h1 class="text-4xl md:text-5xl font-bold text-gray-900"><i class="fas fa-boxes-stacked mr-3 text-blue-500"></i>Estoque HCM</h1>
                 <p id="user-welcome-message" class="text-gray-500 mt-2">Controle de Estoque da Adega.</p>
             </header>
-
+            
             <main id="tab-content">
                 <div id="panel-reports" class="tab-panel"></div>
                 <div id="panel-stock" class="tab-panel hidden"></div>
@@ -154,7 +154,7 @@
             </main>
         </div>
     </div>
-
+    
     <!-- Modals -->
     <div id="edit-modal" class="fixed inset-0 modal-backdrop items-center justify-center z-50 hidden"><div class="bg-white w-full max-w-lg p-6 rounded-2xl shadow-2xl m-4"><h3 class="text-xl font-semibold mb-4 text-gray-900">Editar Produto</h3><p id="edit-product-name" class="mb-4 text-gray-600"></p><div id="edit-quantities-container" class="space-y-4"></div><div class="mt-6 flex justify-end space-x-4"><button id="cancel-edit" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancelar</button><button id="save-edit" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">Salvar</button></div></div></div>
     <div id="delete-modal" class="fixed inset-0 modal-backdrop items-center justify-center z-50 hidden"><div class="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl m-4 text-center"><i class="fas fa-triangle-exclamation fa-3x text-red-500 mb-4"></i><h3 class="text-xl font-semibold mb-2 text-gray-900">Confirmar Exclusão</h3><p id="delete-modal-text" class="mb-6 text-gray-600"></p><div class="flex justify-center space-x-4"><button id="cancel-delete" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancelar</button><button id="confirm-delete" class="px-6 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition">Excluir</button></div></div></div>
@@ -194,7 +194,7 @@
             messagingSenderId: "355699807496",
             appId: "1:355699807496:web:6432766da431e535b888bd"
         };
-
+        
         const firebaseConfig = typeof __firebase_config !== 'undefined' && __firebase_config
             ? JSON.parse(__firebase_config)
             : hardcodedFirebaseConfig;
@@ -240,7 +240,7 @@
                 this.setupEventListeners();
                 this.handleAuthentication();
             }
-
+            
             cacheDomElements() {
                 this.state.dom = {
                     loadingOverlay: document.getElementById('loading-overlay'),
@@ -257,14 +257,13 @@
                         // alert: { self: document.getElementById('alert-modal'), title: document.getElementById('alert-modal-title'), message: document.getElementById('alert-modal-message'), icon: document.getElementById('alert-modal-icon'), closeBtn: document.getElementById('alert-modal-close') },
                         edit: { self: document.getElementById('edit-modal'), productName: document.getElementById('edit-product-name'), quantitiesContainer: document.getElementById('edit-quantities-container'), saveBtn: document.getElementById('save-edit'), cancelBtn: document.getElementById('cancel-edit') },
                         delete: { self: document.getElementById('delete-modal'), text: document.getElementById('delete-modal-text'), confirmBtn: document.getElementById('confirm-delete'), cancelBtn: document.getElementById('cancel-delete') },
-                    }
                     },
                     // MODIFICADO: Adicionada referência ao indicador de carregamento da tabela
                     tableLoadingIndicator: document.getElementById('table-loading-indicator')
                     // FIM MODIFICADO
                 };
             }
-
+            
             setupEventListeners() {
                 const { dom } = this.state;
                 if (!dom) return;
@@ -312,7 +311,7 @@
                             this.state.userRole = 'viewer';
                             console.warn("User document not found in Firestore, defaulting to 'viewer'.");
                         }
-
+                        
                         this.state.isAuthReady = true;
                         await this.initializeAppForUser();
                         this.showAppUI();
@@ -364,7 +363,7 @@
                 await signOut(this.auth);
                 // onAuthStateChanged irá gerenciar a mudança de UI
             }
-
+            
             toggleAuthForm(showRegister) {
                 this.state.dom.loginFormContainer.classList.toggle('hidden', showRegister);
                 this.state.dom.registerFormContainer.classList.toggle('hidden', !showRegister);
@@ -392,7 +391,7 @@
                     currentPage: 1,
                 };
             }
-
+            
             applyRolePermissions() {
                 // ... (O restante das funções permanece igual ao seu código original) ...
                 const { userRole } = this.state;
@@ -435,14 +434,14 @@
                     settings: doc(this.db, `${basePath}/settings/main`),
                     users: collection(this.db, `users`),
                 };
-
+                
                 this.clearAllListeners();
                 this.state.unsubscribers.push(this.listenForSettingsUpdates());
                 this.state.unsubscribers.push(this.listenForLocationUpdates());
                 this.state.unsubscribers.push(this.listenForCategoryUpdates());
                 this.state.unsubscribers.push(this.listenForProductUpdates());
                 this.state.unsubscribers.push(this.listenForMovements());
-
+                
                 this.applyRolePermissions();
             }
 
@@ -450,7 +449,7 @@
                 this.state.unsubscribers.forEach(unsub => unsub());
                 this.state.unsubscribers = [];
             }
-
+            
             async handleFormSubmit(e) {
                 e.preventDefault();
                 if (this.state.userRole !== 'admin') {
@@ -469,7 +468,7 @@
                     this.setLoading(false);
                 }
             }
-
+            
             handleContentClick(e) {
                 const button = e.target.closest('button');
                 if (!button) return;
@@ -492,7 +491,7 @@
                 if (action === 'edit' && id) this.openEditModal(id);
                 if (action === 'delete' && id) this.openDeleteModal(id, 'product');
                 if (button.id === 'bulk-delete-btn') this.openDeleteModal(null, 'product', true);
-
+                
                 if (action === 'page-prev') { this.state.currentPage--; this.renderProducts(); }
                 if (action === 'page-next') { this.state.currentPage++; this.renderProducts(); }
                 if (button.id === 'toggle-advanced-filters') {
@@ -502,7 +501,7 @@
                 if (button.id === 'clear-filters-btn') this.clearFilters();
                 if (button.id === 'generate-report-btn') this.handleGenerateReport();
                 if (button.id === 'print-report-btn') window.print();
-
+                
                 if (isAdmin) {
                     if (button.id === 'download-template-btn') this.handleDownloadTemplate();
                     if (button.id === 'upload-insert-trigger-btn') document.getElementById('excel-insert-input').click();
@@ -510,7 +509,7 @@
                     if (button.id === 'save-settings-btn') this.handleSaveSettings();
                 }
             }
-
+            
             async handleSaveEdit() {
                 if (this.state.userRole !== 'admin') return this.showAlert('Você não tem permissão para salvar edições.', true); // Removido 'Acesso Negado' como título
                 const { self, quantitiesContainer } = this.state.dom.modals.edit;
@@ -579,7 +578,7 @@
                     this.setLoading(false);
                 }
             }
-
+            
             listenForLocationUpdates() {
                  if (!this.state.firestoreRefs) return () => {};
                 const createDefaultLocations = async () => {
@@ -635,7 +634,7 @@
                     this.updateAllViews();
                 });
             }
-
+            
             listenForMovements() {
                 if (!this.state.firestoreRefs) return () => {};
                 return onSnapshot(query(this.state.firestoreRefs.movements), (snapshot) => {
@@ -646,9 +645,6 @@
                 });
             }
 
-            setLoading(isLoading) {
-                if (this.state.dom && this.state.dom.loadingOverlay) {
-                  this.state.dom.loadingOverlay.style.display = isLoading ? 'flex' : 'none';
             // MODIFICADO: Função setLoading para controlar overlay geral ou indicador da tabela
             /**
              * Controla a visibilidade do overlay de carregamento da página ou do indicador de carregamento da tabela.
@@ -1270,7 +1266,6 @@
                 const tableHeaders = this.state.locations.map(loc => `<th class="p-3 text-center text-gray-700">${loc.name}</th>`).join('');
                 const tableCheckboxHeader = isAdmin ? `<th class="p-3 w-4"><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"></th>` : `<th class="p-3 w-4"></th>`;
                 const tableActionsHeader = isAdmin ? `<th class="p-3 text-right text-gray-700">Ações</th>` : `<th></th>`;
-                this.state.dom.panels.stock.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-gray-100 rounded-lg text-gray-900"></div><select id="stock-category-filter" class="p-2 bg-gray-100 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-gray-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar hidden mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-red-500 text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-red-600 transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div><div class="overflow-x-auto"><table class="w-full text-left min-w-[1400px]"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr>${tableCheckboxHeader}<th class="p-3 text-gray-700 sticky left-0 bg-gray-50">Produto</th><th class="p-3 text-center text-gray-700">Categoria</th><th class="p-3 text-center text-gray-700 font-bold">Total</th>${tableHeaders}${tableActionsHeader}</tr></thead><tbody id="product-list" class="divide-y divide-gray-200"></tbody></table></div><div id="pagination-controls" class="flex justify-between items-center mt-4"></div><div id="empty-state" class="hidden text-center py-12"><i class="fas fa-box-open fa-4x text-gray-400"></i><p id="empty-state-message" class="mt-4 text-gray-500">Nenhum produto.</p></div></div>`;
                 this.state.dom.panels.stock.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 relative"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-gray-100 rounded-lg text-gray-900"></div><select id="stock-category-filter" class="p-2 bg-gray-100 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-gray-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar hidden mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-red-500 text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-red-600 transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div><!-- MODIFICADO: Adicionado indicador de carregamento da tabela --><div id="table-loading-indicator" class="hidden"><i class="fas fa-spinner animate-spin fa-2x text-blue-500"></i></div><!-- FIM MODIFICADO --><div class="overflow-x-auto"><table class="w-full text-left min-w-[1400px]"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr>${tableCheckboxHeader}<th class="p-3 text-gray-700 sticky left-0 bg-gray-50">Produto</th><th class="p-3 text-center text-gray-700">Categoria</th><th class="p-3 text-center text-gray-700 font-bold">Total</th>${tableHeaders}${tableActionsHeader}</tr></thead><tbody id="product-list" class="divide-y divide-gray-200"></tbody></table></div><div id="pagination-controls" class="flex justify-between items-center mt-4"></div><div id="empty-state" class="hidden text-center py-12"><i class="fas fa-box-open fa-4x text-gray-400"></i><p id="empty-state-message" class="mt-4 text-gray-500">Nenhum produto.</p></div></div>`;
                 this.state.dom.panels.register.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Gerenciar Categorias</h2><form id="add-category-form" class="flex gap-2 mb-4"><input type="text" id="category-name" placeholder="Nova categoria" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12"><i class="fas fa-plus"></i></button></form><div id="category-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Adicionar Produto</h2><form id="add-product-form" class="space-y-4"><label class="block"><span class="text-gray-700">Nome</span><input type="text" id="product-name" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Categoria</span><select id="product-category-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option value="">Selecione...</option></select></label><div class="grid grid-cols-2 gap-4">${locationsQuantityInputs}</div><div class="grid grid-cols-2 gap-4"><label class="block"><span class="text-gray-700">Est. Mínimo</span><input type="number" id="product-min-stock" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Unid.</span><select id="product-unit-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option>UND</option><option>CX</option><option>KG</option><option>G</option><option>L</option><option>ML</option></select></label></div><button type="submit" class="w-full mt-4 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-plus mr-2"></i>Adicionar Produto</button></form></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-file-excel mr-2 text-green-500"></i>Operações em Lote (Excel)</h2><div class="flex flex-col md:flex-row gap-6"><div class="flex-1 bg-gray-50 p-4 rounded-lg flex flex-col items-center text-center"><i class="fas fa-plus-circle fa-2x text-blue-500 mb-2"></i><h3 class="font-semibold mb-1 text-gray-900">Inserir Novos Produtos</h3><p class="text-sm text-gray-600 mb-3">Baixe o modelo, preencha e importe o arquivo Excel para adicionar vários produtos de uma vez.</p><div class="flex gap-2 w-full"><button id="download-template-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-download mr-2"></i>Baixar Modelo</button><input type="file" id="excel-insert-input" accept=".xlsx, .xls" class="hidden"><button id="upload-insert-trigger-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition"><i class="fas fa-upload mr-2"></i>Importar</button></div><p id="excel-insert-filename" class="text-xs mt-2 text-gray-500"></p></div></div></div>`;
                 this.state.dom.panels.outputs.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 max-w-2xl mx-auto"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Registrar Saída de Estoque</h2><form id="add-output-form" class="space-y-4"><div><label for="output-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="output-product-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="">Selecione um produto...</option></select></div><div id="output-location-selector" class="space-y-2"></div><div><label for="output-quantity" class="block text-sm mb-1 text-gray-700">Quantidade da Saída</label><input type="number" id="output-quantity" min="1" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required disabled></div><div><label for="output-motive-select" class="block text-sm mb-1 text-gray-700">Motivo da Saída</label><select id="output-motive-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="Venda">Venda</option><option value="Perda">Perda</option><option value="Uso Interno">Uso Interno</option><option value="Outro">Outro</option></select></div><p id="output-stock-info" class="text-sm text-gray-500 font-medium h-5"></p><button type="submit" class="w-full mt-4 bg-red-600 text-white font-bold p-2 rounded-lg hover:bg-red-700 transition"><i class="fas fa-arrow-circle-up mr-2"></i>Registrar Saída</button></form></div>`;
@@ -1300,7 +1295,6 @@
                 locationSelectorEl.innerHTML = '';
                 quantityInput.value = '';
                 quantityInput.removeAttribute('max');
-                quantityInput.disabled = true;
                 quantityToInput.disabled = true;
                 quantityInput.placeholder = '';
                 if (!productId) return;
@@ -1371,7 +1365,6 @@
                 const target = e.target;
                 if (target.id === 'search-product-input') {
                     this.state.currentPage = 1;
-                    this.renderProducts();
                     // MODIFICADO: Usa a função debounced para renderizar produtos
                     this.debouncedRenderProducts();
                     // FIM MODIFICADO
@@ -1390,7 +1383,7 @@
                 if (isNaN(itemsPerPage) || itemsPerPage <= 0) {
                     return this.showAlert('Número de itens por página inválido.', true); // Removido 'Erro' como título
                 }
-
+                
                 this.setLoading(true);
                 try {
                     await setDoc(this.state.firestoreRefs.settings, { itemsPerPage }, { merge: true });
@@ -1404,7 +1397,7 @@
         });
 
         new StockApp();
-More actions
+
     </script>
 </body>
 </html>

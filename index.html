@@ -42,18 +42,20 @@
         #toggle-advanced-filters i { transition: transform 0.3s ease-in-out; }
         #toggle-advanced-filters.open i { transform: rotate(180deg); }
         [data-role-required] { display: none; }
+        /* Ajuste para o table-loading-indicator */
+        #stock-table-wrapper { position: relative; } /* Novo wrapper para a tabela de estoque */
         #table-loading-indicator {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(255, 255, 255, 0.7);
+            background-color: rgba(255, 255, 255, 0.85); /* Aumentar opacidade para melhor visualização */
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 10;
-            border-radius: 0.75rem;
+            border-radius: 0.75rem; /* Opcional, se a tabela tiver bordas arredondadas */
         }
     </style>
 </head>
@@ -191,19 +193,20 @@
             auth;
             db;
             state = {
-                products: [], categories: [], locations: [], movements: [], allUsers: [], // Adicionado allUsers
+                products: [], categories: [], locations: [], movements: [], allUsers: [],
                 selectedProducts: [],
                 currentPage: 1, itemsPerPage: 10,
                 firestoreRefs: null, dom: null, chartInstance: null,
                 deleteQueue: { id: null, type: null, isBulk: false },
                 isAuthReady: false,
                 currentUser: null, userRole: null,
+                activeTab: 'reports', // Adicionado para rastrear a aba ativa
                 dashboardSettings: { chartType: 'bar', period: '7days', startDate: null, endDate: null },
                 unsubscribers: [],
             };
 
             constructor() {
-                if (!firebaseConfig || !firebaseConfig.apiKey || firebaseConfig.apiKey === "YOUR_API_KEY") { // Checagem genérica
+                if (!firebaseConfig || !firebaseConfig.apiKey || firebaseConfig.apiKey.includes("AIzaSy")) {
                     console.error("Firebase config is not set or uses placeholder values.");
                     document.addEventListener('DOMContentLoaded', () => {
                         document.body.innerHTML = `<div class="w-full h-screen flex items-center justify-center p-4"><div class="text-center bg-red-100 p-8 rounded-lg shadow-md"><h1 class="text-2xl font-bold text-red-800 mb-2">Erro de Configuração</h1><p class="text-red-700">As credenciais do Firebase não foram configuradas corretamente. Verifique o console para mais detalhes.</p></div></div>`;
@@ -218,8 +221,8 @@
             }
 
             init() {
-                this.cacheDomElements();
-                this.injectPanelContent(); // Chamado antes para ter os elementos base
+                this.cacheDomElements(); // Cacheia elementos base primeiro
+                this.injectAllPanelsContent(); // Injeta o HTML de TODOS os painéis
                 this.setupEventListeners();
                 this.handleAuthentication();
             }
@@ -233,13 +236,19 @@
                     loginFormContainer: document.getElementById('login-form-container'),
                     registerFormContainer: document.getElementById('register-form-container'),
                     contentEl: document.getElementById('tab-content'),
-                    panels: { stock: document.getElementById('panel-stock'), register: document.getElementById('panel-register'), outputs: document.getElementById('panel-outputs'), reports: document.getElementById('panel-reports'), settings: document.getElementById('panel-settings') },
+                    panels: { 
+                        reports: document.getElementById('panel-reports'), 
+                        stock: document.getElementById('panel-stock'), 
+                        register: document.getElementById('panel-register'), 
+                        outputs: document.getElementById('panel-outputs'), 
+                        settings: document.getElementById('panel-settings') 
+                    },
                     sidebar: { menu: document.getElementById('sidebar-menu'), nav: document.getElementById('sidebar-nav'), overlay: document.getElementById('sidebar-overlay'), toggleBtn: document.getElementById('menu-toggle-btn'), logoutBtn: document.getElementById('logout-btn') },
                     modals: {
                         edit: { self: document.getElementById('edit-modal'), productName: document.getElementById('edit-product-name'), quantitiesContainer: document.getElementById('edit-quantities-container'), saveBtn: document.getElementById('save-edit'), cancelBtn: document.getElementById('cancel-edit') },
                         delete: { self: document.getElementById('delete-modal'), text: document.getElementById('delete-modal-text'), confirmBtn: document.getElementById('confirm-delete'), cancelBtn: document.getElementById('cancel-delete') },
                     },
-                    tableLoadingIndicator: document.getElementById('table-loading-indicator')
+                    // tableLoadingIndicator será buscado dinamicamente em renderProducts
                 };
             }
             
@@ -266,42 +275,36 @@
                         this.toggleSidebar(false);
                     }
                 });
+                // Event listeners são adicionados ao #tab-content que é o pai de todos os painéis.
+                // Isso funciona bem com a injeção dinâmica de conteúdo.
                 dom.contentEl.addEventListener('submit', (e) => this.handleFormSubmit(e));
                 dom.contentEl.addEventListener('click', (e) => this.handleContentClick(e));
                 dom.contentEl.addEventListener('change', (e) => this.handleContentChange(e));
                 dom.contentEl.addEventListener('input', (e) => this.handleContentInput(e));
             }
 
-            // --- AUTHENTICATION & PERMISSIONS ---
             handleAuthentication() {
                 onAuthStateChanged(this.auth, async (user) => {
-                    this.setLoading(true); // Inicia o loading aqui
+                    this.setLoading(true);
                     if (user) {
                         this.state.currentUser = user;
                         const userDocRef = doc(this.db, 'users', user.uid);
                         const userDoc = await getDoc(userDocRef);
-
-                        if (userDoc.exists()) {
-                            this.state.userRole = userDoc.data().role;
-                        } else {
-                            // Se o documento não existe, pode ser um usuário recém-registrado
-                            // ou um problema. Assume 'viewer' por segurança.
-                            // No registro, garantimos que o doc é criado.
-                            this.state.userRole = 'viewer'; 
-                        }
-                        
+                        this.state.userRole = userDoc.exists() ? userDoc.data().role : 'viewer';
                         this.state.isAuthReady = true;
                         await this.initializeAppForUser();
                         this.showAppUI();
+                         // Após tudo carregado e UI mostrada, define a aba inicial
+                        this.switchTab(this.state.activeTab || 'reports');
                     } else {
                         this.state.currentUser = null;
                         this.state.userRole = null;
                         this.state.isAuthReady = false;
-                        this.state.allUsers = []; // Limpa lista de usuários ao deslogar
+                        this.state.allUsers = [];
                         this.clearAllListeners();
                         this.showAuthUI();
                     }
-                    this.setLoading(false); // Finaliza o loading
+                    this.setLoading(false);
                 });
             }
 
@@ -311,7 +314,6 @@
                 this.setLoading(true);
                 try {
                     await signInWithEmailAndPassword(this.auth, email, password);
-                    // onAuthStateChanged cuidará do resto
                 } catch (error) {
                     this.showAlert(this.getFriendlyAuthError(error.code), true);
                     this.setLoading(false);
@@ -324,13 +326,11 @@
                 this.setLoading(true);
                 try {
                     const userCredential = await createUserWithEmailAndPassword(this.auth, email, password);
-                    // Cria o documento do usuário com papel 'viewer'
                     await setDoc(doc(this.db, "users", userCredential.user.uid), {
                         email: userCredential.user.email,
-                        role: "viewer", // Papel padrão no registro
+                        role: "viewer",
                         createdAt: serverTimestamp()
                     });
-                    // onAuthStateChanged cuidará da transição para a UI do app
                 } catch (error) {
                     this.showAlert(this.getFriendlyAuthError(error.code), true);
                     this.setLoading(false);
@@ -340,7 +340,6 @@
             async handleLogout() {
                 this.setLoading(true);
                 await signOut(this.auth);
-                 // onAuthStateChanged cuidará da transição para a UI de auth
             }
             
             toggleAuthForm(showRegister) {
@@ -358,43 +357,52 @@
                 this.state.dom.authSection.classList.remove('hidden');
                 this.state.dom.authSection.classList.add('flex');
                 this.state.dom.appSection.classList.add('hidden');
-                // Limpa o estado relevante da aplicação ao mostrar UI de autenticação
                 this.state = {
                     ...this.state, products: [], categories: [], locations: [],
-                    movements: [], selectedProducts: [], currentPage: 1, allUsers: []
+                    movements: [], selectedProducts: [], currentPage: 1, allUsers: [], activeTab: 'reports'
                 };
             }
             
             applyRolePermissions() {
-                const { userRole } = this.state;
-                const welcomeEl = document.getElementById('user-welcome-message');
+                const { userRole, dom } = this.state;
+                const welcomeEl = document.getElementById('user-welcome-message'); // Busca novamente caso tenha sido reinjetado
                 if (welcomeEl) {
                     welcomeEl.textContent = `Bem-vindo! Você está logado como ${userRole === 'admin' ? 'Administrador' : 'Visualizador'}.`;
                 }
                 
-                document.querySelectorAll('[data-role-required]').forEach(el => {
+                // Aplica a sidebar e elementos GLOBAIS que usam data-role-required
+                document.querySelectorAll('#sidebar-menu [data-role-required], #app-section > [data-role-required]').forEach(el => {
                     const requiredRole = el.getAttribute('data-role-required');
-                    const displayStyle = (el.tagName === 'BUTTON' || el.tagName === 'A' || el.tagName === 'DIV' && el.classList.contains('flex')) ? 'flex' : 'block';
+                    const isFlex = (el.tagName === 'BUTTON' || el.tagName === 'A') && el.classList.contains('flex');
+                    const displayStyle = isFlex ? 'flex' : 'block';
                     el.style.display = userRole === requiredRole ? displayStyle : 'none';
                 });
 
-                // Assegura que a aba de configurações e o conteúdo de gerenciamento de usuários só apareçam para admin
-                const settingsPanel = this.state.dom.panels.settings;
+                // Aplica data-role-required para elementos DENTRO da aba ativa.
+                const activePanel = dom.panels[this.state.activeTab];
+                if (activePanel) {
+                    activePanel.querySelectorAll('[data-role-required]').forEach(el => {
+                         const requiredRole = el.getAttribute('data-role-required');
+                         const isFlex = (el.tagName === 'BUTTON' || el.tagName === 'A') && el.classList.contains('flex');
+                         const displayStyle = isFlex ? 'flex' : 'block';
+                         el.style.display = userRole === requiredRole ? displayStyle : 'none';
+                    });
+                }
+
+
+                // Garante que a aba de configurações e o conteúdo de gerenciamento de usuários só apareçam para admin
+                // Esta lógica específica para o painel de configurações é tratada pelo switchTab e data-role-required no link da sidebar.
+                // Ocultar o user-management-section se não for admin e a aba de config estiver ativa
                 const userManagementSection = document.getElementById('user-management-section');
-                if (settingsPanel) {
-                     settingsPanel.style.display = userRole === 'admin' ? 'block' : 'none';
-                }
                 if(userManagementSection) {
-                    userManagementSection.style.display = userRole === 'admin' ? 'block' : 'none';
+                    userManagementSection.style.display = (this.state.activeTab === 'settings' && userRole === 'admin') ? 'block' : 'none';
                 }
 
-
-                const activeTab = document.querySelector('.sidebar-link.bg-gray-200')?.dataset.tab;
-                const activeTabEl = document.querySelector(`.sidebar-link[data-tab="${activeTab}"]`);
-                if (userRole === 'viewer' && activeTabEl?.getAttribute('data-role-required') === 'admin') {
-                   this.switchTab('reports'); // Redireciona para uma aba segura se a atual for restrita
+                // Se o usuário não tem permissão para a aba ativa, redireciona
+                const activeTabLink = dom.sidebar.nav.querySelector(`.sidebar-link[data-tab="${this.state.activeTab}"]`);
+                if (userRole === 'viewer' && activeTabLink?.getAttribute('data-role-required') === 'admin') {
+                   this.switchTab('reports'); 
                 }
-                this.updateAllViews(); // Isso re-renderizará as partes necessárias
             }
 
             getFriendlyAuthError(code) {
@@ -416,26 +424,22 @@
                     movements: collection(this.db, `${basePath}/movements`),
                     locations: collection(this.db, `${basePath}/locations`),
                     settings: doc(this.db, `${basePath}/settings/main`),
-                    users: collection(this.db, `users`), // Referência para a coleção de usuários
+                    users: collection(this.db, `users`),
                 };
                 
-                this.clearAllListeners(); // Limpa listeners antigos antes de configurar novos
+                this.clearAllListeners();
                 this.state.unsubscribers.push(this.listenForSettingsUpdates());
                 this.state.unsubscribers.push(this.listenForLocationUpdates());
                 this.state.unsubscribers.push(this.listenForCategoryUpdates());
                 this.state.unsubscribers.push(this.listenForProductUpdates());
                 this.state.unsubscribers.push(this.listenForMovements());
-                if (this.state.userRole === 'admin') { // Somente admins precisam ouvir todos os usuários
+                if (this.state.userRole === 'admin') {
                     this.state.unsubscribers.push(this.listenForUserUpdates());
                 }
                 
-                this.applyRolePermissions(); // Aplica permissões baseadas no papel
-                // Reinjeta conteúdo dos painéis que podem depender de dados carregados (como localidades)
-                this.injectPanelContent(); 
-                // Define a aba inicial ou a última aba ativa que seja permitida
-                const initialTab = document.querySelector('.sidebar-link.bg-gray-200')?.dataset.tab || 'reports';
-                this.switchTab(initialTab);
-
+                // Não chama applyRolePermissions ou switchTab aqui. Será feito após authStateChanged.
+                // Apenas atualiza as visualizações que dependem dos dados carregados.
+                this.updateAllViews();
             }
 
             clearAllListeners() {
@@ -598,11 +602,10 @@
                 return onSnapshot(query(this.state.firestoreRefs.locations), async (snapshot) => {
                     if (this.state.userRole === 'admin' && snapshot.empty) {
                         await createDefaultLocations();
-                        // O listener será chamado novamente após a criação, então não precisa de updateAllViews aqui.
                         return;
                     }
                     this.state.locations = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })).sort((a,b) => a.name.localeCompare(b.name));
-                    this.injectPanelContent(); // Re-injeta para atualizar forms com novas localidades
+                    // Não injeta mais aqui, apenas atualiza as visualizações que dependem de localidades
                     this.updateAllViews();
                 }, (error) => {
                     console.error("Erro ao ouvir atualizações de localidades:", error);
@@ -616,12 +619,13 @@
                     if (docSnap.exists()) {
                         this.state.itemsPerPage = docSnap.data().itemsPerPage || 10;
                     } else if (this.state.userRole === 'admin') {
-                        // Se não existe e é admin, cria com valor padrão
                         await setDoc(this.state.firestoreRefs.settings, { itemsPerPage: 10 });
                         this.state.itemsPerPage = 10;
                     }
-                    this.renderSettings(); // Atualiza a UI de configurações
-                    this.renderProducts(); // Re-renderiza produtos, pois itemsPerPage pode ter mudado
+                    // A renderização de settings e produtos ocorrerá via updateAllViews ou switchTab, se necessário.
+                     if (this.state.activeTab === 'settings') this.renderSettings();
+                     if (this.state.activeTab === 'stock') this.renderProducts();
+
                 }, (error) => {
                     console.error("Erro ao ouvir atualizações de configurações:", error);
                 });
@@ -631,7 +635,7 @@
                 if (!this.state.firestoreRefs) return () => {};
                 return onSnapshot(query(this.state.firestoreRefs.products), (snapshot) => {
                     this.state.products = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
-                    this.updateAllViews(); // Atualiza todas as visualizações que dependem de produtos
+                    this.updateAllViews(); 
                 }, (error) => {
                     console.error("Erro ao ouvir atualizações de produtos:", error);
                     this.showAlert("Erro ao carregar produtos.", true);
@@ -642,7 +646,7 @@
                 if (!this.state.firestoreRefs) return () => {};
                 return onSnapshot(query(this.state.firestoreRefs.categories), (snapshot) => {
                     this.state.categories = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })).sort((a, b) => a.name.localeCompare(b.name));
-                    this.updateAllViews(); // Atualiza todas as visualizações que dependem de categorias
+                    this.updateAllViews(); 
                 }, (error) => {
                     console.error("Erro ao ouvir atualizações de categorias:", error);
                     this.showAlert("Erro ao carregar categorias.", true);
@@ -653,19 +657,25 @@
                 if (!this.state.firestoreRefs) return () => {};
                 return onSnapshot(query(this.state.firestoreRefs.movements), (snapshot) => {
                     this.state.movements = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
-                    this.updateDashboardView();
-                    this.renderLowStockAlerts();
-                    this.renderTopMovements();
+                    // Atualiza apenas se a aba de relatórios estiver ativa
+                    if (this.state.activeTab === 'reports') {
+                        this.updateDashboardView();
+                        this.renderLowStockAlerts();
+                        this.renderTopMovements();
+                    }
                 }, (error) => {
                     console.error("Erro ao ouvir atualizações de movimentações:", error);
                 });
             }
 
             listenForUserUpdates() {
-                if (!this.state.firestoreRefs || this.state.userRole !== 'admin') return () => {}; // Só admins devem listar todos os usuários
+                if (!this.state.firestoreRefs || this.state.userRole !== 'admin') return () => {};
                 return onSnapshot(query(this.state.firestoreRefs.users), (snapshot) => {
                     this.state.allUsers = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
-                    this.renderUserManagement(); // Renderiza a tabela de gerenciamento de usuários
+                     // Atualiza apenas se a aba de configurações estiver ativa e o usuário for admin
+                    if (this.state.activeTab === 'settings' && this.state.userRole === 'admin') {
+                        this.renderUserManagement();
+                    }
                 }, (error) => {
                     console.error("Erro ao ouvir atualizações de usuários:", error);
                     this.showAlert("Erro ao carregar lista de usuários.", true);
@@ -674,8 +684,9 @@
 
 
             setLoading(isLoading, isTableOnly = false) {
-                if (isTableOnly && this.state.dom && this.state.dom.tableLoadingIndicator) {
-                    this.state.dom.tableLoadingIndicator.style.display = isLoading ? 'flex' : 'none';
+                const tableLoader = document.getElementById('table-loading-indicator'); // Busca sempre o elemento
+                if (isTableOnly && tableLoader) {
+                    tableLoader.style.display = isLoading ? 'flex' : 'none';
                 } else if (this.state.dom && this.state.dom.loadingOverlay) {
                     this.state.dom.loadingOverlay.style.display = isLoading ? 'flex' : 'none';
                 }
@@ -696,7 +707,7 @@
             }
 
             updateSelectionState() {
-                this.state.selectedProducts = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.id);
+                this.state.selectedProducts = Array.from(document.querySelectorAll('#product-list .product-checkbox:checked')).map(cb => cb.dataset.id);
                 document.querySelectorAll('#product-list tr[data-product-id]').forEach(row => {
                     const id = row.dataset.productId;
                     row.classList.toggle('bg-blue-100', this.state.selectedProducts.includes(id));
@@ -801,9 +812,14 @@
             renderProducts() {
                 const productList = document.getElementById('product-list');
                 const emptyState = document.getElementById('empty-state');
-                if (!productList || !emptyState || !this.state.dom) return;
+                const tableLoadingIndicator = document.getElementById('table-loading-indicator'); // Busca o elemento aqui
 
-                this.setLoading(true, true);
+                if (!productList || !emptyState ) { // Não verifica tableLoadingIndicator aqui, pois ele pode não estar na DOM inicialmente
+                     console.warn('Elementos da tabela de estoque não encontrados, renderização abortada.');
+                    return;
+                }
+                
+                this.setLoading(true, true); // true para isTableOnly
 
                 const filteredProducts = this.getFilteredProducts();
                 const paginatedProducts = filteredProducts.slice((this.state.currentPage - 1) * this.state.itemsPerPage, this.state.currentPage * this.state.itemsPerPage);
@@ -840,24 +856,29 @@
                 }
                 this.renderPaginationControls(filteredProducts.length);
                 this.updateSelectionState(); 
-                this.setLoading(false, true);
+                this.setLoading(false, true); // true para isTableOnly
             },
             renderCategories() {
+                // Só renderiza se a aba de cadastros ou a aba de estoque estiverem ativas (onde os selects são usados)
+                if (this.state.activeTab !== 'register' && this.state.activeTab !== 'stock') return;
+
                 const categoryList = document.getElementById('category-list');
-                if (!categoryList) return;
-                categoryList.innerHTML = this.state.categories.length > 0 ? this.state.categories.map(cat => {
-                    const isUsed = this.state.products.some(p => p.category === cat.id);
-                    const deleteButton = this.state.userRole === 'admin' ? `
-                        <button data-action="delete-category" data-id="${cat.id}" class="text-red-500 hover:text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed" ${isUsed ? 'disabled title="Categoria em uso"' : ''}>
-                            <i class="fas fa-times"></i>
-                        </button>
-                    ` : '';
-                    return `
-                        <div class="flex justify-between items-center p-2 bg-gray-100 rounded-lg">
-                            <span class="text-gray-900">${cat.name}</span>
-                            ${deleteButton}
-                        </div>`;
-                }).join('') : '<p class="text-sm text-gray-500">Nenhuma categoria.</p>';
+                if (categoryList) { // Pode não existir se a aba 'register' não estiver ativa
+                    categoryList.innerHTML = this.state.categories.length > 0 ? this.state.categories.map(cat => {
+                        const isUsed = this.state.products.some(p => p.category === cat.id);
+                        const deleteButton = this.state.userRole === 'admin' ? `
+                            <button data-action="delete-category" data-id="${cat.id}" class="text-red-500 hover:text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed" ${isUsed ? 'disabled title="Categoria em uso"' : ''}>
+                                <i class="fas fa-times"></i>
+                            </button>
+                        ` : '';
+                        return `
+                            <div class="flex justify-between items-center p-2 bg-gray-100 rounded-lg">
+                                <span class="text-gray-900">${cat.name}</span>
+                                ${deleteButton}
+                            </div>`;
+                    }).join('') : '<p class="text-sm text-gray-500">Nenhuma categoria.</p>';
+                }
+                
                 const selects = [document.getElementById('product-category-select'), document.getElementById('stock-category-filter')];
                  selects.forEach(select => {
                     if (!select) return;
@@ -868,7 +889,9 @@
                     if (Array.from(select.options).some(opt => opt.value === currentValue)) select.value = currentValue;
                 });
             },
-            renderSettings() { // Renderiza configurações gerais (localidades, itens por página)
+            renderSettings() { 
+                if (this.state.activeTab !== 'settings' || this.state.userRole !== 'admin') return;
+
                 const locationsList = document.getElementById('location-list');
                 if (locationsList) {
                     locationsList.innerHTML = this.state.locations.length > 0 ? this.state.locations.map(loc => {
@@ -890,19 +913,16 @@
                 if (itemsPerPageInput) {
                     itemsPerPageInput.value = this.state.itemsPerPage;
                 }
-                // Chama renderUserManagement se o usuário for admin, pois faz parte das "Configurações"
-                if(this.state.userRole === 'admin') {
-                    this.renderUserManagement();
-                }
+                this.renderUserManagement();
             },
              renderUserManagement() {
-                if (this.state.userRole !== 'admin') return; // Só para admins
+                if (this.state.activeTab !== 'settings' || this.state.userRole !== 'admin') return; 
                 const userListTbody = document.getElementById('user-list-tbody');
                 if (!userListTbody) return;
 
                 userListTbody.innerHTML = this.state.allUsers.map(user => {
                     const isCurrentUser = this.state.currentUser && this.state.currentUser.uid === user.id;
-                    const roleSelectDisabled = isCurrentUser; // Admin não pode mudar seu próprio papel aqui
+                    const roleSelectDisabled = isCurrentUser; 
 
                     return `
                         <tr class="hover:bg-gray-50">
@@ -936,7 +956,6 @@
                     const userRef = doc(this.db, 'users', userId);
                     await updateDoc(userRef, { role: newRole });
                     this.showAlert(`Papel do usuário atualizado para ${newRole}.`);
-                    // O listener de `listenForUserUpdates` vai atualizar a lista na UI automaticamente.
                 } catch (error) {
                     console.error("Erro ao atualizar papel do usuário:", error);
                     this.showAlert('Não foi possível atualizar o papel do usuário.', true);
@@ -945,15 +964,23 @@
                 }
             },
             updateAllViews() {
-                 this.renderCategories();
-                 this.populateProductSelects();
-                 this.debouncedRenderProducts(); 
-                 this.renderDashboard();
-                 this.renderSettings(); // Isso incluirá renderUserManagement se for admin
+                 // Renderiza apenas componentes relevantes para a aba ativa ou componentes globais.
+                 this.renderCategories(); // Necessário para selects em 'register' e 'stock'
+                 this.populateProductSelects(); // Necessário para select em 'outputs'
+
+                 if (this.state.activeTab === 'stock') this.debouncedRenderProducts(); 
+                 if (this.state.activeTab === 'reports') this.renderDashboard();
+                 if (this.state.activeTab === 'settings' && this.state.userRole === 'admin') this.renderSettings();
+                 
+                 this.applyRolePermissions(); // Aplica permissões após as renderizações específicas da aba
             },
             populateProductSelects() {
+                // Só renderiza se a aba de saídas estiver ativa
+                if (this.state.activeTab !== 'outputs') return;
+
                 const outputSelect = document.getElementById('output-product-select');
                 if (!outputSelect) return;
+
                 const currentValue = outputSelect.value;
                 let options = '<option value="">Selecione um produto...</option>';
                 const sortedProducts = [...this.state.products].sort((a,b) => a.name.localeCompare(b.name));
@@ -991,27 +1018,26 @@
                 overlay.classList.toggle('hidden', !show);
             },
             switchTab(tabId) {
-                // Verifica se a aba é permitida para o usuário atual
                 const targetLink = document.querySelector(`.sidebar-link[data-tab="${tabId}"]`);
                 if (targetLink && targetLink.dataset.roleRequired && targetLink.dataset.roleRequired !== this.state.userRole) {
                     if (this.state.userRole === 'viewer' && targetLink.dataset.roleRequired === 'admin') {
                         this.showAlert('Você não tem permissão para acessar esta aba.', true);
-                        return; // Não muda de aba
+                        if(this.state.activeTab === tabId) this.state.activeTab = 'reports'; // Volta para uma aba segura
+                        else return; // Não muda se já estiver em outra aba
                     }
                 }
+                
+                this.state.activeTab = tabId; // Atualiza a aba ativa no estado
 
                 document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
-                const panelToShow = document.getElementById(`panel-${tabId}`);
+                const panelToShow = this.state.dom.panels[tabId];
                 if (panelToShow) panelToShow.classList.remove('hidden');
                 
                 document.querySelectorAll('.sidebar-link').forEach(l => l.classList.toggle('bg-gray-200', l.dataset.tab === tabId));
                 
-                // Renderiza o conteúdo da aba específica
-                if (tabId === 'reports' && this.state.isAuthReady) this.renderDashboard();
-                if (tabId === 'stock' && this.state.isAuthReady) this.renderProducts();
-                if (tabId === 'settings' && this.state.isAuthReady && this.state.userRole === 'admin') {
-                    this.renderSettings(); // renderSettings já chama renderUserManagement
-                }
+                // Chama as funções de renderização específicas da aba.
+                // applyRolePermissions também será chamado dentro de updateAllViews.
+                this.updateAllViews();
             },
             openEditModal(productId) {
                 const product = this.state.products.find(p => p.id === productId);
@@ -1048,13 +1074,14 @@
                 this.state.deleteQueue = { id: null, type: null, isBulk: false };
             },
             renderDashboard() {
-                if (!document.getElementById('panel-reports')?.isConnected || !this.state.isAuthReady) return;
+                // Assegura que o painel está visível e pronto
+                if (this.state.activeTab !== 'reports' || !this.state.isAuthReady || !document.getElementById('panel-reports')?.isConnected) return;
                 this.updateDashboardView();
                 this.renderLowStockAlerts();
                 this.renderTopMovements();
             },
             updateDashboardView() {
-                if(!this.state.isAuthReady) return;
+                if(this.state.activeTab !== 'reports' || !this.state.isAuthReady) return;
                 const { chartType } = this.state.dashboardSettings;
                 document.querySelectorAll('.chart-type-btn').forEach(btn => {
                     btn.classList.toggle('bg-blue-500', btn.dataset.type === chartType);
@@ -1065,8 +1092,10 @@
                 this.renderMovementsChart();
             },
             renderMovementsChart() {
+                if(this.state.activeTab !== 'reports') return;
                 const ctx = document.getElementById('movements-chart')?.getContext('2d');
                 if (!ctx) return;
+
                 const { chartType, period } = this.state.dashboardSettings;
                 const today = new Date(); today.setHours(23, 59, 59, 999);
                 let startDate = new Date(); startDate.setHours(0, 0, 0, 0);
@@ -1158,11 +1187,12 @@
                         }
                     };
                 }
-                if (ctx && typeof Chart !== 'undefined') { // Garante que Chart.js está carregado
+                if (ctx && typeof Chart !== 'undefined') { 
                     this.state.chartInstance = new Chart(ctx, chartConfig);
                 }
             },
             renderLowStockAlerts() {
+                if(this.state.activeTab !== 'reports') return;
                 const listEl = document.getElementById('low-stock-list'), emptyEl = document.getElementById('low-stock-empty');
                 if (!listEl || !emptyEl) return;
                 const lowStockProducts = this.state.products.filter(p => p.minStock > 0 && p.totalQuantity <= p.minStock);
@@ -1174,6 +1204,7 @@
                 }
             },
             renderTopMovements() {
+                if(this.state.activeTab !== 'reports') return;
                 const renderList = (elementId, data) => {
                     const listEl = document.getElementById(elementId);
                     if (!listEl) return;
@@ -1197,6 +1228,7 @@
                 renderList('top-saidas-list', sorted.filter(m => m.type === 'saida').slice(0, 5));
             },
             async handleGenerateReport() {
+                if(this.state.activeTab !== 'reports') return;
                 const dateInput = document.getElementById('report-date'), reportOutput = document.getElementById('report-output');
                 if (!dateInput || !reportOutput || !dateInput.value) return this.showAlert('Selecione uma data para gerar o relatório.', true);
                 const targetDate = new Date(dateInput.value); targetDate.setUTCHours(23, 59, 59, 999);
@@ -1233,7 +1265,7 @@
             },
             renderPaginationControls(totalItems) {
                 const controlsContainer = document.getElementById('pagination-controls');
-                if (!controlsContainer) return;
+                if (!controlsContainer) return; // Pode não estar na DOM se a aba de estoque não estiver ativa
                 const totalPages = Math.ceil(totalItems / this.state.itemsPerPage);
                 if (totalPages <= 1) {
                     controlsContainer.innerHTML = '';
@@ -1247,16 +1279,17 @@
                 const actionBar = document.getElementById('bulk-action-bar');
                 const selectedCountEl = document.getElementById('selected-count');
                 if (!actionBar || !selectedCountEl || this.state.userRole !== 'admin') {
-                    if(actionBar) actionBar.classList.add('hidden');
+                    if(actionBar) actionBar.classList.add('hidden'); // Oculta se não for admin
                      return;
                 };
                 if (this.state.selectedProducts.length > 0) {
                     selectedCountEl.textContent = `${this.state.selectedProducts.length} selecionado(s)`;
-                    actionBar.classList.remove('hidden');
+                    actionBar.classList.remove('hidden'); // Garante que está visível
                     actionBar.classList.add('open');
                 } else {
                     actionBar.classList.remove('open');
-                    actionBar.classList.add('hidden');
+                    // Não adicionar 'hidden' aqui, pois pode ser que o painel de estoque não esteja ativo.
+                    // A visibilidade geral do painel é controlada por switchTab.
                 }
             },
             clearFilters() {
@@ -1273,7 +1306,7 @@
                 if (dateEnd) dateEnd.value = '';
                 
                 this.state.currentPage = 1;
-                this.renderProducts();
+                if (this.state.activeTab === 'stock') this.renderProducts();
             },
             handleDownloadTemplate() {
                 const headers = { name: "Exemplo Produto", category: "Exemplo Categoria", unit: "UND", minStock: 10 };
@@ -1284,11 +1317,17 @@
                 XLSX.writeFile(workbook, "modelo_importacao_estoque.xlsx");
             },
             getFilteredProducts() {
-                const categoryFilter = document.getElementById('stock-category-filter')?.value || 'all';
-                const searchTerm = document.getElementById('search-product-input')?.value.toLowerCase() || '';
-                const stockStatus = document.getElementById('stock-status-filter')?.value || 'all';
-                const startDateVal = document.getElementById('date-filter-start')?.value;
-                const endDateVal = document.getElementById('date-filter-end')?.value;
+                const categoryFilterEl = document.getElementById('stock-category-filter');
+                const searchTermEl = document.getElementById('search-product-input');
+                const stockStatusEl = document.getElementById('stock-status-filter');
+                const startDateValEl = document.getElementById('date-filter-start');
+                const endDateValEl = document.getElementById('date-filter-end');
+
+                const categoryFilter = categoryFilterEl ? categoryFilterEl.value : 'all';
+                const searchTerm = searchTermEl ? searchTermEl.value.toLowerCase() : '';
+                const stockStatus = stockStatusEl ? stockStatusEl.value : 'all';
+                const startDateVal = startDateValEl ? startDateValEl.value : null;
+                const endDateVal = endDateValEl ? endDateValEl.value : null;
                 
                 let startDate = null;
                 if (startDateVal) {
@@ -1319,7 +1358,8 @@
                             matchesDate = createdAt <= endDate;
                         }
                     } else if (startDate || endDate) {
-                        matchesDate = false;
+                        // Se o produto não tem data de criação mas um filtro de data está ativo, não deve corresponder
+                        matchesDate = false; 
                     }
             
                     return matchesCategory && matchesSearch && matchesStatus && matchesDate;
@@ -1428,75 +1468,37 @@
                     this.showAlert('Nenhum produto válido encontrado no arquivo Excel para processar.');
                 }
             },
-            injectPanelContent() {
-                if (!this.state.dom) return;
-                const isAdmin = this.state.userRole === 'admin';
+            // Renomeado para injectAllPanelsContent e modificado para injetar o HTML base de todas as abas.
+            injectAllPanelsContent() {
+                if (!this.state.dom || !this.state.dom.panels) return;
+                const isAdmin = this.state.userRole === 'admin'; // Usado para condicionais no HTML injetado
                 const locationsQuantityInputs = this.state.locations.map(loc => `<label class="block"><span class="text-gray-700">${loc.name}</span><input type="number" id="qty-${loc.id}" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0"></label>`).join('');
                 const tableHeaders = this.state.locations.map(loc => `<th class="p-3 text-center text-gray-700">${loc.name}</th>`).join('');
-                const tableCheckboxHeader = isAdmin ? `<th class="p-3 w-4"><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"></th>` : `<th class="p-3 w-4"></th>`;
-                const tableActionsHeader = isAdmin ? `<th class="p-3 text-right text-gray-700">Ações</th>` : `<th></th>`;
-                this.state.dom.panels.stock.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 relative"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-gray-100 rounded-lg text-gray-900"></div><select id="stock-category-filter" class="p-2 bg-gray-100 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-gray-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar hidden mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-red-500 text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-red-600 transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div><div id="table-loading-indicator" class="hidden"><i class="fas fa-spinner animate-spin fa-2x text-blue-500"></i></div><div class="overflow-x-auto"><table class="w-full text-left min-w-[1400px]"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr>${tableCheckboxHeader}<th class="p-3 text-gray-700 sticky left-0 bg-gray-50 dark:bg-gray-800">Produto</th><th class="p-3 text-center text-gray-700">Categoria</th><th class="p-3 text-center text-gray-700 font-bold">Total</th>${tableHeaders}${tableActionsHeader}</tr></thead><tbody id="product-list" class="divide-y divide-gray-200"></tbody></table></div><div id="pagination-controls" class="flex justify-between items-center mt-4"></div><div id="empty-state" class="hidden text-center py-12"><i class="fas fa-box-open fa-4x text-gray-400"></i><p id="empty-state-message" class="mt-4 text-gray-500">Nenhum produto.</p></div></div>`;
-                this.state.dom.panels.register.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Gerenciar Categorias</h2><form id="add-category-form" class="flex gap-2 mb-4"><input type="text" id="category-name" placeholder="Nova categoria" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12"><i class="fas fa-plus"></i></button></form><div id="category-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Adicionar Produto</h2><form id="add-product-form" class="space-y-4"><label class="block"><span class="text-gray-700">Nome</span><input type="text" id="product-name" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Categoria</span><select id="product-category-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option value="">Selecione...</option></select></label><div class="grid grid-cols-2 gap-4">${locationsQuantityInputs}</div><div class="grid grid-cols-2 gap-4"><label class="block"><span class="text-gray-700">Est. Mínimo</span><input type="number" id="product-min-stock" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Unid.</span><select id="product-unit-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option>UND</option><option>CX</option><option>KG</option><option>G</option><option>L</option><option>ML</option></select></label></div><button type="submit" class="w-full mt-4 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-plus mr-2"></i>Adicionar Produto</button></form></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-file-excel mr-2 text-green-500"></i>Operações em Lote (Excel)</h2><div class="flex flex-col md:flex-row gap-6"><div class="flex-1 bg-gray-50 p-4 rounded-lg flex flex-col items-center text-center"><i class="fas fa-plus-circle fa-2x text-blue-500 mb-2"></i><h3 class="font-semibold mb-1 text-gray-900">Inserir Novos Produtos</h3><p class="text-sm text-gray-600 mb-3">Baixe o modelo, preencha e importe o arquivo Excel para adicionar vários produtos de uma vez.</p><div class="flex gap-2 w-full"><button id="download-template-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-download mr-2"></i>Baixar Modelo</button><input type="file" id="excel-insert-input" accept=".xlsx, .xls" class="hidden"><button id="upload-insert-trigger-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition"><i class="fas fa-upload mr-2"></i>Importar</button></div><p id="excel-insert-filename" class="text-xs mt-2 text-gray-500"></p></div></div></div>`;
-                this.state.dom.panels.outputs.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 max-w-2xl mx-auto"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Registrar Saída de Estoque</h2><form id="add-output-form" class="space-y-4"><div><label for="output-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="output-product-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="">Selecione um produto...</option></select></div><div id="output-location-selector" class="space-y-2"></div><div><label for="output-quantity" class="block text-sm mb-1 text-gray-700">Quantidade da Saída</label><input type="number" id="output-quantity" min="1" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required disabled></div><div><label for="output-motive-select" class="block text-sm mb-1 text-gray-700">Motivo da Saída</label><select id="output-motive-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="Venda">Venda</option><option value="Perda">Perda</option><option value="Uso Interno">Uso Interno</option><option value="Outro">Outro</option></select></div><p id="output-stock-info" class="text-sm text-gray-500 font-medium h-5"></p><button type="submit" class="w-full mt-4 bg-red-600 text-white font-bold p-2 rounded-lg hover:bg-red-700 transition"><i class="fas fa-arrow-circle-up mr-2"></i>Registrar Saída</button></form></div>`;
-                this.state.dom.panels.reports.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 mb-8"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Dashboard de Movimentações</h2><div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border"><div><label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Gráfico</label><div id="chart-type-selector" class="flex rounded-md shadow-sm"><button data-type="bar" class="chart-type-btn relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Barra</button><button data-type="line" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Linha</button><button data-type="pie" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Pizza</button></div></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Período</label><select id="period-selector" class="dashboard-control block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="7days">Últimos 7 dias</option><option value="30days">Últimos 30 dias</option><option value="this_month">Este Mês</option><option value="last_month">Mês Passado</option><option value="custom">Personalizado</option></select></div><div id="custom-date-range-selector" class="hidden md:col-span-1 grid grid-cols-2 gap-4"><div><label for="dashboard-date-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="dashboard-date-start" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="dashboard-date-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="dashboard-date-end" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div></div></div><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><div class="md:col-span-2 bg-gray-50 p-4 rounded-lg h-96"><canvas id="movements-chart"></canvas></div><div class="space-y-4"><div class="bg-amber-100 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-amber-800">Alerta de Estoque Baixo</h3><ul id="low-stock-list" class="space-y-2 max-h-40 overflow-y-auto"></ul><p id="low-stock-empty" class="text-sm text-gray-500 hidden">Tudo em ordem!</p></div><div class="bg-gray-50 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-green-800">Top 5 Entradas Recentes</h3><ul id="top-entradas-list" class="space-y-2"></ul></div><div class="bg-gray-50 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-red-800">Top 5 Saídas Recentes</h3><ul id="top-saidas-list" class="space-y-2"></ul></div></div></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-history mr-2 text-indigo-500"></i>Relatório Histórico</h2><div class="flex items-end gap-4"><div class="flex-grow"><label for="report-date" class="block text-sm font-medium text-gray-700">Verificar estoque na data:</label><input type="date" id="report-date" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg"></div><button id="generate-report-btn" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Gerar Relatório</button></div><div id="report-output" class="hidden mt-6"><div id="print-area"><h3 id="report-title" class="text-xl font-bold text-center"></h3><p id="report-subtitle" class="text-center text-gray-500 mb-4"></p><table class="w-full text-left"><thead class="border-b-2 border-gray-300"><tr><th class="p-3">Produto</th><th class="p-3 text-center">Categoria</th><th class="p-3 text-center">Unidade</th><th class="p-3 text-center">Qtd. em Estoque</th></tr></thead><tbody id="report-list" class="divide-y divide-gray-200"></tbody></table></div><button id="print-report-btn" class="mt-4 bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-800 transition float-right"><i class="fas fa-print mr-2"></i>Imprimir</button></div></div>`;
+                const tableCheckboxHeader = `<th class="p-3 w-4"><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" ${isAdmin ? '' : 'style="display:none;"'}></th>`;
+                const tableActionsHeader = `<th class="p-3 text-right text-gray-700" ${isAdmin ? '' : 'style="display:none;"'}>Ações</th>`;
                 
-                // Conteúdo da Aba de Configurações, incluindo Gerenciamento de Usuários
-                this.state.dom.panels.settings.innerHTML = `
-                <div class="space-y-8">
-                    <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
-                        <h2 class="text-2xl font-semibold mb-4 text-gray-900">Configurações Gerais</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <h3 class="text-lg font-medium text-gray-900 mb-2">Gerenciar Localidades</h3>
-                                <form id="add-location-form" class="flex gap-2 mb-4">
-                                    <input type="text" id="location-name" placeholder="Nova localidade" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required>
-                                    <button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12"><i class="fas fa-plus"></i></button>
-                                </form>
-                                <div id="location-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-medium text-gray-900 mb-2">Configurações de Exibição</h3>
-                                <div class="space-y-4">
-                                    <div>
-                                        <label for="items-per-page-input" class="block text-sm font-medium text-gray-700">Itens por página na tabela</label>
-                                        <input type="number" id="items-per-page-input" min="1" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg">
-                                    </div>
-                                    <button id="save-settings-btn" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition">Salvar Configurações Gerais</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div id="user-management-section" class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200" data-role-required="admin">
-                        <h2 class="text-2xl font-semibold mb-6 text-gray-900"><i class="fas fa-users-cog mr-2"></i>Gerenciar Usuários</h2>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left">
-                                <thead class="border-b-2 border-gray-200 bg-gray-50">
-                                    <tr>
-                                        <th class="p-3 text-sm font-semibold text-gray-700">Email</th>
-                                        <th class="p-3 text-sm font-semibold text-gray-700">Papel</th>
-                                        <th class="p-3 text-sm font-semibold text-gray-700 text-right">Ação</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="user-list-tbody" class="divide-y divide-gray-200">
-                                    <!-- Usuários serão renderizados aqui por renderUserManagement() -->
-                                </tbody>
-                            </table>
-                        </div>
-                         <p class="mt-4 text-xs text-gray-500 italic">Administradores não podem alterar seu próprio papel através desta interface.</p>
-                    </div>
-                </div>`;
-                this.applyRolePermissions(); // Garante que data-role-required seja aplicado
+                this.state.dom.panels.stock.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-gray-100 rounded-lg text-gray-900"></div><select id="stock-category-filter" class="p-2 bg-gray-100 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-gray-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar hidden mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between" data-role-required="admin"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-red-500 text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-red-600 transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div><div id="stock-table-wrapper"><div id="table-loading-indicator" class="hidden"><i class="fas fa-spinner animate-spin fa-2x text-blue-500"></i></div><div class="overflow-x-auto"><table class="w-full text-left min-w-[1400px]"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr>${tableCheckboxHeader}<th class="p-3 text-gray-700 sticky left-0 bg-gray-50 dark:bg-gray-800">Produto</th><th class="p-3 text-center text-gray-700">Categoria</th><th class="p-3 text-center text-gray-700 font-bold">Total</th>${tableHeaders}${tableActionsHeader}</tr></thead><tbody id="product-list" class="divide-y divide-gray-200"></tbody></table></div></div><div id="pagination-controls" class="flex justify-between items-center mt-4"></div><div id="empty-state" class="hidden text-center py-12"><i class="fas fa-box-open fa-4x text-gray-400"></i><p id="empty-state-message" class="mt-4 text-gray-500">Nenhum produto.</p></div></div>`;
+                this.state.dom.panels.register.innerHTML = `<div data-role-required="admin"><div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Gerenciar Categorias</h2><form id="add-category-form" class="flex gap-2 mb-4"><input type="text" id="category-name" placeholder="Nova categoria" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12"><i class="fas fa-plus"></i></button></form><div id="category-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Adicionar Produto</h2><form id="add-product-form" class="space-y-4"><label class="block"><span class="text-gray-700">Nome</span><input type="text" id="product-name" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Categoria</span><select id="product-category-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option value="">Selecione...</option></select></label><div class="grid grid-cols-2 gap-4">${locationsQuantityInputs}</div><div class="grid grid-cols-2 gap-4"><label class="block"><span class="text-gray-700">Est. Mínimo</span><input type="number" id="product-min-stock" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Unid.</span><select id="product-unit-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option>UND</option><option>CX</option><option>KG</option><option>G</option><option>L</option><option>ML</option></select></label></div><button type="submit" class="w-full mt-4 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-plus mr-2"></i>Adicionar Produto</button></form></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-file-excel mr-2 text-green-500"></i>Operações em Lote (Excel)</h2><div class="flex flex-col md:flex-row gap-6"><div class="flex-1 bg-gray-50 p-4 rounded-lg flex flex-col items-center text-center"><i class="fas fa-plus-circle fa-2x text-blue-500 mb-2"></i><h3 class="font-semibold mb-1 text-gray-900">Inserir Novos Produtos</h3><p class="text-sm text-gray-600 mb-3">Baixe o modelo, preencha e importe o arquivo Excel para adicionar vários produtos de uma vez.</p><div class="flex gap-2 w-full"><button id="download-template-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-download mr-2"></i>Baixar Modelo</button><input type="file" id="excel-insert-input" accept=".xlsx, .xls" class="hidden"><button id="upload-insert-trigger-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition"><i class="fas fa-upload mr-2"></i>Importar</button></div><p id="excel-insert-filename" class="text-xs mt-2 text-gray-500"></p></div></div></div></div>`;
+                this.state.dom.panels.outputs.innerHTML = `<div data-role-required="admin"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 max-w-2xl mx-auto"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Registrar Saída de Estoque</h2><form id="add-output-form" class="space-y-4"><div><label for="output-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="output-product-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="">Selecione um produto...</option></select></div><div id="output-location-selector" class="space-y-2"></div><div><label for="output-quantity" class="block text-sm mb-1 text-gray-700">Quantidade da Saída</label><input type="number" id="output-quantity" min="1" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required disabled></div><div><label for="output-motive-select" class="block text-sm mb-1 text-gray-700">Motivo da Saída</label><select id="output-motive-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="Venda">Venda</option><option value="Perda">Perda</option><option value="Uso Interno">Uso Interno</option><option value="Outro">Outro</option></select></div><p id="output-stock-info" class="text-sm text-gray-500 font-medium h-5"></p><button type="submit" class="w-full mt-4 bg-red-600 text-white font-bold p-2 rounded-lg hover:bg-red-700 transition"><i class="fas fa-arrow-circle-up mr-2"></i>Registrar Saída</button></form></div></div>`;
+                this.state.dom.panels.reports.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 mb-8"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Dashboard de Movimentações</h2><div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border"><div><label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Gráfico</label><div id="chart-type-selector" class="flex rounded-md shadow-sm"><button data-type="bar" class="chart-type-btn relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Barra</button><button data-type="line" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Linha</button><button data-type="pie" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Pizza</button></div></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Período</label><select id="period-selector" class="dashboard-control block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="7days">Últimos 7 dias</option><option value="30days">Últimos 30 dias</option><option value="this_month">Este Mês</option><option value="last_month">Mês Passado</option><option value="custom">Personalizado</option></select></div><div id="custom-date-range-selector" class="hidden md:col-span-1 grid grid-cols-2 gap-4"><div><label for="dashboard-date-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="dashboard-date-start" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="dashboard-date-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="dashboard-date-end" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div></div></div><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><div class="md:col-span-2 bg-gray-50 p-4 rounded-lg h-96"><canvas id="movements-chart"></canvas></div><div class="space-y-4"><div class="bg-amber-100 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-amber-800">Alerta de Estoque Baixo</h3><ul id="low-stock-list" class="space-y-2 max-h-40 overflow-y-auto"></ul><p id="low-stock-empty" class="text-sm text-gray-500 hidden">Tudo em ordem!</p></div><div class="bg-gray-50 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-green-800">Top 5 Entradas Recentes</h3><ul id="top-entradas-list" class="space-y-2"></ul></div><div class="bg-gray-50 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-red-800">Top 5 Saídas Recentes</h3><ul id="top-saidas-list" class="space-y-2"></ul></div></div></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-history mr-2 text-indigo-500"></i>Relatório Histórico</h2><div class="flex items-end gap-4"><div class="flex-grow"><label for="report-date" class="block text-sm font-medium text-gray-700">Verificar estoque na data:</label><input type="date" id="report-date" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg"></div><button id="generate-report-btn" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Gerar Relatório</button></div><div id="report-output" class="hidden mt-6"><div id="print-area"><h3 id="report-title" class="text-xl font-bold text-center"></h3><p id="report-subtitle" class="text-center text-gray-500 mb-4"></p><table class="w-full text-left"><thead class="border-b-2 border-gray-300"><tr><th class="p-3">Produto</th><th class="p-3 text-center">Categoria</th><th class="p-3 text-center">Unidade</th><th class="p-3 text-center">Qtd. em Estoque</th></tr></thead><tbody id="report-list" class="divide-y divide-gray-200"></tbody></table></div><button id="print-report-btn" class="mt-4 bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-800 transition float-right"><i class="fas fa-print mr-2"></i>Imprimir</button></div></div>`;
+                this.state.dom.panels.settings.innerHTML = `<div data-role-required="admin"><div class="space-y-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Configurações Gerais</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 class="text-lg font-medium text-gray-900 mb-2">Gerenciar Localidades</h3><form id="add-location-form" class="flex gap-2 mb-4"><input type="text" id="location-name" placeholder="Nova localidade" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12"><i class="fas fa-plus"></i></button></form><div id="location-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div><h3 class="text-lg font-medium text-gray-900 mb-2">Configurações de Exibição</h3><div class="space-y-4"><div><label for="items-per-page-input" class="block text-sm font-medium text-gray-700">Itens por página na tabela</label><input type="number" id="items-per-page-input" min="1" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg"></div><button id="save-settings-btn" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition">Salvar Configurações Gerais</button></div></div></div></div><div id="user-management-section" class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-6 text-gray-900"><i class="fas fa-users-cog mr-2"></i>Gerenciar Usuários</h2><div class="overflow-x-auto"><table class="w-full text-left"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr><th class="p-3 text-sm font-semibold text-gray-700">Email</th><th class="p-3 text-sm font-semibold text-gray-700">Papel</th><th class="p-3 text-sm font-semibold text-gray-700 text-right">Ação</th></tr></thead><tbody id="user-list-tbody" class="divide-y divide-gray-200"></tbody></table></div><p class="mt-4 text-xs text-gray-500 italic">Administradores não podem alterar seu próprio papel através desta interface.</p></div></div></div>`;
+                
+                // Aplicar permissões após a injeção de todo o conteúdo para garantir que os data-role-required sejam respeitados.
+                this.applyRolePermissions();
             },
             updateOutputQuantityLock() {
+                // Só executa se a aba de saídas estiver ativa
+                if (this.state.activeTab !== 'outputs') return;
+
                 const quantityInput = document.getElementById('output-quantity');
                 const selectedLocationRadio = document.querySelector('input[name="output-location"]:checked');
-                if (!selectedLocationRadio || !quantityInput) {
-                    if (quantityInput) {
-                        quantityInput.disabled = true;
-                        quantityInput.value = '';
-                        quantityInput.placeholder = '';
-                    }
+                
+                if (!quantityInput) return; // Se o input não existe, não faz nada.
+
+                if (!selectedLocationRadio) {
+                    quantityInput.disabled = true;
+                    quantityInput.value = '';
+                    quantityInput.placeholder = '';
                     return;
                 }
                 const productId = document.getElementById('output-product-select').value;
@@ -1520,6 +1522,9 @@
                 }
             },
             handleOutputProductSelection(productId) {
+                // Só executa se a aba de saídas estiver ativa
+                if (this.state.activeTab !== 'outputs') return;
+
                 const stockInfoEl = document.getElementById('output-stock-info');
                 const locationSelectorEl = document.getElementById('output-location-selector');
                 const quantityInput = document.getElementById('output-quantity');
@@ -1561,7 +1566,7 @@
              const target = e.target;
              if (['stock-category-filter', 'stock-status-filter', 'date-filter-start', 'date-filter-end'].includes(target.id)) {
                  this.state.currentPage = 1;
-                 this.renderProducts();
+                 if (this.state.activeTab === 'stock') this.renderProducts();
              }
              if (target.id === 'output-product-select') this.handleOutputProductSelection(target.value);
              
@@ -1594,7 +1599,7 @@
                     } else {
                         customDateSelector.classList.add('hidden');
                         customDateSelector.classList.remove('grid');
-                        this.updateDashboardView();
+                        if (this.state.activeTab === 'reports') this.updateDashboardView();
                     }
                  }
              }
@@ -1602,18 +1607,16 @@
              if (target.id === 'dashboard-date-start' || target.id === 'dashboard-date-end') {
                  this.state.dashboardSettings.startDate = document.getElementById('dashboard-date-start').value;
                  this.state.dashboardSettings.endDate = document.getElementById('dashboard-date-end').value;
-                 if (this.state.dashboardSettings.startDate && this.state.dashboardSettings.endDate) {
+                 if (this.state.dashboardSettings.startDate && this.state.dashboardSettings.endDate && this.state.activeTab === 'reports') {
                      this.updateDashboardView();
                  }
              }
-             // Não precisa de um listener específico para o select de papel do usuário,
-             // o botão "Salvar" ao lado dele no handleContentClick fará a ação.
             },
             handleContentInput(e) {
                 const target = e.target;
                 if (target.id === 'search-product-input') {
                     this.state.currentPage = 1;
-                    this.debouncedRenderProducts();
+                    if (this.state.activeTab === 'stock') this.debouncedRenderProducts();
                 }
                 if (target.id === 'output-quantity') {
                     const max = parseInt(target.max, 10);
@@ -1626,7 +1629,7 @@
                     }
                 }
             },
-            async handleSaveSettings() { // Salva configurações gerais (itens por página)
+            async handleSaveSettings() { 
                 if (this.state.userRole !== 'admin') return;
                 const input = document.getElementById('items-per-page-input');
                 if (!input) return;

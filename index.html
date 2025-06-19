@@ -175,7 +175,7 @@
             apiKey: "AIzaSyDVxDoPVP-uhWwfXsdlouk5uv-jt-P6tL8",
             authDomain: "controledeestoque-7ea51.firebaseapp.com",
             projectId: "controledeestoque-7ea51",
-            storageBucket: "controledeestoque-7ea51.appspot.com",
+            storageBucket: "controledeestoque-7ea51.firebasestorage.app",
             messagingSenderId: "355699807496",
             appId: "1:355699807496:web:6432766da431e535b888bd"
         };
@@ -1296,7 +1296,7 @@
                 if (!dateInput || !reportOutput || !dateInput.value) return this.showAlert('Selecione uma data para gerar o relatório.', true);
                 
                 // Ensure date is treated as end of day in local timezone for comparison
-                const targetDateParts = dateInput.value.split('-'); //<y_bin_858>-MM-DD
+                const targetDateParts = dateInput.value.split('-'); // YYYY-MM-DD
                 const targetDate = new Date(parseInt(targetDateParts[0]), parseInt(targetDateParts[1]) - 1, parseInt(targetDateParts[2]), 23, 59, 59, 999);
 
                 this.setLoading(true);

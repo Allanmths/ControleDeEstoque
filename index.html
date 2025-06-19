@@ -171,6 +171,7 @@
             };
         };
         
+        // ### NOTA: Sua API Key foi exposta. É CRUCIAL restringi-la no Console do Firebase para evitar uso indevido. ###
         const firebaseConfig = {
             apiKey: "AIzaSyDVxDoPVP-uhWwfXsdlouk5uv-jt-P6tL8",
             authDomain: "controledeestoque-7ea51.firebaseapp.com",
@@ -215,6 +216,7 @@
 
             init() {
                 this.cacheDomElements();
+                // ### ALTERAÇÃO: A injeção de conteúdo agora acontece uma vez, aqui. ###
                 this.injectPanelContent();
                 this.setupEventListeners();
                 this.handleAuthentication();
@@ -416,8 +418,10 @@
                     this.state.unsubscribers.push(this.listenForUserUpdates());
                 }
                 
+                // ### ALTERAÇÃO: Garante que o painel é (re)construído com os dados corretos ao logar. ###
+                this.injectPanelContent();
                 this.applyRolePermissions();
-                this.injectPanelContent(); 
+
                 const initialTab = document.querySelector('.sidebar-link.bg-gray-200')?.dataset.tab || 'reports';
                 const initialTabLink = document.querySelector(`.sidebar-link[data-tab="${initialTab}"]`);
 
@@ -470,7 +474,6 @@
                     return;
                 }
 
-                // Ação unificada para download de template (agora só existe um botão)
                 if (button.id === 'download-template-btn') {
                     this.handleDownloadTemplate();
                     return;
@@ -508,9 +511,6 @@
             
             handleContentChange(e) {
              const target = e.target;
-             // Esta lógica está correta. Quando o usuário altera um filtro, a tabela deve ser redesenhada.
-             // O "loop" era causado por outras funções que atualizavam o filtro e disparavam este evento.
-             // A arquitetura foi ajustada para que este evento seja acionado principalmente pela interação do usuário.
              if (['stock-category-filter', 'stock-status-filter', 'date-filter-start', 'date-filter-end'].includes(target.id)) {
                  this.state.currentPage = 1;
                  this.debouncedRenderProducts();
@@ -677,11 +677,14 @@
                     const initialLoad = this.state.locations.length === 0;
                     if (this.state.userRole === 'admin' && snapshot.empty && initialLoad) {
                         await createDefaultLocations();
-                        return;
+                        return; // A criação irá disparar este listener novamente com os novos dados
                     }
                     this.state.locations = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })).sort((a,b) => a.name.localeCompare(b.name));
-                    this.injectPanelContent(); 
+                    
+                    // ### ALTERAÇÃO: A chamada para injectPanelContent() foi removida daqui para evitar o loop. ###
+                    // A atualização da UI agora é centralizada em updateAllViews().
                     this.updateAllViews();
+
                 }, (error) => {
                     console.error("Erro ao ouvir atualizações de localidades:", error);
                     this.showAlert("Erro ao carregar localidades.", true);
@@ -754,7 +757,6 @@
                 });
             }
 
-
             setLoading(isLoading, isTableOnly = false) {
                 const tableLoader = this.state.dom?.tableLoadingIndicator;
                 const globalLoader = this.state.dom?.loadingOverlay;
@@ -767,6 +769,7 @@
             }
         }
 
+        // ### SEPARAÇÃO DA LÓGICA DE MANIPULAÇÃO DO DOM ###
         Object.assign(StockApp.prototype, {
             async handleAddCategory(form) {
                 const name = form.querySelector('#category-name').value.trim();
@@ -863,11 +866,31 @@
                 await addDoc(this.state.firestoreRefs.movements, { productId, type, quantity, motive, date: serverTimestamp() });
             },
             renderProducts() {
-                const productList = document.getElementById('product-list');
-                const emptyState = document.getElementById('empty-state');
-                if (!productList || !emptyState || !this.state.dom?.tableLoadingIndicator) return;
+                const stockPanel = document.getElementById('panel-stock');
+                if (!stockPanel) return;
 
+                const productList = stockPanel.querySelector('#product-list');
+                const emptyState = stockPanel.querySelector('#empty-state');
+                const tableContainer = stockPanel.querySelector('.overflow-x-auto');
+
+                if (!productList || !emptyState || !tableContainer) return;
+                
                 this.setLoading(true, true);
+
+                // ### ALTERAÇÃO: O cabeçalho da tabela agora é gerado dinamicamente aqui. ###
+                const isAdmin = this.state.userRole === 'admin';
+                const tableHeaders = this.state.locations.map(loc => `<th class="p-3 text-center text-gray-700 whitespace-nowrap">${loc.name}</th>`).join('');
+                const tableCheckboxHeader = isAdmin ? `<th class="p-3 w-4"><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"></th>` : `<th class="p-3 w-4"></th>`;
+                const tableActionsHeader = isAdmin ? `<th class="p-3 text-right text-gray-700 whitespace-nowrap">Ações</th>` : `<th></th>`;
+
+                const table = tableContainer.querySelector('table');
+                let thead = table.querySelector('thead');
+                if (!thead) {
+                    thead = document.createElement('thead');
+                    table.prepend(thead);
+                }
+                thead.className = "border-b-2 border-gray-200 bg-gray-50";
+                thead.innerHTML = `<tr>${tableCheckboxHeader}<th class="p-3 text-gray-700 sticky left-0 bg-gray-50 dark:bg-gray-800 shadow-sm whitespace-nowrap">Produto</th><th class="p-3 text-center text-gray-700 whitespace-nowrap">Categoria</th><th class="p-3 text-center text-gray-700 font-bold whitespace-nowrap">Total</th>${tableHeaders}${tableActionsHeader}</tr>`;
 
                 const filteredProducts = this.getFilteredProducts();
                 const paginatedProducts = filteredProducts.slice((this.state.currentPage - 1) * this.state.itemsPerPage, this.state.currentPage * this.state.itemsPerPage);
@@ -1029,6 +1052,18 @@
                  this.debouncedRenderProducts();
                  this.renderDashboard();
                  this.renderSettings();
+                 this.updateRegisterForm();
+            },
+            updateRegisterForm() {
+                const container = document.getElementById('add-product-form-locations-container');
+                if (container) {
+                    container.innerHTML = this.state.locations.map(loc => 
+                        `<label class="block">
+                            <span class="text-gray-700">${loc.name}</span>
+                            <input type="number" id="qty-${loc.id}" name="qty-${loc.id}" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0">
+                        </label>`
+                    ).join('');
+                }
             },
             populateProductSelects() {
                 const outputSelect = document.getElementById('output-product-select');
@@ -1070,17 +1105,7 @@
                 document.querySelectorAll('.sidebar-link').forEach(l => l.classList.toggle('bg-gray-200', l.dataset.tab === tabId));
                 
                 if (this.state.isAuthReady) {
-                    if (tabId === 'reports') this.renderDashboard();
-                    if (tabId === 'stock') this.debouncedRenderProducts();
-                    if (tabId === 'settings' && this.state.userRole === 'admin') {
-                        this.renderSettings();
-                    }
-                    if (tabId === 'register') {
-                        this.renderCategories();
-                    }
-                     if (tabId === 'outputs') {
-                        this.populateProductSelects();
-                    }
+                    this.updateAllViews();
                 }
             },
             openEditModal(productId) {
@@ -1555,19 +1580,14 @@
                 }
             },
             
+            // ### ALTERAÇÃO PRINCIPAL: Esta função agora apenas cria a ESTRUTURA das abas. O conteúdo dinâmico é preenchido por outras funções. ###
             injectPanelContent() {
                 if (!this.state.dom || !this.state.dom.panels) {
-                    console.error("DOM or panels not cached correctly.");
+                    console.error("DOM ou painéis não foram cacheados corretamente.");
                     return;
                 }
-                const isAdmin = this.state.userRole === 'admin';
-                const locationsQuantityInputs = this.state.locations.map(loc => `<label class="block"><span class="text-gray-700">${loc.name}</span><input type="number" id="qty-${loc.id}" name="qty-${loc.id}" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0"></label>`).join('');
-                const tableHeaders = this.state.locations.map(loc => `<th class="p-3 text-center text-gray-700 whitespace-nowrap">${loc.name}</th>`).join('');
-                const tableCheckboxHeader = isAdmin ? `<th class="p-3 w-4"><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"></th>` : `<th class="p-3 w-4"></th>`;
-                const tableActionsHeader = isAdmin ? `<th class="p-3 text-right text-gray-700 whitespace-nowrap">Ações</th>` : `<th></th>`;
                 
-                // ### INÍCIO DA ALTERAÇÃO ###
-                // O HTML para a aba Estoque foi limpo, removendo o card de download redundante.
+                // Panel Stock (Otimizado e limpo)
                 if (this.state.dom.panels.stock) {
                     this.state.dom.panels.stock.innerHTML = `
                     <div class="space-y-6">
@@ -1596,17 +1616,21 @@
                             
                             <div id="bulk-action-bar" class="bulk-action-bar hidden mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-red-500 text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-red-600 transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div>
                             <div id="table-loading-indicator" class="hidden"><i class="fas fa-spinner animate-spin fa-2x text-blue-500"></i></div>
-                            <div class="overflow-x-auto"><table class="w-full text-left min-w-[1000px] sm:min-w-[1400px]"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr>${tableCheckboxHeader}<th class="p-3 text-gray-700 sticky left-0 bg-gray-50 dark:bg-gray-800 shadow-sm whitespace-nowrap">Produto</th><th class="p-3 text-center text-gray-700 whitespace-nowrap">Categoria</th><th class="p-3 text-center text-gray-700 font-bold whitespace-nowrap">Total</th>${tableHeaders}${tableActionsHeader}</tr></thead><tbody id="product-list" class="divide-y divide-gray-200"></tbody></table></div>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left min-w-[1000px] sm:min-w-[1400px]">
+                                    <thead></thead>
+                                    <tbody id="product-list" class="divide-y divide-gray-200"></tbody>
+                                </table>
+                            </div>
                             <div id="pagination-controls" class="flex justify-between items-center mt-4"></div>
                             <div id="empty-state" class="hidden text-center py-12"><i class="fas fa-box-open fa-4x text-gray-400"></i><p id="empty-state-message" class="mt-4 text-gray-500">Nenhum produto.</p></div>
                         </div>
                     </div>`;
                 }
-                // ### FIM DA ALTERAÇÃO ###
-
+                
                 // Panel Register
                 if (this.state.dom.panels.register) {
-                    this.state.dom.panels.register.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Gerenciar Categorias</h2><form id="add-category-form" class="flex gap-2 mb-4"><input type="text" id="category-name" placeholder="Nova categoria" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12 flex-shrink-0"><i class="fas fa-plus"></i></button></form><div id="category-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Adicionar Produto</h2><form id="add-product-form" class="space-y-4"><label class="block"><span class="text-gray-700">Nome</span><input type="text" id="product-name" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Categoria</span><select id="product-category-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option value="">Selecione...</option></select></label><div class="grid grid-cols-1 sm:grid-cols-2 gap-4">${locationsQuantityInputs}</div><div class="grid grid-cols-2 gap-4"><label class="block"><span class="text-gray-700">Est. Mínimo</span><input type="number" id="product-min-stock" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Unid.</span><select id="product-unit-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option>UND</option><option>CX</option><option>KG</option><option>G</option><option>L</option><option>ML</option></select></label></div><button type="submit" class="w-full mt-4 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-plus mr-2"></i>Adicionar Produto</button></form></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-file-excel mr-2 text-green-500"></i>Operações em Lote (Excel)</h2><div class="flex flex-col md:flex-row gap-6"><div class="flex-1 bg-gray-50 p-4 rounded-lg flex flex-col items-center text-center"><i class="fas fa-plus-circle fa-2x text-blue-500 mb-2"></i><h3 class="font-semibold mb-1 text-gray-900">Inserir Novos Produtos</h3><p class="text-sm text-gray-600 mb-3">Baixe o modelo, preencha e importe o arquivo Excel para adicionar vários produtos de uma vez.</p><div class="flex gap-2 w-full"><button id="download-template-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-download mr-2"></i>Baixar Modelo</button><input type="file" id="excel-insert-input" accept=".xlsx, .xls" class="hidden"><button id="upload-insert-trigger-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition"><i class="fas fa-upload mr-2"></i>Importar</button></div><p id="excel-insert-filename" class="text-xs mt-2 text-gray-500"></p></div></div></div>`;
+                    this.state.dom.panels.register.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Gerenciar Categorias</h2><form id="add-category-form" class="flex gap-2 mb-4"><input type="text" id="category-name" placeholder="Nova categoria" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12 flex-shrink-0"><i class="fas fa-plus"></i></button></form><div id="category-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Adicionar Produto</h2><form id="add-product-form" class="space-y-4"><label class="block"><span class="text-gray-700">Nome</span><input type="text" id="product-name" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Categoria</span><select id="product-category-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option value="">Selecione...</option></select></label><div id="add-product-form-locations-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div><div class="grid grid-cols-2 gap-4"><label class="block"><span class="text-gray-700">Est. Mínimo</span><input type="number" id="product-min-stock" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Unid.</span><select id="product-unit-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option>UND</option><option>CX</option><option>KG</option><option>G</option><option>L</option><option>ML</option></select></label></div><button type="submit" class="w-full mt-4 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-plus mr-2"></i>Adicionar Produto</button></form></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-file-excel mr-2 text-green-500"></i>Operações em Lote (Excel)</h2><div class="flex flex-col md:flex-row gap-6"><div class="flex-1 bg-gray-50 p-4 rounded-lg flex flex-col items-center text-center"><i class="fas fa-plus-circle fa-2x text-blue-500 mb-2"></i><h3 class="font-semibold mb-1 text-gray-900">Inserir Novos Produtos</h3><p class="text-sm text-gray-600 mb-3">Baixe o modelo, preencha e importe o arquivo Excel para adicionar vários produtos de uma vez.</p><div class="flex gap-2 w-full"><button id="download-template-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-download mr-2"></i>Baixar Modelo</button><input type="file" id="excel-insert-input" accept=".xlsx, .xls" class="hidden"><button id="upload-insert-trigger-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition"><i class="fas fa-upload mr-2"></i>Importar</button></div><p id="excel-insert-filename" class="text-xs mt-2 text-gray-500"></p></div></div></div>`;
                 }
 
                 // Panel Outputs
@@ -1623,6 +1647,7 @@
                 if (this.state.dom.panels.settings) {
                     this.state.dom.panels.settings.innerHTML = `<div class="space-y-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Configurações Gerais</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 class="text-lg font-medium text-gray-900 mb-2">Gerenciar Localidades</h3><form id="add-location-form" class="flex gap-2 mb-4"><input type="text" id="location-name" placeholder="Nova localidade" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12 flex-shrink-0"><i class="fas fa-plus"></i></button></form><div id="location-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div><h3 class="text-lg font-medium text-gray-900 mb-2">Configurações de Exibição</h3><div class="space-y-4"><div><label for="items-per-page-input" class="block text-sm font-medium text-gray-700">Itens por página na tabela</label><input type="number" id="items-per-page-input" min="1" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg"></div><button id="save-settings-btn" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition">Salvar Configurações Gerais</button></div></div></div></div><div id="user-management-section" class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200" data-role-required="admin"><h2 class="text-2xl font-semibold mb-6 text-gray-900"><i class="fas fa-users-cog mr-2"></i>Gerenciar Usuários</h2><div class="overflow-x-auto"><table class="w-full text-left"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr><th class="p-3 text-sm font-semibold text-gray-700">Email</th><th class="p-3 text-sm font-semibold text-gray-700">Papel</th><th class="p-3 text-sm font-semibold text-gray-700 text-right">Ação</th></tr></thead><tbody id="user-list-tbody" class="divide-y divide-gray-200"></tbody></table></div><p class="mt-4 text-xs text-gray-500 italic">Administradores não podem alterar seu próprio papel através desta interface.</p></div></div>`;
                 }
+
                 this.applyRolePermissions();
             },
             updateOutputQuantityLock() {

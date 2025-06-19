@@ -171,11 +171,11 @@
             };
         };
         
-        const hardcodedFirebaseConfig = {
+        const hardcodedFirebaseConfig = { // <-- DADOS FORNECIDOS PELO USUÁRIO E AJUSTADOS
             apiKey: "AIzaSyDVxDoPVP-uhWwfXsdlouk5uv-jt-P6tL8",
             authDomain: "controledeestoque-7ea51.firebaseapp.com",
             projectId: "controledeestoque-7ea51",
-            storageBucket: "controledeestoque-7ea51.firebasestorage.app",
+            storageBucket: "controledeestoque-7ea51.firebasestorage.app", // VERIFIQUE SE ESTE É O CORRETO PARA SEU PROJETO
             messagingSenderId: "355699807496",
             appId: "1:355699807496:web:6432766da431e535b888bd"
         };
@@ -203,10 +203,11 @@
             };
 
             constructor() {
-                if (!firebaseConfig || !firebaseConfig.apiKey || firebaseConfig.apiKey === "AIzaSyDVxDoPVP-uhWwfXsdlouk5uv-jt-P6tL8") { // Checagem genérica
-                    console.error("Firebase config is not set or uses placeholder values.");
+                // MODIFICADO: Removida a verificação específica da API Key de placeholder
+                if (!firebaseConfig || !firebaseConfig.apiKey) { 
+                    console.error("Firebase config is not set or is missing API key.");
                     document.addEventListener('DOMContentLoaded', () => {
-                        document.body.innerHTML = `<div class="w-full h-screen flex items-center justify-center p-4"><div class="text-center bg-red-100 p-8 rounded-lg shadow-md"><h1 class="text-2xl font-bold text-red-800 mb-2">Erro de Configuração</h1><p class="text-red-700">As credenciais do Firebase não foram configuradas corretamente. Verifique o console para mais detalhes.</p></div></div>`;
+                        document.body.innerHTML = `<div class="w-full h-screen flex items-center justify-center p-4"><div class="text-center bg-red-100 p-8 rounded-lg shadow-md"><h1 class="text-2xl font-bold text-red-800 mb-2">Erro de Configuração</h1><p class="text-red-700">As credenciais do Firebase não foram configuradas corretamente ou a API Key está ausente. Verifique o console para mais detalhes.</p></div></div>`;
                     });
                     return;
                 }
@@ -929,8 +930,8 @@
                             selectEl.value = currentValue;
                         } else {
                            // If previous value is no longer valid, set to default or first option
-                           if (selectInfo.id === 'stock-category-filter') selectEl.value = 'all';
-                           else selectEl.value = '';
+                            if (selectInfo.id === 'stock-category-filter') selectEl.value = 'all';
+                            else selectEl.value = '';
                         }
                     }
                 });
@@ -941,16 +942,16 @@
                     locationsList.innerHTML = this.state.locations.length > 0 ? this.state.locations.map(loc => {
                         const isUsed = this.state.products.some(p => p.quantities && p.quantities[loc.id] > 0);
                          const deleteButton = this.state.userRole === 'admin' ? `
-                           <button data-action="delete-location" data-id="${loc.id}" class="text-red-500 hover:text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed" ${isUsed ? 'disabled title="Localidade em uso"' : ''}>
-                               <i class="fas fa-times"></i>
-                           </button>
+                            <button data-action="delete-location" data-id="${loc.id}" class="text-red-500 hover:text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed" ${isUsed ? 'disabled title="Localidade em uso"' : ''}>
+                                <i class="fas fa-times"></i>
+                            </button>
                         ` : '';
                         return `
-                             <div class="flex justify-between items-center p-2 bg-gray-100 rounded-lg">
-                                 <span class="text-gray-900">${loc.name}</span>
-                                 ${deleteButton}
-                             </div>
-                        `;
+                                <div class="flex justify-between items-center p-2 bg-gray-100 rounded-lg">
+                                    <span class="text-gray-900">${loc.name}</span>
+                                    ${deleteButton}
+                                </div>
+                            `;
                     }).join('') : '<p class="text-sm text-gray-500">Nenhuma localidade cadastrada.</p>';
                 }
                 const itemsPerPageInput = document.getElementById('items-per-page-input');
@@ -1228,7 +1229,7 @@
                         }
                     });
                     const entradasData = labels.map(label => dataMap.get(label)?.entrada || 0); // Add fallback for safety
-                    const saidasData = labels.map(label => dataMap.get(label)?.saida || 0);   // Add fallback for safety
+                    const saidasData = labels.map(label => dataMap.get(label)?.saida || 0);    // Add fallback for safety
                     chartConfig = {
                         type: chartType, // 'bar' or 'line'
                         data: {
@@ -1319,7 +1320,7 @@
                             const productCreatedAt = productEntry.createdAt.toDate();
                             const movementDate = m.date.toDate();
 
-                            // Heuristic: if movement is for creation/import and on the same day as product creation, set it as initial.
+                            // Heuristic: if movement is for creation/import and on the same day as product creation,
                             // This assumes product creation logs an 'entrada' movement.
                             if ((m.motive === 'Criação de Produto' || m.motive === 'Importação Excel') &&
                                 productCreatedAt.getFullYear() === movementDate.getFullYear() &&
@@ -1426,8 +1427,8 @@
                     const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
                     const matchesSearch = p.name.toLowerCase().includes(searchTerm);
                     const matchesStatus = stockStatus === 'all' || 
-                                          (stockStatus === 'low' && p.minStock > 0 && p.totalQuantity <= p.minStock) || // Ensure minStock is considered
-                                          (stockStatus === 'ok' && (p.minStock === 0 || p.totalQuantity > p.minStock));
+                                        (stockStatus === 'low' && p.minStock > 0 && p.totalQuantity <= p.minStock) || // Ensure minStock is considered
+                                        (stockStatus === 'ok' && (p.minStock === 0 || p.totalQuantity > p.minStock));
                     
                     let matchesDate = true;
                     if (p.createdAt?.toDate) { // Ensure createdAt and toDate() exist
@@ -1555,7 +1556,7 @@
                     productsProcessedCount++;
 
                     if (totalQuantity > 0) {
-                         // Store info to log movement after product creation (within the same batch)
+                          // Store info to log movement after product creation (within the same batch)
                         productsToLogMovement.push({
                             productId: newProdRef.id,
                             quantity: totalQuantity,
@@ -1729,7 +1730,7 @@
                                 <input type="radio" name="output-location" value="${loc.id}" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500" ${qty === 0 ? 'disabled' : ''}>
                                 <span class="text-gray-800">${loc.name}: <span class="font-semibold">${qty}</span></span>
                             </label>
-                           `;
+                            `;
                     }).join('');
                     
                     if (locationOptionsHtml.trim() !== '') {
@@ -1773,15 +1774,15 @@
                  this.state.dashboardSettings.period = period;
                  const customDateSelector = document.getElementById('custom-date-range-selector');
                  if (customDateSelector) {
-                    if (period === 'custom') {
-                        customDateSelector.classList.remove('hidden');
-                        customDateSelector.classList.add('grid'); // Or 'flex' or relevant display type
-                    } else {
-                        customDateSelector.classList.add('hidden');
-                        customDateSelector.classList.remove('grid'); // Or 'flex'
-                        // Update chart only if not 'custom' and a valid period is selected
-                        this.updateDashboardView();
-                    }
+                     if (period === 'custom') {
+                         customDateSelector.classList.remove('hidden');
+                         customDateSelector.classList.add('grid'); // Or 'flex' or relevant display type
+                     } else {
+                         customDateSelector.classList.add('hidden');
+                         customDateSelector.classList.remove('grid'); // Or 'flex'
+                         // Update chart only if not 'custom' and a valid period is selected
+                         this.updateDashboardView();
+                     }
                  }
              }
              

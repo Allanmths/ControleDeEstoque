@@ -1296,7 +1296,7 @@
                 if (!dateInput || !reportOutput || !dateInput.value) return this.showAlert('Selecione uma data para gerar o relatório.', true);
                 
                 // Ensure date is treated as end of day in local timezone for comparison
-                const targetDateParts = dateInput.value.split('-'); // YYYY-MM-DD
+                const targetDateParts = dateInput.value.split('-'); //<y_bin_858>-MM-DD
                 const targetDate = new Date(parseInt(targetDateParts[0]), parseInt(targetDateParts[1]) - 1, parseInt(targetDateParts[2]), 23, 59, 59, 999);
 
                 this.setLoading(true);

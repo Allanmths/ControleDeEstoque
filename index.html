@@ -42,18 +42,20 @@
         #toggle-advanced-filters i { transition: transform 0.3s ease-in-out; }
         #toggle-advanced-filters.open i { transform: rotate(180deg); }
         [data-role-required] { display: none; }
+        /* Ajuste para o table-loading-indicator */
+        #stock-table-wrapper { position: relative; } /* Novo wrapper para a tabela de estoque */
         #table-loading-indicator {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(255, 255, 255, 0.85);
+            background-color: rgba(255, 255, 255, 0.85); /* Aumentar opacidade para melhor visualização */
             display: flex;
             align-items: center;
             justify-content: center;
             z-index: 10;
-            border-radius: 0.75rem;
+            border-radius: 0.75rem; /* Opcional, se a tabela tiver bordas arredondadas */
         }
     </style>
 </head>
@@ -63,6 +65,7 @@
     <!-- Seção de Autenticação -->
     <div id="auth-section" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-gray-100">
         <div id="auth-container" class="w-full max-w-md">
+            <!-- Formulário de Login -->
             <div id="login-form-container">
                 <div class="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 text-center">
                     <i class="fas fa-boxes-stacked fa-2x text-blue-500 mb-4"></i>
@@ -76,6 +79,7 @@
                     <p class="mt-6 text-sm">Não tem uma conta? <a href="#" id="show-register-link" class="font-semibold text-blue-600 hover:underline">Registre-se</a></p>
                 </div>
             </div>
+            <!-- Formulário de Registro -->
             <div id="register-form-container" class="hidden">
                 <div class="bg-white p-8 rounded-2xl shadow-xl border border-gray-200 text-center">
                     <i class="fas fa-user-plus fa-2x text-blue-500 mb-4"></i>
@@ -124,10 +128,12 @@
     </div>
     <div id="sidebar-overlay" class="fixed inset-0 z-40 hidden"></div>
 
+    <!-- Loading Overlay -->
     <div id="loading-overlay" class="fixed inset-0 bg-stone-900 bg-opacity-75 flex items-center justify-center z-[60]">
         <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
     </div>
 
+    <!-- Main App Section -->
     <div id="app-section" class="hidden">
         <div class="container mx-auto p-4 md:p-8 max-w-7xl">
             <header class="mb-8 text-center relative">
@@ -148,9 +154,11 @@
         </div>
     </div>
     
+    <!-- Modals -->
     <div id="edit-modal" class="fixed inset-0 modal-backdrop items-center justify-center z-50 hidden"><div class="bg-white w-full max-w-lg p-6 rounded-2xl shadow-2xl m-4"><h3 class="text-xl font-semibold mb-4 text-gray-900">Editar Produto</h3><p id="edit-product-name" class="mb-4 text-gray-600"></p><div id="edit-quantities-container" class="space-y-4"></div><div class="mt-6 flex justify-end space-x-4"><button id="cancel-edit" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancelar</button><button id="save-edit" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition">Salvar</button></div></div></div>
     <div id="delete-modal" class="fixed inset-0 modal-backdrop items-center justify-center z-50 hidden"><div class="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl m-4 text-center"><i class="fas fa-triangle-exclamation fa-3x text-red-500 mb-4"></i><h3 class="text-xl font-semibold mb-2 text-gray-900">Confirmar Exclusão</h3><p id="delete-modal-text" class="mb-6 text-gray-600"></p><div class="flex justify-center space-x-4"><button id="cancel-delete" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancelar</button><button id="confirm-delete" class="px-6 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition">Excluir</button></div></div></div>
 
+    <!-- Firebase SDK e Script da Aplicação -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
@@ -167,24 +175,23 @@
         
         // **********************************************************************
         // SUBSTITUA ESTE OBJETO PELAS CREDENCIAIS DO SEU PROJETO FIREBASE
-        // VOCÊ ENCONTRA ISSO NO CONSOLE DO FIREBASE:
-        // Configurações do Projeto > Seus apps > Configuração do SDK (escolha CDN)
+        // SE ESTIVER EXECUTANDO FORA DO AMBIENTE ORIGINAL.
         // **********************************************************************
-        const correctFirebaseConfig = {
-            apiKey: "AIzaSyDVxDoPVP-uhWwfXsdlouk5uv-jt-P6tL8",
-            authDomain: "controledeestoque-7ea51.firebaseapp.com",
-            projectId: "controledeestoque-7ea51",
-            storageBucket: "controledeestoque-7ea51.firebasestorage.app",
-            messagingSenderId: "355699807496",
-            appId: "1:355699807496:web:6432766da431e535b888bd"
+        const hardcodedFirebaseConfig = {
+            apiKey: "YOUR_API_KEY", // <--- PREENCHA COM SUA CHAVE
+            authDomain: "YOUR_AUTH_DOMAIN", // <--- PREENCHA COM SEU DOMÍNIO
+            projectId: "YOUR_PROJECT_ID", // <--- PREENCHA COM SEU ID DE PROJETO
+            storageBucket: "YOUR_STORAGE_BUCKET", // <--- PREENCHA COM SEU BUCKET
+            messagingSenderId: "YOUR_SENDER_ID", // <--- PREENCHA COM SEU SENDER ID
+            appId: "YOUR_APP_ID" // <--- PREENCHA COM SEU APP ID
         };
         // **********************************************************************
 
-        // Esta lógica permite que você defina __firebase_config externamente se precisar,
-        // mas usará correctFirebaseConfig como padrão.
+        // Esta lógica prioriza a configuração injetada pelo ambiente (__firebase_config).
+        // Se não houver, ela usa a configuração "hardcoded" acima.
         const firebaseConfigToUse = typeof __firebase_config !== 'undefined' && __firebase_config
             ? JSON.parse(__firebase_config)
-            : correctFirebaseConfig; // <<< Alterado para usar a configuração correta
+            : hardcodedFirebaseConfig;
 
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-stock-app';
 
@@ -206,23 +213,17 @@
             };
 
             constructor() {
-                // Simplificada a checagem: apenas verifica se apiKey existe.
-                // O Firebase SDK fará uma validação mais robusta.
-                if (!firebaseConfigToUse || !firebaseConfigToUse.apiKey || firebaseConfigToUse.apiKey === "AIzaSyDVxDoPVP-uhWwfXsdlouk5uv-jt-P6tL8") {
-                    console.error("Firebase config is not properly set. Please replace placeholder values with your actual Firebase project credentials.");
-                    document.addEventListener('DOMContentLoaded', () => {
-                        document.body.innerHTML = `<div class="w-full h-screen flex items-center justify-center p-4"><div class="text-center bg-red-100 p-8 rounded-lg shadow-md"><h1 class="text-2xl font-bold text-red-800 mb-2">Erro de Configuração</h1><p class="text-red-700">As credenciais do Firebase não foram configuradas corretamente. Verifique o console para mais detalhes e substitua os valores de placeholder no código.</p></div></div>`;
-                    });
-                    return;
-                }
+                // A inicialização agora é envolvida por um try...catch.
+                // Isso permite que o Firebase valide as credenciais. Se forem inválidas (sejam as injetadas ou as hardcoded),
+                // um erro será capturado e uma mensagem clara será exibida.
                 try {
-                    this.app = initializeApp(firebaseConfigToUse); // <<< Usando firebaseConfigToUse
+                    this.app = initializeApp(firebaseConfigToUse);
                     this.auth = getAuth(this.app);
                     this.db = getFirestore(this.app);
                 } catch (error) {
                     console.error("Error initializing Firebase:", error);
                      document.addEventListener('DOMContentLoaded', () => {
-                        document.body.innerHTML = `<div class="w-full h-screen flex items-center justify-center p-4"><div class="text-center bg-red-100 p-8 rounded-lg shadow-md"><h1 class="text-2xl font-bold text-red-800 mb-2">Erro de Inicialização do Firebase</h1><p class="text-red-700">Não foi possível conectar ao Firebase. Verifique suas credenciais e a conexão com a internet. Detalhes no console.</p></div></div>`;
+                        document.body.innerHTML = `<div class="w-full h-screen flex items-center justify-center p-4"><div class="text-center bg-red-100 p-8 rounded-lg shadow-md"><h1 class="text-2xl font-bold text-red-800 mb-2">Erro de Inicialização do Firebase</h1><p class="text-red-700">Não foi possível conectar ao Firebase. Verifique se as credenciais no código estão corretas ou se o ambiente forneceu uma configuração válida. Detalhes no console.</p></div></div>`;
                     });
                     return;
                 }
@@ -377,9 +378,9 @@
                     welcomeEl.textContent = `Bem-vindo! Você está logado como ${userRole === 'admin' ? 'Administrador' : 'Visualizador'}.`;
                 }
                 
-                document.querySelectorAll('#sidebar-menu [data-role-required], #app-section > [data-role-required]').forEach(el => {
+                document.querySelectorAll('#sidebar-menu [data-role-required], #app-section > [data-role-required], #tab-content [data-role-required]').forEach(el => {
                     const requiredRole = el.getAttribute('data-role-required');
-                    const isFlex = (el.tagName === 'BUTTON' || el.tagName === 'A') && el.classList.contains('flex');
+                    const isFlex = (el.tagName === 'BUTTON' || el.tagName === 'A' || (el.tagName === 'DIV' && el.classList.contains('flex')));
                     const displayStyle = isFlex ? 'flex' : 'block';
                     el.style.display = userRole === requiredRole ? displayStyle : 'none';
                 });
@@ -388,7 +389,7 @@
                 if (activePanel) {
                     activePanel.querySelectorAll('[data-role-required]').forEach(el => {
                          const requiredRole = el.getAttribute('data-role-required');
-                         const isFlex = (el.tagName === 'BUTTON' || el.tagName === 'A' || el.tagName === 'DIV' && el.classList.contains('flex')) && el.classList.contains('flex'); // DIV também pode ser flex
+                         const isFlex = (el.tagName === 'BUTTON' || el.tagName === 'A' || (el.tagName === 'DIV' && el.classList.contains('flex')));
                          const displayStyle = isFlex ? 'flex' : 'block';
                          el.style.display = userRole === requiredRole ? displayStyle : 'none';
                     });
@@ -412,7 +413,8 @@
                     case 'auth/invalid-email': return 'O formato do e-mail é inválido.';
                     case 'auth/weak-password': return 'A senha deve ter pelo menos 6 caracteres.';
                     case 'auth/email-already-in-use': return 'Este e-mail já está cadastrado.';
-                    default: return 'Ocorreu um erro. Tente novamente.';
+                    case 'auth/invalid-credential': return 'Credenciais inválidas. Verifique e-mail e senha.';
+                    default: return `Ocorreu um erro: ${code}`;
                 }
             }
 
@@ -827,7 +829,7 @@
                     emptyState.classList.add('hidden');
                     productList.innerHTML = paginatedProducts.map(product => {
                         const category = this.state.categories.find(c => c.id === product.category);
-                        const isLowStock = product.totalQuantity <= product.minStock;
+                        const isLowStock = product.minStock > 0 && product.totalQuantity <= product.minStock;
                         const isSelected = this.state.selectedProducts.includes(product.id);
                         const quantitiesHtml = this.state.locations.map(loc => `<td class="p-3 text-center text-gray-700">${product.quantities?.[loc.id] || 0}</td>`).join('');
                         const actionButtons = this.state.userRole === 'admin' ? `
@@ -1328,7 +1330,7 @@
                     const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
                     const matchesSearch = p.name.toLowerCase().includes(searchTerm);
                     const matchesStatus = stockStatus === 'all' || 
-                                          (stockStatus === 'low' && p.totalQuantity <= p.minStock) || 
+                                          (stockStatus === 'low' && p.minStock > 0 && p.totalQuantity <= p.minStock) || 
                                           (stockStatus === 'ok' && p.totalQuantity > p.minStock);
                     
                     const createdAt = p.createdAt?.toDate();
@@ -1459,8 +1461,8 @@
                 const tableCheckboxHeader = `<th class="p-3 w-4"><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" ${isAdmin ? '' : 'style="display:none;"'}></th>`;
                 const tableActionsHeader = `<th class="p-3 text-right text-gray-700" ${isAdmin ? '' : 'style="display:none;"'}>Ações</th>`;
                 
-                this.state.dom.panels.stock.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-gray-100 rounded-lg text-gray-900"></div><select id="stock-category-filter" class="p-2 bg-gray-100 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-gray-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar hidden mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between" data-role-required="admin"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-red-500 text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-red-600 transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div><div id="stock-table-wrapper"><div id="table-loading-indicator" class="hidden"><i class="fas fa-spinner animate-spin fa-2x text-blue-500"></i></div><div class="overflow-x-auto"><table class="w-full text-left min-w-[1400px]"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr>${tableCheckboxHeader}<th class="p-3 text-gray-700 sticky left-0 bg-gray-50 dark:bg-gray-800">Produto</th><th class="p-3 text-center text-gray-700">Categoria</th><th class="p-3 text-center text-gray-700 font-bold">Total</th>${tableHeaders}${tableActionsHeader}</tr></thead><tbody id="product-list" class="divide-y divide-gray-200"></tbody></table></div></div><div id="pagination-controls" class="flex justify-between items-center mt-4"></div><div id="empty-state" class="hidden text-center py-12"><i class="fas fa-box-open fa-4x text-gray-400"></i><p id="empty-state-message" class="mt-4 text-gray-500">Nenhum produto.</p></div></div>`;
-                this.state.dom.panels.register.innerHTML = `<div data-role-required="admin"><div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Gerenciar Categorias</h2><form id="add-category-form" class="flex gap-2 mb-4"><input type="text" id="category-name" placeholder="Nova categoria" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12"><i class="fas fa-plus"></i></button></form><div id="category-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Adicionar Produto</h2><form id="add-product-form" class="space-y-4"><label class="block"><span class="text-gray-700">Nome</span><input type="text" id="product-name" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Categoria</span><select id="product-category-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option value="">Selecione...</option></select></label><div class="grid grid-cols-2 gap-4">${locationsQuantityInputs}</div><div class="grid grid-cols-2 gap-4"><label class="block"><span class="text-gray-700">Est. Mínimo</span><input type="number" id="product-min-stock" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Unid.</span><select id="product-unit-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option>UND</option><option>CX</option><option>KG</option><option>G</option><option>L</option><option>ML</option></select></label></div><button type="submit" class="w-full mt-4 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-plus mr-2"></i>Adicionar Produto</button></form></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-file-excel mr-2 text-green-500"></i>Operações em Lote (Excel)</h2><div class="flex flex-col md:flex-row gap-6"><div class="flex-1 bg-gray-50 p-4 rounded-lg flex flex-col items-center text-center"><i class="fas fa-plus-circle fa-2x text-blue-500 mb-2"></i><h3 class="font-semibold mb-1 text-gray-900">Inserir Novos Produtos</h3><p class="text-sm text-gray-600 mb-3">Baixe o modelo, preencha e importe o arquivo Excel para adicionar vários produtos de uma vez.</p><div class="flex gap-2 w-full"><button id="download-template-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-download mr-2"></i>Baixar Modelo</button><input type="file" id="excel-insert-input" accept=".xlsx, .xls" class="hidden"><button id="upload-insert-trigger-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition"><i class="fas fa-upload mr-2"></i>Importar</button></div><p id="excel-insert-filename" class="text-xs mt-2 text-gray-500"></p></div></div></div></div>`;
+                this.state.dom.panels.stock.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-gray-100 rounded-lg text-gray-900"></div><select id="stock-category-filter" class="p-2 bg-gray-100 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-gray-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar hidden mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between" data-role-required="admin"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-red-500 text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-red-600 transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div><div id="stock-table-wrapper" class="relative"><div id="table-loading-indicator" class="hidden"></div><div class="overflow-x-auto"><table class="w-full text-left min-w-[1400px]"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr>${tableCheckboxHeader}<th class="p-3 text-gray-700 sticky left-0 bg-gray-50 dark:bg-gray-800">Produto</th><th class="p-3 text-center text-gray-700">Categoria</th><th class="p-3 text-center text-gray-700 font-bold">Total</th>${tableHeaders}${tableActionsHeader}</tr></thead><tbody id="product-list" class="divide-y divide-gray-200"></tbody></table></div></div><div id="pagination-controls" class="flex justify-between items-center mt-4"></div><div id="empty-state" class="hidden text-center py-12"><i class="fas fa-box-open fa-4x text-gray-400"></i><p id="empty-state-message" class="mt-4 text-gray-500">Nenhum produto.</p></div></div>`;
+                this.state.dom.panels.register.innerHTML = `<div data-role-required="admin"><div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Gerenciar Categorias</h2><form id="add-category-form" class="flex gap-2 mb-4"><input type="text" id="category-name" placeholder="Nova categoria" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12"><i class="fas fa-plus"></i></button></form><div id="category-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Adicionar Produto</h2><form id="add-product-form" class="space-y-4"><label class="block"><span class="text-gray-700">Nome</span><input type="text" id="product-name" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Categoria</span><select id="product-category-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option value="">Selecione...</option></select></label><div class="grid grid-cols-2 gap-4">${locationsQuantityInputs}</div><div class="grid grid-cols-2 gap-4"><label class="block"><span class="text-gray-700">Est. Mínimo</span><input type="number" id="product-min-stock" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Unid.</span><select id="product-unit-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option>UND</option><option>CX</option><option>KG</option><option>G</option><option>L</option><option>ML</option></select></label></div><button type="submit" class="w-full mt-4 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-plus mr-2"></i>Adicionar Produto</button></form></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200" data-role-required="admin"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-file-excel mr-2 text-green-500"></i>Operações em Lote (Excel)</h2><div class="flex flex-col md:flex-row gap-6"><div class="flex-1 bg-gray-50 p-4 rounded-lg flex flex-col items-center text-center"><i class="fas fa-plus-circle fa-2x text-blue-500 mb-2"></i><h3 class="font-semibold mb-1 text-gray-900">Inserir Novos Produtos</h3><p class="text-sm text-gray-600 mb-3">Baixe o modelo, preencha e importe o arquivo Excel para adicionar vários produtos de uma vez.</p><div class="flex gap-2 w-full"><button id="download-template-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-download mr-2"></i>Baixar Modelo</button><input type="file" id="excel-insert-input" accept=".xlsx, .xls" class="hidden"><button id="upload-insert-trigger-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition"><i class="fas fa-upload mr-2"></i>Importar</button></div><p id="excel-insert-filename" class="text-xs mt-2 text-gray-500"></p></div></div></div></div>`;
                 this.state.dom.panels.outputs.innerHTML = `<div data-role-required="admin"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 max-w-2xl mx-auto"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Registrar Saída de Estoque</h2><form id="add-output-form" class="space-y-4"><div><label for="output-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="output-product-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="">Selecione um produto...</option></select></div><div id="output-location-selector" class="space-y-2"></div><div><label for="output-quantity" class="block text-sm mb-1 text-gray-700">Quantidade da Saída</label><input type="number" id="output-quantity" min="1" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required disabled></div><div><label for="output-motive-select" class="block text-sm mb-1 text-gray-700">Motivo da Saída</label><select id="output-motive-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="Venda">Venda</option><option value="Perda">Perda</option><option value="Uso Interno">Uso Interno</option><option value="Outro">Outro</option></select></div><p id="output-stock-info" class="text-sm text-gray-500 font-medium h-5"></p><button type="submit" class="w-full mt-4 bg-red-600 text-white font-bold p-2 rounded-lg hover:bg-red-700 transition"><i class="fas fa-arrow-circle-up mr-2"></i>Registrar Saída</button></form></div></div>`;
                 this.state.dom.panels.reports.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 mb-8"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Dashboard de Movimentações</h2><div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border"><div><label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Gráfico</label><div id="chart-type-selector" class="flex rounded-md shadow-sm"><button data-type="bar" class="chart-type-btn relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Barra</button><button data-type="line" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Linha</button><button data-type="pie" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Pizza</button></div></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Período</label><select id="period-selector" class="dashboard-control block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="7days">Últimos 7 dias</option><option value="30days">Últimos 30 dias</option><option value="this_month">Este Mês</option><option value="last_month">Mês Passado</option><option value="custom">Personalizado</option></select></div><div id="custom-date-range-selector" class="hidden md:col-span-1 grid grid-cols-2 gap-4"><div><label for="dashboard-date-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="dashboard-date-start" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="dashboard-date-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="dashboard-date-end" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div></div></div><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><div class="md:col-span-2 bg-gray-50 p-4 rounded-lg h-96"><canvas id="movements-chart"></canvas></div><div class="space-y-4"><div class="bg-amber-100 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-amber-800">Alerta de Estoque Baixo</h3><ul id="low-stock-list" class="space-y-2 max-h-40 overflow-y-auto"></ul><p id="low-stock-empty" class="text-sm text-gray-500 hidden">Tudo em ordem!</p></div><div class="bg-gray-50 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-green-800">Top 5 Entradas Recentes</h3><ul id="top-entradas-list" class="space-y-2"></ul></div><div class="bg-gray-50 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-red-800">Top 5 Saídas Recentes</h3><ul id="top-saidas-list" class="space-y-2"></ul></div></div></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-history mr-2 text-indigo-500"></i>Relatório Histórico</h2><div class="flex items-end gap-4"><div class="flex-grow"><label for="report-date" class="block text-sm font-medium text-gray-700">Verificar estoque na data:</label><input type="date" id="report-date" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg"></div><button id="generate-report-btn" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Gerar Relatório</button></div><div id="report-output" class="hidden mt-6"><div id="print-area"><h3 id="report-title" class="text-xl font-bold text-center"></h3><p id="report-subtitle" class="text-center text-gray-500 mb-4"></p><table class="w-full text-left"><thead class="border-b-2 border-gray-300"><tr><th class="p-3">Produto</th><th class="p-3 text-center">Categoria</th><th class="p-3 text-center">Unidade</th><th class="p-3 text-center">Qtd. em Estoque</th></tr></thead><tbody id="report-list" class="divide-y divide-gray-200"></tbody></table></div><button id="print-report-btn" class="mt-4 bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-800 transition float-right"><i class="fas fa-print mr-2"></i>Imprimir</button></div></div>`;
                 this.state.dom.panels.settings.innerHTML = `<div data-role-required="admin"><div class="space-y-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Configurações Gerais</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 class="text-lg font-medium text-gray-900 mb-2">Gerenciar Localidades</h3><form id="add-location-form" class="flex gap-2 mb-4"><input type="text" id="location-name" placeholder="Nova localidade" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12"><i class="fas fa-plus"></i></button></form><div id="location-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div><h3 class="text-lg font-medium text-gray-900 mb-2">Configurações de Exibição</h3><div class="space-y-4"><div><label for="items-per-page-input" class="block text-sm font-medium text-gray-700">Itens por página na tabela</label><input type="number" id="items-per-page-input" min="1" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg"></div><button id="save-settings-btn" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition">Salvar Configurações Gerais</button></div></div></div></div><div id="user-management-section" class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-6 text-gray-900"><i class="fas fa-users-cog mr-2"></i>Gerenciar Usuários</h2><div class="overflow-x-auto"><table class="w-full text-left"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr><th class="p-3 text-sm font-semibold text-gray-700">Email</th><th class="p-3 text-sm font-semibold text-gray-700">Papel</th><th class="p-3 text-sm font-semibold text-gray-700 text-right">Ação</th></tr></thead><tbody id="user-list-tbody" class="divide-y divide-gray-200"></tbody></table></div><p class="mt-4 text-xs text-gray-500 italic">Administradores não podem alterar seu próprio papel através desta interface.</p></div></div></div>`;

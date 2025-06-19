@@ -175,7 +175,7 @@
             apiKey: "AIzaSyDVxDoPVP-uhWwfXsdlouk5uv-jt-P6tL8",
             authDomain: "controledeestoque-7ea51.firebaseapp.com",
             projectId: "controledeestoque-7ea51",
-            storageBucket: "controledeestoque-7ea51.firebasestorage.app", // Corrigido para o formato mais comum
+            storageBucket: "controledeestoque-7ea51.firebasestorage.app",
             messagingSenderId: "355699807496",
             appId: "1:355699807496:web:6432766da431e535b888bd"
         };
@@ -470,8 +470,8 @@
                     return;
                 }
 
-                // CORRIGIDO/ADICIONADO: Lidar com ambos os botões de download
-                if (button.id === 'download-template-stock-btn' || button.id === 'download-template-btn') {
+                // Ação unificada para download de template (agora só existe um botão)
+                if (button.id === 'download-template-btn') {
                     this.handleDownloadTemplate();
                     return;
                 }
@@ -506,14 +506,14 @@
                 }
             }
             
-            // ### SOLUÇÃO PARA O PROBLEMA 1 ###
-            // A função `handleContentChange` foi corrigida para chamar `debouncedRenderProducts` 
-            // sempre que um dos filtros for alterado.
             handleContentChange(e) {
              const target = e.target;
+             // Esta lógica está correta. Quando o usuário altera um filtro, a tabela deve ser redesenhada.
+             // O "loop" era causado por outras funções que atualizavam o filtro e disparavam este evento.
+             // A arquitetura foi ajustada para que este evento seja acionado principalmente pela interação do usuário.
              if (['stock-category-filter', 'stock-status-filter', 'date-filter-start', 'date-filter-end'].includes(target.id)) {
                  this.state.currentPage = 1;
-                 this.debouncedRenderProducts(); // CORRIGIDO: Esta chamada estava faltando
+                 this.debouncedRenderProducts();
              }
              if (target.id === 'output-product-select') this.handleOutputProductSelection(target.value);
              
@@ -559,9 +559,7 @@
                  }
              }
             }
-
-            // A maior parte do código restante permanece a mesma
-            // ...
+            
             handleSelectAllChange(e) {
                 const isChecked = e.target.checked;
                 const visibleCheckboxes = document.querySelectorAll('#product-list .product-checkbox');
@@ -1557,9 +1555,6 @@
                 }
             },
             
-            // ### SOLUÇÃO PARA O PROBLEMA 2 ###
-            // O HTML da aba Estoque foi modificado para incluir o novo card de download.
-            // O restante do conteúdo dos painéis permanece o mesmo.
             injectPanelContent() {
                 if (!this.state.dom || !this.state.dom.panels) {
                     console.error("DOM or panels not cached correctly.");
@@ -1571,7 +1566,8 @@
                 const tableCheckboxHeader = isAdmin ? `<th class="p-3 w-4"><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"></th>` : `<th class="p-3 w-4"></th>`;
                 const tableActionsHeader = isAdmin ? `<th class="p-3 text-right text-gray-700 whitespace-nowrap">Ações</th>` : `<th></th>`;
                 
-                // Panel Stock
+                // ### INÍCIO DA ALTERAÇÃO ###
+                // O HTML para a aba Estoque foi limpo, removendo o card de download redundante.
                 if (this.state.dom.panels.stock) {
                     this.state.dom.panels.stock.innerHTML = `
                     <div class="space-y-6">
@@ -1598,18 +1594,6 @@
                                 </div>
                             </div>
                             
-                            <!-- ### INÍCIO DA SOLUÇÃO PARA O PROBLEMA 2 ### -->
-                            <div class="mb-4 p-4 bg-gray-50 border border-dashed border-gray-300 rounded-lg flex flex-col sm:flex-row items-center justify-between gap-4" data-role-required="admin">
-                                <div>
-                                    <h3 class="font-semibold text-gray-800">Precisa adicionar novos produtos?</h3>
-                                    <p class="text-sm text-gray-600">Baixe nosso modelo para importar vários itens de uma vez na aba 'Cadastros'.</p>
-                                </div>
-                                <button id="download-template-stock-btn" class="bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 transition flex items-center gap-2 flex-shrink-0">
-                                    <i class="fas fa-download"></i> Baixar Modelo
-                                </button>
-                            </div>
-                            <!-- ### FIM DA SOLUÇÃO PARA O PROBLEMA 2 ### -->
-
                             <div id="bulk-action-bar" class="bulk-action-bar hidden mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-red-500 text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-red-600 transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div>
                             <div id="table-loading-indicator" class="hidden"><i class="fas fa-spinner animate-spin fa-2x text-blue-500"></i></div>
                             <div class="overflow-x-auto"><table class="w-full text-left min-w-[1000px] sm:min-w-[1400px]"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr>${tableCheckboxHeader}<th class="p-3 text-gray-700 sticky left-0 bg-gray-50 dark:bg-gray-800 shadow-sm whitespace-nowrap">Produto</th><th class="p-3 text-center text-gray-700 whitespace-nowrap">Categoria</th><th class="p-3 text-center text-gray-700 font-bold whitespace-nowrap">Total</th>${tableHeaders}${tableActionsHeader}</tr></thead><tbody id="product-list" class="divide-y divide-gray-200"></tbody></table></div>
@@ -1618,6 +1602,7 @@
                         </div>
                     </div>`;
                 }
+                // ### FIM DA ALTERAÇÃO ###
 
                 // Panel Register
                 if (this.state.dom.panels.register) {

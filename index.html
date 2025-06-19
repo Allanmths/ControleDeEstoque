@@ -41,7 +41,7 @@
         .bulk-action-bar.open { max-height: 500px; }
         #toggle-advanced-filters i { transition: transform 0.3s ease-in-out; }
         #toggle-advanced-filters.open i { transform: rotate(180deg); }
-        [data-role-required] { display: none; }
+        [data-role-required] { display: none; } /* Default hide elements requiring specific role */
         #table-loading-indicator {
             position: absolute;
             top: 0;
@@ -172,7 +172,7 @@
         };
         
         const hardcodedFirebaseConfig = {
-            apiKey: "AIzaSyDVxDoPVP-uhWwfXsdlouk5uv-jt-P6tL8", // Substitua pela sua chave de API real
+            apiKey: "AIzaSyDVxDoPVP-uhWwfXsdlouk5uv-jt-P6tL8",
             authDomain: "controledeestoque-7ea51.firebaseapp.com",
             projectId: "controledeestoque-7ea51",
             storageBucket: "controledeestoque-7ea51.appspot.com",
@@ -203,7 +203,7 @@
             };
 
             constructor() {
-                if (!firebaseConfig || !firebaseConfig.apiKey || firebaseConfig.apiKey === "YOUR_API_KEY") { // Checagem genérica
+                if (!firebaseConfig || !firebaseConfig.apiKey || firebaseConfig.apiKey === "AIzaSyDVxDoPVP-uhWwfXsdlouk5uv-jt-P6tL8") { // Checagem genérica
                     console.error("Firebase config is not set or uses placeholder values.");
                     document.addEventListener('DOMContentLoaded', () => {
                         document.body.innerHTML = `<div class="w-full h-screen flex items-center justify-center p-4"><div class="text-center bg-red-100 p-8 rounded-lg shadow-md"><h1 class="text-2xl font-bold text-red-800 mb-2">Erro de Configuração</h1><p class="text-red-700">As credenciais do Firebase não foram configuradas corretamente. Verifique o console para mais detalhes.</p></div></div>`;
@@ -239,7 +239,7 @@
                         edit: { self: document.getElementById('edit-modal'), productName: document.getElementById('edit-product-name'), quantitiesContainer: document.getElementById('edit-quantities-container'), saveBtn: document.getElementById('save-edit'), cancelBtn: document.getElementById('cancel-edit') },
                         delete: { self: document.getElementById('delete-modal'), text: document.getElementById('delete-modal-text'), confirmBtn: document.getElementById('confirm-delete'), cancelBtn: document.getElementById('cancel-delete') },
                     },
-                    tableLoadingIndicator: document.getElementById('table-loading-indicator')
+                    tableLoadingIndicator: document.getElementById('table-loading-indicator') // Cache this element
                 };
             }
             
@@ -365,6 +365,7 @@
                 };
             }
             
+            // MÉTODO MODIFICADO PARA O PROBLEMA 1
             applyRolePermissions() {
                 const { userRole } = this.state;
                 const welcomeEl = document.getElementById('user-welcome-message');
@@ -372,29 +373,40 @@
                     welcomeEl.textContent = `Bem-vindo! Você está logado como ${userRole === 'admin' ? 'Administrador' : 'Visualizador'}.`;
                 }
                 
+                // Este loop genérico cuida de todos os elementos com data-role-required
                 document.querySelectorAll('[data-role-required]').forEach(el => {
                     const requiredRole = el.getAttribute('data-role-required');
-                    const displayStyle = (el.tagName === 'BUTTON' || el.tagName === 'A' || el.tagName === 'DIV' && el.classList.contains('flex')) ? 'flex' : 'block';
+                    
+                    // Define um estilo de display padrão ou tenta inferir
+                    let displayStyle = 'block'; // Padrão
+                    if (el.tagName === 'A' || el.tagName === 'BUTTON' || 
+                        (el.tagName === 'DIV' && (el.classList.contains('flex') || el.style.display === 'flex'))) {
+                        displayStyle = 'flex';
+                    } else if (el.tagName === 'DIV' && (el.classList.contains('grid') || el.style.display === 'grid')) {
+                        displayStyle = 'grid';
+                    }
+                    // Adicione mais condições se outros display types (inline-block, etc.) forem comuns para esses elementos
+                    
                     el.style.display = userRole === requiredRole ? displayStyle : 'none';
                 });
-
-                // Assegura que a aba de configurações e o conteúdo de gerenciamento de usuários só apareçam para admin
-                const settingsPanel = this.state.dom.panels.settings;
-                const userManagementSection = document.getElementById('user-management-section');
-                if (settingsPanel) {
-                     settingsPanel.style.display = userRole === 'admin' ? 'block' : 'none';
+            
+                // A visibilidade do painel de configurações (panel-settings) como um todo
+                // é controlada exclusivamente pela função switchTab.
+                // A visibilidade de seções específicas DENTRO do panel-settings (como user-management-section)
+                // é controlada pelo atributo data-role-required="admin" em seu HTML,
+                // que o loop acima já trata.
+            
+                // Redireciona se o usuário estiver em uma aba restrita e não tiver permissão
+                const activeTabEl = document.querySelector('.sidebar-link.bg-gray-200'); // Pega o link da aba ativa
+                if (activeTabEl) {
+                    const activeTabId = activeTabEl.dataset.tab;
+                    const requiredRoleForActiveTab = activeTabEl.dataset.roleRequired;
+                    if (requiredRoleForActiveTab && userRole !== requiredRoleForActiveTab) {
+                        this.showAlert(`Você não tem mais permissão para acessar a aba '${activeTabId}'. Redirecionando...`, true);
+                        this.switchTab('reports'); // Ou qualquer aba padrão segura
+                    }
                 }
-                if(userManagementSection) {
-                    userManagementSection.style.display = userRole === 'admin' ? 'block' : 'none';
-                }
-
-
-                const activeTab = document.querySelector('.sidebar-link.bg-gray-200')?.dataset.tab;
-                const activeTabEl = document.querySelector(`.sidebar-link[data-tab="${activeTab}"]`);
-                if (userRole === 'viewer' && activeTabEl?.getAttribute('data-role-required') === 'admin') {
-                   this.switchTab('reports'); // Redireciona para uma aba segura se a atual for restrita
-                }
-                this.updateAllViews(); // Isso re-renderizará as partes necessárias
+                this.updateAllViews();
             }
 
             getFriendlyAuthError(code) {
@@ -431,11 +443,18 @@
                 
                 this.applyRolePermissions(); // Aplica permissões baseadas no papel
                 // Reinjeta conteúdo dos painéis que podem depender de dados carregados (como localidades)
+                // Isso precisa acontecer *antes* de switchTab se switchTab depender do conteúdo já estar lá para renderizar.
                 this.injectPanelContent(); 
                 // Define a aba inicial ou a última aba ativa que seja permitida
                 const initialTab = document.querySelector('.sidebar-link.bg-gray-200')?.dataset.tab || 'reports';
-                this.switchTab(initialTab);
+                const initialTabLink = document.querySelector(`.sidebar-link[data-tab="${initialTab}"]`);
 
+                // Verifica se a aba inicial é permitida para o usuário atual
+                if (initialTabLink && initialTabLink.dataset.roleRequired && initialTabLink.dataset.roleRequired !== this.state.userRole) {
+                    this.switchTab('reports'); // Aba padrão segura
+                } else {
+                    this.switchTab(initialTab);
+                }
             }
 
             clearAllListeners() {
@@ -494,8 +513,8 @@
                 if (action === 'delete' && id) this.openDeleteModal(id, 'product');
                 if (button.id === 'bulk-delete-btn') this.openDeleteModal(null, 'product', true);
                 
-                if (action === 'page-prev') { this.state.currentPage--; this.renderProducts(); }
-                if (action === 'page-next') { this.state.currentPage++; this.renderProducts(); }
+                if (action === 'page-prev') { this.state.currentPage--; this.debouncedRenderProducts(); } // Use debounced
+                if (action === 'page-next') { this.state.currentPage++; this.debouncedRenderProducts(); } // Use debounced
                 if (button.id === 'toggle-advanced-filters') {
                     document.getElementById('advanced-filters-wrapper').classList.toggle('open');
                     button.classList.toggle('open');
@@ -522,7 +541,8 @@
                 const newQuantities = {};
                 let newTotalQuantity = 0;
                 this.state.locations.forEach(loc => {
-                    const qty = parseInt(quantitiesContainer.querySelector(`#edit-qty-${loc.id}`).value, 10) || 0;
+                    const qtyInput = quantitiesContainer.querySelector(`#edit-qty-${loc.id}`);
+                    const qty = qtyInput ? (parseInt(qtyInput.value, 10) || 0) : 0;
                     newQuantities[loc.id] = qty;
                     newTotalQuantity += qty;
                 });
@@ -596,13 +616,18 @@
                     await batch.commit();
                 };
                 return onSnapshot(query(this.state.firestoreRefs.locations), async (snapshot) => {
-                    if (this.state.userRole === 'admin' && snapshot.empty) {
+                    const initialLoad = this.state.locations.length === 0;
+                    if (this.state.userRole === 'admin' && snapshot.empty && initialLoad) {
                         await createDefaultLocations();
                         // O listener será chamado novamente após a criação, então não precisa de updateAllViews aqui.
                         return;
                     }
                     this.state.locations = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })).sort((a,b) => a.name.localeCompare(b.name));
-                    this.injectPanelContent(); // Re-injeta para atualizar forms com novas localidades
+                    
+                    // Re-inject panel content only if it's the initial load or if structure truly needs update based on locations
+                    // For now, keeping it as it might be necessary for forms/tables that depend on location list structure.
+                    // If this causes performance issues, optimize to update only specific parts.
+                    this.injectPanelContent(); 
                     this.updateAllViews();
                 }, (error) => {
                     console.error("Erro ao ouvir atualizações de localidades:", error);
@@ -621,7 +646,7 @@
                         this.state.itemsPerPage = 10;
                     }
                     this.renderSettings(); // Atualiza a UI de configurações
-                    this.renderProducts(); // Re-renderiza produtos, pois itemsPerPage pode ter mudado
+                    this.debouncedRenderProducts(); // Re-renderiza produtos, pois itemsPerPage pode ter mudado
                 }, (error) => {
                     console.error("Erro ao ouvir atualizações de configurações:", error);
                 });
@@ -653,9 +678,13 @@
                 if (!this.state.firestoreRefs) return () => {};
                 return onSnapshot(query(this.state.firestoreRefs.movements), (snapshot) => {
                     this.state.movements = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
-                    this.updateDashboardView();
-                    this.renderLowStockAlerts();
-                    this.renderTopMovements();
+                    this.updateDashboardView(); // Specific to dashboard
+                    // The following might better fit in updateAllViews if other tabs need this info,
+                    // or be called when their respective tabs are active.
+                    if (document.getElementById('panel-reports')?.classList.contains('hidden') === false) {
+                        this.renderLowStockAlerts();
+                        this.renderTopMovements();
+                    }
                 }, (error) => {
                     console.error("Erro ao ouvir atualizações de movimentações:", error);
                 });
@@ -665,7 +694,11 @@
                 if (!this.state.firestoreRefs || this.state.userRole !== 'admin') return () => {}; // Só admins devem listar todos os usuários
                 return onSnapshot(query(this.state.firestoreRefs.users), (snapshot) => {
                     this.state.allUsers = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
-                    this.renderUserManagement(); // Renderiza a tabela de gerenciamento de usuários
+                    // Only render if settings tab is active and user management section exists
+                    if (document.getElementById('panel-settings')?.classList.contains('hidden') === false && 
+                        document.getElementById('user-management-section')) {
+                        this.renderUserManagement();
+                    }
                 }, (error) => {
                     console.error("Erro ao ouvir atualizações de usuários:", error);
                     this.showAlert("Erro ao carregar lista de usuários.", true);
@@ -674,10 +707,13 @@
 
 
             setLoading(isLoading, isTableOnly = false) {
-                if (isTableOnly && this.state.dom && this.state.dom.tableLoadingIndicator) {
-                    this.state.dom.tableLoadingIndicator.style.display = isLoading ? 'flex' : 'none';
-                } else if (this.state.dom && this.state.dom.loadingOverlay) {
-                    this.state.dom.loadingOverlay.style.display = isLoading ? 'flex' : 'none';
+                const tableLoader = this.state.dom?.tableLoadingIndicator; // Use cached DOM
+                const globalLoader = this.state.dom?.loadingOverlay; // Use cached DOM
+
+                if (isTableOnly && tableLoader) {
+                    tableLoader.style.display = isLoading ? 'flex' : 'none';
+                } else if (globalLoader) {
+                    globalLoader.style.display = isLoading ? 'flex' : 'none';
                 }
             }
             
@@ -696,7 +732,7 @@
             }
 
             updateSelectionState() {
-                this.state.selectedProducts = Array.from(document.querySelectorAll('.product-checkbox:checked')).map(cb => cb.dataset.id);
+                this.state.selectedProducts = Array.from(document.querySelectorAll('#product-list .product-checkbox:checked')).map(cb => cb.dataset.id);
                 document.querySelectorAll('#product-list tr[data-product-id]').forEach(row => {
                     const id = row.dataset.productId;
                     row.classList.toggle('bg-blue-100', this.state.selectedProducts.includes(id));
@@ -774,7 +810,7 @@
                 const motive = form.querySelector('#output-motive-select').value;
                 const locationId = form.querySelector('input[name="output-location"]:checked')?.value;
                 if (!productId || isNaN(quantity) || quantity <= 0 || !motive || !locationId) {
-                    throw new Error("Preencha todos os campos, incluindo a localidade.");
+                    throw new Error("Preencha todos os campos, incluindo a localidade de saída.");
                 }
                 await runTransaction(this.db, async (transaction) => {
                     const productRef = doc(this.state.firestoreRefs.products, productId);
@@ -782,17 +818,27 @@
                     if (!productDoc.exists()) throw new Error("Produto não encontrado.");
                     const productData = productDoc.data();
                     const currentQuantityInLocation = productData.quantities[locationId] || 0;
-                    if (currentQuantityInLocation < quantity) throw new Error(`Estoque insuficiente em ${this.state.locations.find(l => l.id === locationId)?.name}.`);
+                    if (currentQuantityInLocation < quantity) throw new Error(`Estoque insuficiente em ${this.state.locations.find(l => l.id === locationId)?.name}. Disponível: ${currentQuantityInLocation}.`);
                     const newQuantities = { ...productData.quantities, [locationId]: currentQuantityInLocation - quantity };
                     const newTotalQuantity = Object.values(newQuantities).reduce((sum, qty) => sum + qty, 0);
                     transaction.update(productRef, { quantities: newQuantities, totalQuantity: newTotalQuantity });
-                    const movementRef = doc(collection(this.db, this.state.firestoreRefs.movements.path));
+                    const movementRef = doc(collection(this.db, this.state.firestoreRefs.movements.path)); // Use .path for collection reference
                     transaction.set(movementRef, { productId, type: 'saida', quantity, motive, location: locationId, date: serverTimestamp() });
                 });
                 this.showAlert('Saída registrada com sucesso.');
                 form.reset();
-                document.getElementById('output-stock-info').textContent = '';
-                document.getElementById('output-location-selector').innerHTML = '';
+                // Clear dependent fields after successful submission
+                const stockInfoEl = document.getElementById('output-stock-info');
+                const locationSelectorEl = document.getElementById('output-location-selector');
+                const quantityInput = document.getElementById('output-quantity');
+                if(stockInfoEl) stockInfoEl.textContent = '';
+                if(locationSelectorEl) locationSelectorEl.innerHTML = '';
+                if(quantityInput) {
+                    quantityInput.value = '';
+                    quantityInput.disabled = true;
+                    quantityInput.placeholder = '';
+                }
+
             },
             async logMovement(productId, type, quantity, motive) {
                 if (!this.state.firestoreRefs) return;
@@ -801,16 +847,17 @@
             renderProducts() {
                 const productList = document.getElementById('product-list');
                 const emptyState = document.getElementById('empty-state');
-                if (!productList || !emptyState || !this.state.dom) return;
+                // Ensure DOM elements are available (they might not be if panel isn't injected or tab isn't active)
+                if (!productList || !emptyState || !this.state.dom?.tableLoadingIndicator) return;
 
-                this.setLoading(true, true);
+                this.setLoading(true, true); // Show loading indicator for the table
 
                 const filteredProducts = this.getFilteredProducts();
                 const paginatedProducts = filteredProducts.slice((this.state.currentPage - 1) * this.state.itemsPerPage, this.state.currentPage * this.state.itemsPerPage);
                 
                 if (filteredProducts.length === 0) {
                     emptyState.classList.remove('hidden');
-                    productList.innerHTML = '';
+                    productList.innerHTML = ''; // Clear previous list
                     const emptyMsgEl = document.getElementById('empty-state-message');
                     if (emptyMsgEl) {
                         emptyMsgEl.textContent = this.state.products.length === 0 ? 'Nenhum produto cadastrado.' : 'Nenhum produto encontrado com os filtros atuais.';
@@ -821,16 +868,21 @@
                         const category = this.state.categories.find(c => c.id === product.category);
                         const isLowStock = product.totalQuantity <= product.minStock;
                         const isSelected = this.state.selectedProducts.includes(product.id);
-                        const quantitiesHtml = this.state.locations.map(loc => `<td class="p-3 text-center text-gray-700">${product.quantities?.[loc.id] || 0}</td>`).join('');
+                        
+                        // Ensure product.quantities exists before trying to access properties
+                        const productQuantities = product.quantities || {};
+                        const quantitiesHtml = this.state.locations.map(loc => `<td class="p-3 text-center text-gray-700">${productQuantities[loc.id] || 0}</td>`).join('');
+                        
                         const actionButtons = this.state.userRole === 'admin' ? `
                             <button data-action="edit" data-id="${product.id}" class="text-blue-500 hover:text-blue-700 p-2"><i class="fas fa-edit"></i></button>
                             <button data-action="delete" data-id="${product.id}" class="text-red-500 hover:text-red-700 p-2"><i class="fas fa-trash"></i></button>
                         ` : '';
                         const checkbox = this.state.userRole === 'admin' ? `<input type="checkbox" class="product-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-id="${product.id}" ${isSelected ? 'checked' : ''}>` : '';
+                        
                         return `
                             <tr class="hover:bg-gray-200 transition-colors ${isLowStock ? 'low-stock-warning' : ''} ${isSelected ? 'bg-blue-100' : ''}" data-product-id="${product.id}">
                                 <td class="p-3 text-center">${checkbox}</td>
-                                <td class="p-3 font-medium text-gray-900 sticky left-0 bg-white dark:bg-gray-800">${product.name} ${isLowStock ? '<i class="fas fa-exclamation-triangle text-amber-500 ml-1" title="Estoque baixo!"></i>' : ''}</td>
+                                <td class="p-3 font-medium text-gray-900 sticky left-0 bg-white dark:bg-gray-800 shadow-sm">${product.name} ${isLowStock ? '<i class="fas fa-exclamation-triangle text-amber-500 ml-1" title="Estoque baixo!"></i>' : ''}</td>
                                 <td class="p-3 text-center text-gray-700">${category?.name || 'N/A'}</td>
                                 <td class="p-3 text-center font-bold text-gray-900">${product.totalQuantity || 0}</td>
                                 ${quantitiesHtml}
@@ -840,37 +892,52 @@
                 }
                 this.renderPaginationControls(filteredProducts.length);
                 this.updateSelectionState(); 
-                this.setLoading(false, true);
+                this.setLoading(false, true); // Hide loading indicator for the table
             },
             renderCategories() {
                 const categoryList = document.getElementById('category-list');
-                if (!categoryList) return;
-                categoryList.innerHTML = this.state.categories.length > 0 ? this.state.categories.map(cat => {
-                    const isUsed = this.state.products.some(p => p.category === cat.id);
-                    const deleteButton = this.state.userRole === 'admin' ? `
-                        <button data-action="delete-category" data-id="${cat.id}" class="text-red-500 hover:text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed" ${isUsed ? 'disabled title="Categoria em uso"' : ''}>
-                            <i class="fas fa-times"></i>
-                        </button>
-                    ` : '';
-                    return `
-                        <div class="flex justify-between items-center p-2 bg-gray-100 rounded-lg">
-                            <span class="text-gray-900">${cat.name}</span>
-                            ${deleteButton}
-                        </div>`;
-                }).join('') : '<p class="text-sm text-gray-500">Nenhuma categoria.</p>';
-                const selects = [document.getElementById('product-category-select'), document.getElementById('stock-category-filter')];
-                 selects.forEach(select => {
-                    if (!select) return;
-                    const currentValue = select.value;
-                    let options = select.id === 'stock-category-filter' ? '<option value="all">Todas</option>' : '<option value="">Selecione...</option>';
-                    options += this.state.categories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
-                    select.innerHTML = options;
-                    if (Array.from(select.options).some(opt => opt.value === currentValue)) select.value = currentValue;
+                if (categoryList) { // Only render if the element exists (i.e., register tab is likely active or has been rendered)
+                    categoryList.innerHTML = this.state.categories.length > 0 ? this.state.categories.map(cat => {
+                        const isUsed = this.state.products.some(p => p.category === cat.id);
+                        const deleteButton = this.state.userRole === 'admin' ? `
+                            <button data-action="delete-category" data-id="${cat.id}" class="text-red-500 hover:text-red-700 disabled:text-gray-400 disabled:cursor-not-allowed" ${isUsed ? 'disabled title="Categoria em uso"' : ''}>
+                                <i class="fas fa-times"></i>
+                            </button>
+                        ` : '';
+                        return `
+                            <div class="flex justify-between items-center p-2 bg-gray-100 rounded-lg">
+                                <span class="text-gray-900">${cat.name}</span>
+                                ${deleteButton}
+                            </div>`;
+                    }).join('') : '<p class="text-sm text-gray-500">Nenhuma categoria.</p>';
+                }
+                
+                const selectsToUpdate = [
+                    { id: 'product-category-select', defaultOption: '<option value="">Selecione...</option>' },
+                    { id: 'stock-category-filter', defaultOption: '<option value="all">Todas</option>' }
+                ];
+
+                selectsToUpdate.forEach(selectInfo => {
+                    const selectEl = document.getElementById(selectInfo.id);
+                    if (selectEl) {
+                        const currentValue = selectEl.value;
+                        let options = selectInfo.defaultOption;
+                        options += this.state.categories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
+                        selectEl.innerHTML = options;
+                        // Try to restore previous value if it's still valid
+                        if (Array.from(selectEl.options).some(opt => opt.value === currentValue)) {
+                            selectEl.value = currentValue;
+                        } else {
+                           // If previous value is no longer valid, set to default or first option
+                           if (selectInfo.id === 'stock-category-filter') selectEl.value = 'all';
+                           else selectEl.value = '';
+                        }
+                    }
                 });
             },
             renderSettings() { // Renderiza configurações gerais (localidades, itens por página)
                 const locationsList = document.getElementById('location-list');
-                if (locationsList) {
+                if (locationsList) { // Only render if on settings tab
                     locationsList.innerHTML = this.state.locations.length > 0 ? this.state.locations.map(loc => {
                         const isUsed = this.state.products.some(p => p.quantities && p.quantities[loc.id] > 0);
                          const deleteButton = this.state.userRole === 'admin' ? `
@@ -890,19 +957,19 @@
                 if (itemsPerPageInput) {
                     itemsPerPageInput.value = this.state.itemsPerPage;
                 }
-                // Chama renderUserManagement se o usuário for admin, pois faz parte das "Configurações"
-                if(this.state.userRole === 'admin') {
+                // Chama renderUserManagement se o usuário for admin E a seção existir (ou seja, settings tab está ativa)
+                if(this.state.userRole === 'admin' && document.getElementById('user-management-section')) {
                     this.renderUserManagement();
                 }
             },
              renderUserManagement() {
-                if (this.state.userRole !== 'admin') return; // Só para admins
+                if (this.state.userRole !== 'admin') return; 
                 const userListTbody = document.getElementById('user-list-tbody');
-                if (!userListTbody) return;
+                if (!userListTbody) return; // Element might not exist if settings tab isn't active/rendered
 
                 userListTbody.innerHTML = this.state.allUsers.map(user => {
                     const isCurrentUser = this.state.currentUser && this.state.currentUser.uid === user.id;
-                    const roleSelectDisabled = isCurrentUser; // Admin não pode mudar seu próprio papel aqui
+                    const roleSelectDisabled = isCurrentUser; 
 
                     return `
                         <tr class="hover:bg-gray-50">
@@ -945,15 +1012,17 @@
                 }
             },
             updateAllViews() {
+                 // These functions should check if their target DOM elements exist before trying to update them,
+                 // as not all tabs might be rendered or active.
                  this.renderCategories();
                  this.populateProductSelects();
-                 this.debouncedRenderProducts(); 
-                 this.renderDashboard();
-                 this.renderSettings(); // Isso incluirá renderUserManagement se for admin
+                 this.debouncedRenderProducts(); // Will only run if stock panel elements are present
+                 this.renderDashboard(); // Will only run if report panel elements are present
+                 this.renderSettings(); // Will only run if settings panel elements are present
             },
             populateProductSelects() {
                 const outputSelect = document.getElementById('output-product-select');
-                if (!outputSelect) return;
+                if (!outputSelect) return; // Only if output tab is rendered
                 const currentValue = outputSelect.value;
                 let options = '<option value="">Selecione um produto...</option>';
                 const sortedProducts = [...this.state.products].sort((a,b) => a.name.localeCompare(b.name));
@@ -962,7 +1031,7 @@
                 if (Array.from(outputSelect.options).some(opt => opt.value === currentValue)) {
                     outputSelect.value = currentValue;
                 } else {
-                    outputSelect.value = "";
+                    outputSelect.value = ""; // Reset if previous value is no longer valid
                 }
             },
             showAlert(message, isError = false) {
@@ -994,10 +1063,10 @@
                 // Verifica se a aba é permitida para o usuário atual
                 const targetLink = document.querySelector(`.sidebar-link[data-tab="${tabId}"]`);
                 if (targetLink && targetLink.dataset.roleRequired && targetLink.dataset.roleRequired !== this.state.userRole) {
-                    if (this.state.userRole === 'viewer' && targetLink.dataset.roleRequired === 'admin') {
-                        this.showAlert('Você não tem permissão para acessar esta aba.', true);
-                        return; // Não muda de aba
-                    }
+                    // This case should ideally be handled by disabling the link or by `applyRolePermissions` redirecting.
+                    // However, as a safeguard:
+                    this.showAlert('Você não tem permissão para acessar esta aba.', true);
+                    return; 
                 }
 
                 document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
@@ -1006,11 +1075,22 @@
                 
                 document.querySelectorAll('.sidebar-link').forEach(l => l.classList.toggle('bg-gray-200', l.dataset.tab === tabId));
                 
-                // Renderiza o conteúdo da aba específica
-                if (tabId === 'reports' && this.state.isAuthReady) this.renderDashboard();
-                if (tabId === 'stock' && this.state.isAuthReady) this.renderProducts();
-                if (tabId === 'settings' && this.state.isAuthReady && this.state.userRole === 'admin') {
-                    this.renderSettings(); // renderSettings já chama renderUserManagement
+                // Renderiza o conteúdo da aba específica se estiver autenticado e pronto
+                if (this.state.isAuthReady) {
+                    if (tabId === 'reports') this.renderDashboard();
+                    if (tabId === 'stock') this.debouncedRenderProducts(); // Use debounced here as well
+                    if (tabId === 'settings' && this.state.userRole === 'admin') {
+                        this.renderSettings(); // renderSettings já chama renderUserManagement if applicable
+                    }
+                    // For register and outputs tabs, their content is mostly static HTML from injectPanelContent,
+                    // but dropdowns like categories/products are populated by renderCategories/populateProductSelects via updateAllViews.
+                    // If they have specific rendering needs upon tab switch, add them here.
+                    if (tabId === 'register') { // e.g. ensure category list is fresh
+                        this.renderCategories();
+                    }
+                     if (tabId === 'outputs') { // e.g. ensure product select is fresh
+                        this.populateProductSelects();
+                    }
                 }
             },
             openEditModal(productId) {
@@ -1019,10 +1099,11 @@
                 const { self, productName, quantitiesContainer } = this.state.dom.modals.edit;
                 self.dataset.productId = productId;
                 productName.textContent = product.name;
+                const productQuantities = product.quantities || {};
                 const quantitiesHtml = this.state.locations.map(loc => `
                     <div>
                         <label for="edit-qty-${loc.id}" class="block text-sm font-medium text-gray-700">${loc.name}</label>
-                        <input type="number" id="edit-qty-${loc.id}" value="${product.quantities?.[loc.id] || 0}" min="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0">
+                        <input type="number" id="edit-qty-${loc.id}" value="${productQuantities[loc.id] || 0}" min="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0">
                     </div>
                 `).join('');
                 quantitiesContainer.innerHTML = `<div class="grid grid-cols-2 gap-4">${quantitiesHtml}</div>`;
@@ -1039,7 +1120,7 @@
                     if (type === 'product') itemName = this.state.products.find(p => p.id === id)?.name;
                     else if (type === 'category') itemName = this.state.categories.find(c => c.id === id)?.name;
                     else if (type === 'location') itemName = this.state.locations.find(l => l.id === id)?.name;
-                    text.textContent = `Tem certeza que deseja excluir "${itemName || ''}"? Esta ação não pode ser desfeita.`;
+                    text.textContent = `Tem certeza que deseja excluir "${itemName || 'item desconhecido'}"? Esta ação não pode ser desfeita.`;
                 }
                 self.classList.replace('hidden', 'flex');
             },
@@ -1048,13 +1129,19 @@
                 this.state.deleteQueue = { id: null, type: null, isBulk: false };
             },
             renderDashboard() {
-                if (!document.getElementById('panel-reports')?.isConnected || !this.state.isAuthReady) return;
-                this.updateDashboardView();
+                // Check if the reports panel is visible and app is ready
+                const reportsPanel = document.getElementById('panel-reports');
+                if (!reportsPanel || reportsPanel.classList.contains('hidden') || !this.state.isAuthReady) return;
+                
+                this.updateDashboardView(); // Handles chart type buttons and calls renderMovementsChart
                 this.renderLowStockAlerts();
                 this.renderTopMovements();
             },
             updateDashboardView() {
-                if(!this.state.isAuthReady) return;
+                if(!this.state.isAuthReady) return; // Basic guard
+                const reportsPanel = document.getElementById('panel-reports');
+                if (!reportsPanel || reportsPanel.classList.contains('hidden')) return; // Don't render if tab not active
+
                 const { chartType } = this.state.dashboardSettings;
                 document.querySelectorAll('.chart-type-btn').forEach(btn => {
                     btn.classList.toggle('bg-blue-500', btn.dataset.type === chartType);
@@ -1066,26 +1153,32 @@
             },
             renderMovementsChart() {
                 const ctx = document.getElementById('movements-chart')?.getContext('2d');
-                if (!ctx) return;
+                if (!ctx) return; // If canvas not available (e.g., tab not rendered or active)
+                
                 const { chartType, period } = this.state.dashboardSettings;
                 const today = new Date(); today.setHours(23, 59, 59, 999);
                 let startDate = new Date(); startDate.setHours(0, 0, 0, 0);
-                let endDate = new Date(today);
+                let endDate = new Date(today); // Clone today
+
+                // Calculate date range based on period
                 switch (period) {
                     case '7days': startDate.setDate(today.getDate() - 6); break;
                     case '30days': startDate.setDate(today.getDate() - 29); break;
                     case 'this_month': startDate = new Date(today.getFullYear(), today.getMonth(), 1); break;
                     case 'last_month':
                         startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-                        endDate = new Date(today.getFullYear(), today.getMonth(), 0);
+                        endDate = new Date(today.getFullYear(), today.getMonth(), 0); // Last day of previous month
                         endDate.setHours(23, 59, 59, 999);
                         break;
                     case 'custom':
                         const startVal = this.state.dashboardSettings.startDate;
                         const endVal = this.state.dashboardSettings.endDate;
-                        if (!startVal || !endVal) return;
-                        startDate = new Date(startVal); startDate.setUTCHours(0, 0, 0, 0);
-                        endDate = new Date(endVal); endDate.setUTCHours(23, 59, 59, 999);
+                        if (!startVal || !endVal) {
+                             if (this.state.chartInstance) this.state.chartInstance.destroy(); // Clear chart if dates invalid
+                             return; // Don't draw if custom dates are not set
+                        }
+                        startDate = new Date(startVal); startDate.setUTCHours(0,0,0,0); // Ensure it's start of day in UTC if input is local
+                        endDate = new Date(endVal); endDate.setUTCHours(23,59,59,999); // Ensure it's end of day
                         break;
                 }
                 
@@ -1093,8 +1186,9 @@
                 const movementsForExistingProducts = this.state.movements.filter(mov => existingProductIds.has(mov.productId));
 
                 const filteredMovements = movementsForExistingProducts.filter(mov => {
-                    const movDate = mov.date?.toDate();
-                    return movDate && movDate >= startDate && movDate <= endDate;
+                    if (!mov.date || typeof mov.date.toDate !== 'function') return false;
+                    const movDate = mov.date.toDate();
+                    return movDate >= startDate && movDate <= endDate;
                 });
                 
                 if (this.state.chartInstance) this.state.chartInstance.destroy();
@@ -1115,15 +1209,16 @@
                         },
                         options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { color: textColor } } } }
                     };
-                } else {
+                } else { // Bar or Line chart
                     const labels = []; const dataMap = new Map();
+                    // Initialize dataMap with all days in the range
                     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
                         const dateString = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
                         labels.push(dateString);
                         dataMap.set(dateString, { entrada: 0, saida: 0 });
                     }
                     filteredMovements.forEach(mov => {
-                        if (mov.date?.toDate) {
+                        if (mov.date?.toDate) { // Ensure toDate method exists
                             const movDateStr = mov.date.toDate().toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
                             if (dataMap.has(movDateStr)) {
                                 const dayData = dataMap.get(movDateStr);
@@ -1132,10 +1227,10 @@
                             }
                         }
                     });
-                    const entradasData = labels.map(label => dataMap.get(label).entrada);
-                    const saidasData = labels.map(label => dataMap.get(label).saida);
+                    const entradasData = labels.map(label => dataMap.get(label)?.entrada || 0); // Add fallback for safety
+                    const saidasData = labels.map(label => dataMap.get(label)?.saida || 0);   // Add fallback for safety
                     chartConfig = {
-                        type: chartType,
+                        type: chartType, // 'bar' or 'line'
                         data: {
                             labels,
                             datasets: [{
@@ -1164,7 +1259,7 @@
             },
             renderLowStockAlerts() {
                 const listEl = document.getElementById('low-stock-list'), emptyEl = document.getElementById('low-stock-empty');
-                if (!listEl || !emptyEl) return;
+                if (!listEl || !emptyEl) return; // Only if on reports tab
                 const lowStockProducts = this.state.products.filter(p => p.minStock > 0 && p.totalQuantity <= p.minStock);
                 if (lowStockProducts.length > 0) {
                     listEl.innerHTML = lowStockProducts.map(p => `<li class="text-sm"><span class="font-semibold">${p.name}</span>: <span class="text-red-500 font-bold">${p.totalQuantity}</span> / ${p.minStock} ${p.unit}</li>`).join('');
@@ -1176,7 +1271,7 @@
             renderTopMovements() {
                 const renderList = (elementId, data) => {
                     const listEl = document.getElementById(elementId);
-                    if (!listEl) return;
+                    if (!listEl) return; // Only if on reports tab
                     if(data.length > 0) {
                         listEl.innerHTML = data.map(mov => {
                             const product = this.state.products.find(p => p.id === mov.productId);
@@ -1199,44 +1294,66 @@
             async handleGenerateReport() {
                 const dateInput = document.getElementById('report-date'), reportOutput = document.getElementById('report-output');
                 if (!dateInput || !reportOutput || !dateInput.value) return this.showAlert('Selecione uma data para gerar o relatório.', true);
-                const targetDate = new Date(dateInput.value); targetDate.setUTCHours(23, 59, 59, 999);
+                
+                // Ensure date is treated as end of day in local timezone for comparison
+                const targetDateParts = dateInput.value.split('-'); // YYYY-MM-DD
+                const targetDate = new Date(parseInt(targetDateParts[0]), parseInt(targetDateParts[1]) - 1, parseInt(targetDateParts[2]), 23, 59, 59, 999);
+
                 this.setLoading(true);
                 const historicalStock = {};
+                
                 this.state.products.forEach(p => {
-                    const createdAt = p.createdAt?.toDate();
-                    if(createdAt && createdAt <= targetDate) {
-                        historicalStock[p.id] = { ...p, currentQuantity: 0 };
+                    if (p.createdAt?.toDate && p.createdAt.toDate() <= targetDate) {
+                        historicalStock[p.id] = { ...p, currentQuantityAtDate: 0, categoryName: this.state.categories.find(c=>c.id === p.category)?.name || 'N/A' };
                     }
                 });
-                this.state.movements.filter(m => m.date?.toDate() && m.date.toDate() <= targetDate).forEach(m => {
-                    if (historicalStock[m.productId]) { 
-                        const productCreatedAt = this.state.products.find(p => p.id === m.productId)?.createdAt?.toDate();
-                        const movementDate = m.date.toDate();
-                        if ((m.motive === 'Criação de Produto' || m.motive === 'Importação Excel') && productCreatedAt && productCreatedAt.getTime() === movementDate.getTime()) {
-                            historicalStock[m.productId].currentQuantity = m.quantity;
-                        } else {
-                            historicalStock[m.productId].currentQuantity += (m.type === 'entrada' ? m.quantity : -m.quantity);
+
+                this.state.movements
+                    .filter(m => m.date?.toDate && m.date.toDate() <= targetDate && historicalStock[m.productId])
+                    .sort((a,b) => (a.date.seconds || 0) - (b.date.seconds || 0)) // Process in chronological order
+                    .forEach(m => {
+                        const productEntry = historicalStock[m.productId];
+                        if (productEntry) {
+                            // For "Criação de Produto" or "Importação Excel", if the movement date is the same as product creation date,
+                            // it represents the initial stock, not an addition to zero.
+                            const productCreatedAt = productEntry.createdAt.toDate();
+                            const movementDate = m.date.toDate();
+
+                            // Heuristic: if movement is for creation/import and on the same day as product creation, set it as initial.
+                            // This assumes product creation logs an 'entrada' movement.
+                            if ((m.motive === 'Criação de Produto' || m.motive === 'Importação Excel') &&
+                                productCreatedAt.getFullYear() === movementDate.getFullYear() &&
+                                productCreatedAt.getMonth() === movementDate.getMonth() &&
+                                productCreatedAt.getDate() === movementDate.getDate() &&
+                                m.type === 'entrada' // Only for initial entries
+                                ) {
+                                productEntry.currentQuantityAtDate = m.quantity; // Set initial quantity
+                            } else {
+                                productEntry.currentQuantityAtDate += (m.type === 'entrada' ? m.quantity : -m.quantity);
+                            }
                         }
-                    }
-                });
-                document.getElementById('report-list').innerHTML = Object.values(historicalStock).map(p => `
+                    });
+
+                document.getElementById('report-list').innerHTML = Object.values(historicalStock)
+                    .sort((a,b) => a.name.localeCompare(b.name)) // Sort by product name
+                    .map(p => `
                     <tr class="border-t border-gray-200">
                         <td class="p-3">${p.name}</td>
-                        <td class="p-3 text-center">${this.state.categories.find(c=>c.id === p.category)?.name || 'N/A'}</td>
+                        <td class="p-3 text-center">${p.categoryName}</td>
                         <td class="p-3 text-center">${p.unit}</td>
-                        <td class="p-3 text-center font-bold">${p.currentQuantity}</td>
+                        <td class="p-3 text-center font-bold">${p.currentQuantityAtDate}</td>
                     </tr>`).join('');
                 document.getElementById('report-title').textContent = `Relatório de Estoque Histórico`;
-                document.getElementById('report-subtitle').textContent = `Posição em ${new Date(dateInput.value + 'T00:00:00').toLocaleDateString('pt-BR')}`;
+                document.getElementById('report-subtitle').textContent = `Posição em ${targetDate.toLocaleDateString('pt-BR')}`;
                 reportOutput.classList.remove('hidden');
                 this.setLoading(false);
             },
             renderPaginationControls(totalItems) {
                 const controlsContainer = document.getElementById('pagination-controls');
-                if (!controlsContainer) return;
+                if (!controlsContainer) return; // Only if on stock tab
                 const totalPages = Math.ceil(totalItems / this.state.itemsPerPage);
                 if (totalPages <= 1) {
-                    controlsContainer.innerHTML = '';
+                    controlsContainer.innerHTML = ''; // Clear pagination if not needed
                     return;
                 }
                 const startItem = (this.state.currentPage - 1) * this.state.itemsPerPage + 1;
@@ -1246,17 +1363,18 @@
             renderBulkActionBar() {
                 const actionBar = document.getElementById('bulk-action-bar');
                 const selectedCountEl = document.getElementById('selected-count');
-                if (!actionBar || !selectedCountEl || this.state.userRole !== 'admin') {
-                    if(actionBar) actionBar.classList.add('hidden');
+                if (!actionBar || !selectedCountEl ) { // Element might not be present if stock tab not active
+                     if(actionBar) actionBar.classList.add('hidden'); // Ensure hidden if somehow visible
                      return;
                 };
-                if (this.state.selectedProducts.length > 0) {
-                    selectedCountEl.textContent = `${this.state.selectedProducts.length} selecionado(s)`;
-                    actionBar.classList.remove('hidden');
-                    actionBar.classList.add('open');
-                } else {
+
+                if (this.state.userRole !== 'admin' || this.state.selectedProducts.length === 0) {
                     actionBar.classList.remove('open');
-                    actionBar.classList.add('hidden');
+                    actionBar.classList.add('hidden'); // Explicitly hide
+                } else {
+                    selectedCountEl.textContent = `${this.state.selectedProducts.length} selecionado(s)`;
+                    actionBar.classList.remove('hidden'); // Ensure visible
+                    actionBar.classList.add('open');
                 }
             },
             clearFilters() {
@@ -1273,11 +1391,12 @@
                 if (dateEnd) dateEnd.value = '';
                 
                 this.state.currentPage = 1;
-                this.renderProducts();
+                this.debouncedRenderProducts(); // Use debounced
             },
             handleDownloadTemplate() {
                 const headers = { name: "Exemplo Produto", category: "Exemplo Categoria", unit: "UND", minStock: 10 };
-                this.state.locations.forEach(l => headers[l.id] = 0);
+                // Add current locations as headers for quantity columns
+                this.state.locations.forEach(l => headers[l.id] = 0); // Use location ID as key
                 const worksheet = XLSX.utils.json_to_sheet([headers]);
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Produtos");
@@ -1292,33 +1411,35 @@
                 
                 let startDate = null;
                 if (startDateVal) {
-                    startDate = new Date(startDateVal);
-                    startDate.setUTCHours(0, 0, 0, 0);
+                    // Treat date as local start of day
+                    const parts = startDateVal.split('-');
+                    startDate = new Date(parts[0], parts[1]-1, parts[2], 0, 0, 0, 0);
                 }
                 let endDate = null;
                 if (endDateVal) {
-                    endDate = new Date(endDateVal);
-                    endDate.setUTCHours(23, 59, 59, 999);
+                     // Treat date as local end of day
+                    const parts = endDateVal.split('-');
+                    endDate = new Date(parts[0], parts[1]-1, parts[2], 23, 59, 59, 999);
                 }
 
                 return this.state.products.filter(p => {
                     const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
                     const matchesSearch = p.name.toLowerCase().includes(searchTerm);
                     const matchesStatus = stockStatus === 'all' || 
-                                          (stockStatus === 'low' && p.totalQuantity <= p.minStock) || 
-                                          (stockStatus === 'ok' && p.totalQuantity > p.minStock);
+                                          (stockStatus === 'low' && p.minStock > 0 && p.totalQuantity <= p.minStock) || // Ensure minStock is considered
+                                          (stockStatus === 'ok' && (p.minStock === 0 || p.totalQuantity > p.minStock));
                     
-                    const createdAt = p.createdAt?.toDate();
                     let matchesDate = true;
-                    if (createdAt) {
+                    if (p.createdAt?.toDate) { // Ensure createdAt and toDate() exist
+                        const createdAtDate = p.createdAt.toDate();
                         if (startDate && endDate) {
-                            matchesDate = createdAt >= startDate && createdAt <= endDate;
+                            matchesDate = createdAtDate >= startDate && createdAtDate <= endDate;
                         } else if (startDate) {
-                            matchesDate = createdAt >= startDate;
+                            matchesDate = createdAtDate >= startDate;
                         } else if (endDate) {
-                            matchesDate = createdAt <= endDate;
+                            matchesDate = createdAtDate <= endDate;
                         }
-                    } else if (startDate || endDate) {
+                    } else if (startDate || endDate) { // If dates are filtered but product has no creation date
                         matchesDate = false;
                     }
             
@@ -1327,20 +1448,27 @@
             },
             handleExportPdf() {
                 const filteredProducts = this.getFilteredProducts();
+                if (filteredProducts.length === 0) {
+                    return this.showAlert("Nenhum produto para exportar com os filtros atuais.", true);
+                }
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF({ orientation: 'landscape' });
                 doc.text(`Relatório de Estoque - ${new Date().toLocaleDateString()}`, 14, 16);
                 const head = [['Produto', 'Categoria', ...this.state.locations.map(l => l.name), 'Total']];
-                const body = filteredProducts.map(p => [
-                    p.name, 
-                    this.state.categories.find(c => c.id === p.category)?.name || 'N/A', 
-                    ...this.state.locations.map(l => p.quantities?.[l.id] || 0), 
-                    p.totalQuantity
-                ]);
+                const body = filteredProducts.map(p => {
+                    const productQuantities = p.quantities || {};
+                    return [
+                        p.name, 
+                        this.state.categories.find(c => c.id === p.category)?.name || 'N/A', 
+                        ...this.state.locations.map(l => productQuantities[l.id] || 0), 
+                        p.totalQuantity || 0
+                    ];
+                });
                 doc.autoTable({
                     head: head, body: body, startY: 20,
-                    headStyles: { fillColor: [22, 163, 74] },
-                    styles: { fontSize: 8 },
+                    headStyles: { fillColor: [22, 163, 74] }, // Green color
+                    styles: { fontSize: 8, cellPadding: 1.5, overflow: 'linebreak' },
+                    columnStyles: { 0: { cellWidth: 50 } } // Wider column for product name
                 });
                 doc.save(`estoque_${new Date().toISOString().slice(0,10)}.pdf`);
             },
@@ -1351,21 +1479,23 @@
                 reader.onload = async (e) => {
                     try {
                         const data = e.target.result;
-                        const workbook = XLSX.read(data, { type: 'array' });
+                        const workbook = XLSX.read(data, { type: 'array', cellDates: true }); // cellDates for better date handling if needed
                         const sheetName = workbook.SheetNames[0];
                         const worksheet = workbook.Sheets[sheetName];
                         const json = XLSX.utils.sheet_to_json(worksheet);
                         await this.handleBulkInsert(json);
                     } catch (error) {
+                        console.error("Erro ao processar arquivo Excel:", error);
                         this.showAlert(`Não foi possível ler o arquivo: ${error.message}`, true);
                     } finally {
                         filenameEl.textContent = '';
                         this.setLoading(false);
                         const excelInput = document.getElementById('excel-insert-input');
-                        if (excelInput) excelInput.value = '';
+                        if (excelInput) excelInput.value = ''; // Reset file input
                     }
                 };
                 reader.onerror = (error) => {
+                     console.error("Erro de FileReader:", error);
                      this.showAlert(`Erro ao ler o arquivo: ${error}`, true);
                      filenameEl.textContent = '';
                      this.setLoading(false);
@@ -1373,28 +1503,42 @@
                 reader.readAsArrayBuffer(file);
             },
             async handleBulkInsert(data) {
+                if (!this.state.firestoreRefs) {
+                    this.showAlert("Erro de configuração interna. Não é possível processar.", true);
+                    return;
+                }
                 const batch = writeBatch(this.db);
-                const localCategories = [...this.state.categories];
-                const localLocations = [...this.state.locations];
+                // Create copies to modify locally during batch processing to avoid race conditions with listeners
+                const localCategories = new Map(this.state.categories.map(c => [c.name.toLowerCase(), c]));
+                const localLocations = [...this.state.locations]; // Assuming locations are relatively stable during import
+                
                 let productsProcessedCount = 0;
+                const productsToLogMovement = [];
 
                 for (const row of data) {
                     let categoryName = row.category?.toString().trim();
                     let productName = row.name?.toString().trim();
-                    if (!productName || !categoryName) continue;
+                    if (!productName || !categoryName) {
+                        console.warn("Linha ignorada por falta de nome ou categoria:", row);
+                        continue;
+                    }
 
-                    let category = localCategories.find(c => c.name.toLowerCase() === categoryName.toLowerCase());
+                    let category = localCategories.get(categoryName.toLowerCase());
                     if (!category) {
+                        // For simplicity, we'll create the category doc and assume it will be available.
+                        // A more robust solution might pre-create all new categories in one batch, then products.
+                        // Or, handle this by adding to a temporary local list and then creating all at once.
                         const newCatRef = doc(collection(this.db, this.state.firestoreRefs.categories.path));
+                        // For batching, we add the set operation to the batch
                         batch.set(newCatRef, { name: categoryName });
-                        category = { id: newCatRef.id, name: categoryName };
-                        localCategories.push(category);
+                        category = { id: newCatRef.id, name: categoryName }; // Use the new ID
+                        localCategories.set(categoryName.toLowerCase(), category); // Add to local map
                     }
                     
                     const quantities = {}; let totalQuantity = 0;
                     localLocations.forEach(loc => {
-                        const qty = parseInt(row[loc.id], 10) || 0;
-                        if (qty > 0) {
+                        const qty = parseInt(row[loc.id], 10) || 0; // Use loc.id which should match excel header
+                        if (qty > 0) { // Only store if quantity > 0
                            quantities[loc.id] = qty;
                            totalQuantity += qty;
                         }
@@ -1405,118 +1549,156 @@
                         name: productName, category: category.id, quantities, totalQuantity,
                         unit: row.unit?.toString().trim() || 'UND', 
                         minStock: parseInt(row.minStock, 10) || 0,
-                        createdAt: serverTimestamp()
+                        createdAt: serverTimestamp() // Use server timestamp for consistency
                     };
                     batch.set(newProdRef, productData);
                     productsProcessedCount++;
 
                     if (totalQuantity > 0) {
-                        const movRef = doc(collection(this.db, this.state.firestoreRefs.movements.path));
-                        batch.set(movRef, { 
-                            productId: newProdRef.id, 
-                            type: 'entrada', 
-                            quantity: totalQuantity, 
-                            motive: 'Importação Excel', 
-                            date: productData.createdAt
+                         // Store info to log movement after product creation (within the same batch)
+                        productsToLogMovement.push({
+                            productId: newProdRef.id,
+                            quantity: totalQuantity,
+                            createdAt: productData.createdAt // Use the same serverTimestamp placeholder
                         });
                     }
                 }
+
+                // Add movement logs to the same batch
+                productsToLogMovement.forEach(movInfo => {
+                    const movRef = doc(collection(this.db, this.state.firestoreRefs.movements.path));
+                    batch.set(movRef, { 
+                        productId: movInfo.productId, 
+                        type: 'entrada', 
+                        quantity: movInfo.quantity, 
+                        motive: 'Importação Excel', 
+                        date: movInfo.createdAt // Ensure movement date matches product creation
+                    });
+                });
+
+
                 if (productsProcessedCount > 0) {
                     await batch.commit();
-                    this.showAlert(`${productsProcessedCount} produtos processados do arquivo Excel.`);
+                    this.showAlert(`${productsProcessedCount} produtos processados e adicionados/atualizados do arquivo Excel.`);
                 } else {
                     this.showAlert('Nenhum produto válido encontrado no arquivo Excel para processar.');
                 }
             },
             injectPanelContent() {
-                if (!this.state.dom) return;
+                if (!this.state.dom || !this.state.dom.panels) {
+                    console.error("DOM or panels not cached correctly.");
+                    return;
+                }
                 const isAdmin = this.state.userRole === 'admin';
-                const locationsQuantityInputs = this.state.locations.map(loc => `<label class="block"><span class="text-gray-700">${loc.name}</span><input type="number" id="qty-${loc.id}" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0"></label>`).join('');
-                const tableHeaders = this.state.locations.map(loc => `<th class="p-3 text-center text-gray-700">${loc.name}</th>`).join('');
-                const tableCheckboxHeader = isAdmin ? `<th class="p-3 w-4"><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"></th>` : `<th class="p-3 w-4"></th>`;
-                const tableActionsHeader = isAdmin ? `<th class="p-3 text-right text-gray-700">Ações</th>` : `<th></th>`;
-                this.state.dom.panels.stock.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 relative"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-gray-100 rounded-lg text-gray-900"></div><select id="stock-category-filter" class="p-2 bg-gray-100 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-gray-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar hidden mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-red-500 text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-red-600 transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div><div id="table-loading-indicator" class="hidden"><i class="fas fa-spinner animate-spin fa-2x text-blue-500"></i></div><div class="overflow-x-auto"><table class="w-full text-left min-w-[1400px]"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr>${tableCheckboxHeader}<th class="p-3 text-gray-700 sticky left-0 bg-gray-50 dark:bg-gray-800">Produto</th><th class="p-3 text-center text-gray-700">Categoria</th><th class="p-3 text-center text-gray-700 font-bold">Total</th>${tableHeaders}${tableActionsHeader}</tr></thead><tbody id="product-list" class="divide-y divide-gray-200"></tbody></table></div><div id="pagination-controls" class="flex justify-between items-center mt-4"></div><div id="empty-state" class="hidden text-center py-12"><i class="fas fa-box-open fa-4x text-gray-400"></i><p id="empty-state-message" class="mt-4 text-gray-500">Nenhum produto.</p></div></div>`;
-                this.state.dom.panels.register.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Gerenciar Categorias</h2><form id="add-category-form" class="flex gap-2 mb-4"><input type="text" id="category-name" placeholder="Nova categoria" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12"><i class="fas fa-plus"></i></button></form><div id="category-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Adicionar Produto</h2><form id="add-product-form" class="space-y-4"><label class="block"><span class="text-gray-700">Nome</span><input type="text" id="product-name" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Categoria</span><select id="product-category-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option value="">Selecione...</option></select></label><div class="grid grid-cols-2 gap-4">${locationsQuantityInputs}</div><div class="grid grid-cols-2 gap-4"><label class="block"><span class="text-gray-700">Est. Mínimo</span><input type="number" id="product-min-stock" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Unid.</span><select id="product-unit-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option>UND</option><option>CX</option><option>KG</option><option>G</option><option>L</option><option>ML</option></select></label></div><button type="submit" class="w-full mt-4 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-plus mr-2"></i>Adicionar Produto</button></form></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-file-excel mr-2 text-green-500"></i>Operações em Lote (Excel)</h2><div class="flex flex-col md:flex-row gap-6"><div class="flex-1 bg-gray-50 p-4 rounded-lg flex flex-col items-center text-center"><i class="fas fa-plus-circle fa-2x text-blue-500 mb-2"></i><h3 class="font-semibold mb-1 text-gray-900">Inserir Novos Produtos</h3><p class="text-sm text-gray-600 mb-3">Baixe o modelo, preencha e importe o arquivo Excel para adicionar vários produtos de uma vez.</p><div class="flex gap-2 w-full"><button id="download-template-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-download mr-2"></i>Baixar Modelo</button><input type="file" id="excel-insert-input" accept=".xlsx, .xls" class="hidden"><button id="upload-insert-trigger-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition"><i class="fas fa-upload mr-2"></i>Importar</button></div><p id="excel-insert-filename" class="text-xs mt-2 text-gray-500"></p></div></div></div>`;
-                this.state.dom.panels.outputs.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 max-w-2xl mx-auto"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Registrar Saída de Estoque</h2><form id="add-output-form" class="space-y-4"><div><label for="output-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="output-product-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="">Selecione um produto...</option></select></div><div id="output-location-selector" class="space-y-2"></div><div><label for="output-quantity" class="block text-sm mb-1 text-gray-700">Quantidade da Saída</label><input type="number" id="output-quantity" min="1" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required disabled></div><div><label for="output-motive-select" class="block text-sm mb-1 text-gray-700">Motivo da Saída</label><select id="output-motive-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="Venda">Venda</option><option value="Perda">Perda</option><option value="Uso Interno">Uso Interno</option><option value="Outro">Outro</option></select></div><p id="output-stock-info" class="text-sm text-gray-500 font-medium h-5"></p><button type="submit" class="w-full mt-4 bg-red-600 text-white font-bold p-2 rounded-lg hover:bg-red-700 transition"><i class="fas fa-arrow-circle-up mr-2"></i>Registrar Saída</button></form></div>`;
-                this.state.dom.panels.reports.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 mb-8"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Dashboard de Movimentações</h2><div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border"><div><label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Gráfico</label><div id="chart-type-selector" class="flex rounded-md shadow-sm"><button data-type="bar" class="chart-type-btn relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Barra</button><button data-type="line" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Linha</button><button data-type="pie" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Pizza</button></div></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Período</label><select id="period-selector" class="dashboard-control block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="7days">Últimos 7 dias</option><option value="30days">Últimos 30 dias</option><option value="this_month">Este Mês</option><option value="last_month">Mês Passado</option><option value="custom">Personalizado</option></select></div><div id="custom-date-range-selector" class="hidden md:col-span-1 grid grid-cols-2 gap-4"><div><label for="dashboard-date-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="dashboard-date-start" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="dashboard-date-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="dashboard-date-end" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div></div></div><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><div class="md:col-span-2 bg-gray-50 p-4 rounded-lg h-96"><canvas id="movements-chart"></canvas></div><div class="space-y-4"><div class="bg-amber-100 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-amber-800">Alerta de Estoque Baixo</h3><ul id="low-stock-list" class="space-y-2 max-h-40 overflow-y-auto"></ul><p id="low-stock-empty" class="text-sm text-gray-500 hidden">Tudo em ordem!</p></div><div class="bg-gray-50 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-green-800">Top 5 Entradas Recentes</h3><ul id="top-entradas-list" class="space-y-2"></ul></div><div class="bg-gray-50 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-red-800">Top 5 Saídas Recentes</h3><ul id="top-saidas-list" class="space-y-2"></ul></div></div></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-history mr-2 text-indigo-500"></i>Relatório Histórico</h2><div class="flex items-end gap-4"><div class="flex-grow"><label for="report-date" class="block text-sm font-medium text-gray-700">Verificar estoque na data:</label><input type="date" id="report-date" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg"></div><button id="generate-report-btn" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Gerar Relatório</button></div><div id="report-output" class="hidden mt-6"><div id="print-area"><h3 id="report-title" class="text-xl font-bold text-center"></h3><p id="report-subtitle" class="text-center text-gray-500 mb-4"></p><table class="w-full text-left"><thead class="border-b-2 border-gray-300"><tr><th class="p-3">Produto</th><th class="p-3 text-center">Categoria</th><th class="p-3 text-center">Unidade</th><th class="p-3 text-center">Qtd. em Estoque</th></tr></thead><tbody id="report-list" class="divide-y divide-gray-200"></tbody></table></div><button id="print-report-btn" class="mt-4 bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-800 transition float-right"><i class="fas fa-print mr-2"></i>Imprimir</button></div></div>`;
+                const locationsQuantityInputs = this.state.locations.map(loc => `<label class="block"><span class="text-gray-700">${loc.name}</span><input type="number" id="qty-${loc.id}" name="qty-${loc.id}" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0"></label>`).join('');
+                const tableHeaders = this.state.locations.map(loc => `<th class="p-3 text-center text-gray-700 whitespace-nowrap">${loc.name}</th>`).join('');
+                const tableCheckboxHeader = isAdmin ? `<th class="p-3 w-4"><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"></th>` : `<th class="p-3 w-4"></th>`; // Empty header for non-admins for alignment
+                const tableActionsHeader = isAdmin ? `<th class="p-3 text-right text-gray-700 whitespace-nowrap">Ações</th>` : `<th></th>`; // Empty header for non-admins for alignment
                 
-                // Conteúdo da Aba de Configurações, incluindo Gerenciamento de Usuários
-                this.state.dom.panels.settings.innerHTML = `
-                <div class="space-y-8">
-                    <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
-                        <h2 class="text-2xl font-semibold mb-4 text-gray-900">Configurações Gerais</h2>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <h3 class="text-lg font-medium text-gray-900 mb-2">Gerenciar Localidades</h3>
-                                <form id="add-location-form" class="flex gap-2 mb-4">
-                                    <input type="text" id="location-name" placeholder="Nova localidade" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required>
-                                    <button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12"><i class="fas fa-plus"></i></button>
-                                </form>
-                                <div id="location-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div>
-                            </div>
-                            <div>
-                                <h3 class="text-lg font-medium text-gray-900 mb-2">Configurações de Exibição</h3>
-                                <div class="space-y-4">
-                                    <div>
-                                        <label for="items-per-page-input" class="block text-sm font-medium text-gray-700">Itens por página na tabela</label>
-                                        <input type="number" id="items-per-page-input" min="1" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg">
+                // Panel Stock
+                if (this.state.dom.panels.stock) {
+                    this.state.dom.panels.stock.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 relative"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-gray-100 rounded-lg text-gray-900"></div><select id="stock-category-filter" class="p-2 bg-gray-100 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-gray-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar hidden mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-red-500 text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-red-600 transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div><div id="table-loading-indicator" class="hidden"><i class="fas fa-spinner animate-spin fa-2x text-blue-500"></i></div><div class="overflow-x-auto"><table class="w-full text-left min-w-[1000px] sm:min-w-[1400px]"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr>${tableCheckboxHeader}<th class="p-3 text-gray-700 sticky left-0 bg-gray-50 dark:bg-gray-800 shadow-sm whitespace-nowrap">Produto</th><th class="p-3 text-center text-gray-700 whitespace-nowrap">Categoria</th><th class="p-3 text-center text-gray-700 font-bold whitespace-nowrap">Total</th>${tableHeaders}${tableActionsHeader}</tr></thead><tbody id="product-list" class="divide-y divide-gray-200"></tbody></table></div><div id="pagination-controls" class="flex justify-between items-center mt-4"></div><div id="empty-state" class="hidden text-center py-12"><i class="fas fa-box-open fa-4x text-gray-400"></i><p id="empty-state-message" class="mt-4 text-gray-500">Nenhum produto.</p></div></div>`;
+                }
+
+                // Panel Register
+                if (this.state.dom.panels.register) {
+                    this.state.dom.panels.register.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Gerenciar Categorias</h2><form id="add-category-form" class="flex gap-2 mb-4"><input type="text" id="category-name" placeholder="Nova categoria" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12 flex-shrink-0"><i class="fas fa-plus"></i></button></form><div id="category-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Adicionar Produto</h2><form id="add-product-form" class="space-y-4"><label class="block"><span class="text-gray-700">Nome</span><input type="text" id="product-name" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Categoria</span><select id="product-category-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option value="">Selecione...</option></select></label><div class="grid grid-cols-1 sm:grid-cols-2 gap-4">${locationsQuantityInputs}</div><div class="grid grid-cols-2 gap-4"><label class="block"><span class="text-gray-700">Est. Mínimo</span><input type="number" id="product-min-stock" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Unid.</span><select id="product-unit-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option>UND</option><option>CX</option><option>KG</option><option>G</option><option>L</option><option>ML</option></select></label></div><button type="submit" class="w-full mt-4 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-plus mr-2"></i>Adicionar Produto</button></form></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-file-excel mr-2 text-green-500"></i>Operações em Lote (Excel)</h2><div class="flex flex-col md:flex-row gap-6"><div class="flex-1 bg-gray-50 p-4 rounded-lg flex flex-col items-center text-center"><i class="fas fa-plus-circle fa-2x text-blue-500 mb-2"></i><h3 class="font-semibold mb-1 text-gray-900">Inserir Novos Produtos</h3><p class="text-sm text-gray-600 mb-3">Baixe o modelo, preencha e importe o arquivo Excel para adicionar vários produtos de uma vez.</p><div class="flex gap-2 w-full"><button id="download-template-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-download mr-2"></i>Baixar Modelo</button><input type="file" id="excel-insert-input" accept=".xlsx, .xls" class="hidden"><button id="upload-insert-trigger-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition"><i class="fas fa-upload mr-2"></i>Importar</button></div><p id="excel-insert-filename" class="text-xs mt-2 text-gray-500"></p></div></div></div>`;
+                }
+
+                // Panel Outputs
+                if (this.state.dom.panels.outputs) {
+                    this.state.dom.panels.outputs.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 max-w-2xl mx-auto"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Registrar Saída de Estoque</h2><form id="add-output-form" class="space-y-4"><div><label for="output-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="output-product-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="">Selecione um produto...</option></select></div><div id="output-location-selector" class="space-y-2"></div><div><label for="output-quantity" class="block text-sm mb-1 text-gray-700">Quantidade da Saída</label><input type="number" id="output-quantity" min="1" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required disabled></div><div><label for="output-motive-select" class="block text-sm mb-1 text-gray-700">Motivo da Saída</label><select id="output-motive-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="Venda">Venda</option><option value="Perda">Perda</option><option value="Uso Interno">Uso Interno</option><option value="Outro">Outro</option></select></div><p id="output-stock-info" class="text-sm text-gray-500 font-medium h-5"></p><button type="submit" class="w-full mt-4 bg-red-600 text-white font-bold p-2 rounded-lg hover:bg-red-700 transition"><i class="fas fa-arrow-circle-up mr-2"></i>Registrar Saída</button></form></div>`;
+                }
+
+                // Panel Reports
+                if (this.state.dom.panels.reports) {
+                    this.state.dom.panels.reports.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 mb-8"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Dashboard de Movimentações</h2><div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border"><div><label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Gráfico</label><div id="chart-type-selector" class="flex rounded-md shadow-sm"><button data-type="bar" class="chart-type-btn relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Barra</button><button data-type="line" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Linha</button><button data-type="pie" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Pizza</button></div></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Período</label><select id="period-selector" class="dashboard-control block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="7days">Últimos 7 dias</option><option value="30days">Últimos 30 dias</option><option value="this_month">Este Mês</option><option value="last_month">Mês Passado</option><option value="custom">Personalizado</option></select></div><div id="custom-date-range-selector" class="hidden md:col-span-1 grid grid-cols-2 gap-4"><div><label for="dashboard-date-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="dashboard-date-start" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="dashboard-date-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="dashboard-date-end" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div></div></div><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><div class="md:col-span-2 bg-gray-50 p-4 rounded-lg h-96"><canvas id="movements-chart"></canvas></div><div class="space-y-4"><div class="bg-amber-100 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-amber-800">Alerta de Estoque Baixo</h3><ul id="low-stock-list" class="space-y-2 max-h-40 overflow-y-auto"></ul><p id="low-stock-empty" class="text-sm text-gray-500 hidden">Tudo em ordem!</p></div><div class="bg-gray-50 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-green-800">Top 5 Entradas Recentes</h3><ul id="top-entradas-list" class="space-y-2"></ul></div><div class="bg-gray-50 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-red-800">Top 5 Saídas Recentes</h3><ul id="top-saidas-list" class="space-y-2"></ul></div></div></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-history mr-2 text-indigo-500"></i>Relatório Histórico</h2><div class="flex items-end gap-4"><div class="flex-grow"><label for="report-date" class="block text-sm font-medium text-gray-700">Verificar estoque na data:</label><input type="date" id="report-date" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg"></div><button id="generate-report-btn" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Gerar Relatório</button></div><div id="report-output" class="hidden mt-6"><div id="print-area"><h3 id="report-title" class="text-xl font-bold text-center"></h3><p id="report-subtitle" class="text-center text-gray-500 mb-4"></p><table class="w-full text-left"><thead class="border-b-2 border-gray-300"><tr><th class="p-3">Produto</th><th class="p-3 text-center">Categoria</th><th class="p-3 text-center">Unidade</th><th class="p-3 text-center">Qtd. em Estoque</th></tr></thead><tbody id="report-list" class="divide-y divide-gray-200"></tbody></table></div><button id="print-report-btn" class="mt-4 bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-800 transition float-right"><i class="fas fa-print mr-2"></i>Imprimir</button></div></div>`;
+                }
+                
+                // Panel Settings - Conteúdo da Aba de Configurações, incluindo Gerenciamento de Usuários
+                if (this.state.dom.panels.settings) {
+                    this.state.dom.panels.settings.innerHTML = `
+                    <div class="space-y-8">
+                        <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
+                            <h2 class="text-2xl font-semibold mb-4 text-gray-900">Configurações Gerais</h2>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <h3 class="text-lg font-medium text-gray-900 mb-2">Gerenciar Localidades</h3>
+                                    <form id="add-location-form" class="flex gap-2 mb-4">
+                                        <input type="text" id="location-name" placeholder="Nova localidade" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required>
+                                        <button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12 flex-shrink-0"><i class="fas fa-plus"></i></button>
+                                    </form>
+                                    <div id="location-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div>
+                                </div>
+                                <div>
+                                    <h3 class="text-lg font-medium text-gray-900 mb-2">Configurações de Exibição</h3>
+                                    <div class="space-y-4">
+                                        <div>
+                                            <label for="items-per-page-input" class="block text-sm font-medium text-gray-700">Itens por página na tabela</label>
+                                            <input type="number" id="items-per-page-input" min="1" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg">
+                                        </div>
+                                        <button id="save-settings-btn" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition">Salvar Configurações Gerais</button>
                                     </div>
-                                    <button id="save-settings-btn" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition">Salvar Configurações Gerais</button>
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    <div id="user-management-section" class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200" data-role-required="admin">
-                        <h2 class="text-2xl font-semibold mb-6 text-gray-900"><i class="fas fa-users-cog mr-2"></i>Gerenciar Usuários</h2>
-                        <div class="overflow-x-auto">
-                            <table class="w-full text-left">
-                                <thead class="border-b-2 border-gray-200 bg-gray-50">
-                                    <tr>
-                                        <th class="p-3 text-sm font-semibold text-gray-700">Email</th>
-                                        <th class="p-3 text-sm font-semibold text-gray-700">Papel</th>
-                                        <th class="p-3 text-sm font-semibold text-gray-700 text-right">Ação</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="user-list-tbody" class="divide-y divide-gray-200">
-                                    <!-- Usuários serão renderizados aqui por renderUserManagement() -->
-                                </tbody>
-                            </table>
+                        <div id="user-management-section" class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200" data-role-required="admin">
+                            <h2 class="text-2xl font-semibold mb-6 text-gray-900"><i class="fas fa-users-cog mr-2"></i>Gerenciar Usuários</h2>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left">
+                                    <thead class="border-b-2 border-gray-200 bg-gray-50">
+                                        <tr>
+                                            <th class="p-3 text-sm font-semibold text-gray-700">Email</th>
+                                            <th class="p-3 text-sm font-semibold text-gray-700">Papel</th>
+                                            <th class="p-3 text-sm font-semibold text-gray-700 text-right">Ação</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="user-list-tbody" class="divide-y divide-gray-200">
+                                        <!-- Usuários serão renderizados aqui por renderUserManagement() -->
+                                    </tbody>
+                                </table>
+                            </div>
+                             <p class="mt-4 text-xs text-gray-500 italic">Administradores não podem alterar seu próprio papel através desta interface.</p>
                         </div>
-                         <p class="mt-4 text-xs text-gray-500 italic">Administradores não podem alterar seu próprio papel através desta interface.</p>
-                    </div>
-                </div>`;
-                this.applyRolePermissions(); // Garante que data-role-required seja aplicado
+                    </div>`;
+                }
+                this.applyRolePermissions(); // Garante que data-role-required seja aplicado ao novo conteúdo injetado
             },
             updateOutputQuantityLock() {
                 const quantityInput = document.getElementById('output-quantity');
                 const selectedLocationRadio = document.querySelector('input[name="output-location"]:checked');
-                if (!selectedLocationRadio || !quantityInput) {
-                    if (quantityInput) {
-                        quantityInput.disabled = true;
-                        quantityInput.value = '';
-                        quantityInput.placeholder = '';
-                    }
+                
+                if (!quantityInput) return; // quantityInput might not exist if output tab not rendered
+
+                if (!selectedLocationRadio) {
+                    quantityInput.disabled = true;
+                    quantityInput.value = '';
+                    quantityInput.placeholder = 'Selecione uma localidade';
                     return;
                 }
                 const productId = document.getElementById('output-product-select').value;
                 const product = this.state.products.find(p => p.id === productId);
-                if (!product) return;
-                
-                const locationId = selectedLocationRadio.value;
-                const maxQuantity = product.quantities?.[locationId] || 0;
-                
-                quantityInput.max = maxQuantity;
-                quantityInput.disabled = false;
-                quantityInput.placeholder = `Máx: ${maxQuantity}`;
-                
-                if (parseInt(quantityInput.value, 10) > maxQuantity) {
-                    quantityInput.value = maxQuantity;
-                }
-                 if (maxQuantity === 0) {
+                if (!product) {
                     quantityInput.disabled = true;
                     quantityInput.value = '';
-                    quantityInput.placeholder = 'Sem estoque nesta localidade';
+                    quantityInput.placeholder = 'Produto inválido';
+                    return;
+                }
+                
+                const locationId = selectedLocationRadio.value;
+                const productQuantities = product.quantities || {};
+                const maxQuantity = productQuantities[locationId] || 0;
+                
+                quantityInput.max = maxQuantity.toString(); // Set HTML5 max attribute
+                quantityInput.disabled = (maxQuantity === 0);
+                quantityInput.placeholder = maxQuantity > 0 ? `Máx: ${maxQuantity}` : 'Sem estoque';
+                
+                if (parseInt(quantityInput.value, 10) > maxQuantity) {
+                    quantityInput.value = maxQuantity.toString();
+                }
+                 if (maxQuantity === 0) {
+                    quantityInput.value = ''; // Clear value if no stock
                 }
             },
             handleOutputProductSelection(productId) {
@@ -1524,10 +1706,11 @@
                 const locationSelectorEl = document.getElementById('output-location-selector');
                 const quantityInput = document.getElementById('output-quantity');
 
+                // Ensure elements exist (they might not if tab isn't active/rendered)
                 if (!stockInfoEl || !locationSelectorEl || !quantityInput) return;
 
                 stockInfoEl.textContent = '';
-                locationSelectorEl.innerHTML = '';
+                locationSelectorEl.innerHTML = ''; // Clear previous location options
                 quantityInput.value = '';
                 quantityInput.removeAttribute('max');
                 quantityInput.disabled = true;
@@ -1537,9 +1720,10 @@
 
                 const product = this.state.products.find(p => p.id === productId);
                 if (product) {
-                    stockInfoEl.textContent = `Estoque Total: ${product.totalQuantity} ${product.unit}`;
+                    stockInfoEl.textContent = `Estoque Total: ${product.totalQuantity || 0} ${product.unit}`;
+                    const productQuantities = product.quantities || {};
                     const locationOptionsHtml = this.state.locations.map(loc => {
-                        const qty = product.quantities?.[loc.id] || 0;
+                        const qty = productQuantities[loc.id] || 0;
                         return `
                             <label class="flex items-center space-x-3 p-2 rounded-lg border border-gray-200 hover:bg-gray-50 ${qty > 0 ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}">
                                 <input type="radio" name="output-location" value="${loc.id}" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500" ${qty === 0 ? 'disabled' : ''}>
@@ -1551,17 +1735,18 @@
                     if (locationOptionsHtml.trim() !== '') {
                         locationSelectorEl.innerHTML = `<p class="text-sm font-medium text-gray-700 mb-2">De onde está saindo?</p><div class="grid grid-cols-1 sm:grid-cols-2 gap-2">${locationOptionsHtml}</div>`;
                     } else {
-                         locationSelectorEl.innerHTML = '<p class="text-sm text-gray-500">Este produto não parece ter informações de estoque por localidade ou não há localidades cadastradas.</p>';
+                         locationSelectorEl.innerHTML = '<p class="text-sm text-gray-500">Nenhuma localidade de estoque encontrada para este produto ou nenhuma localidade cadastrada.</p>';
                     }
                 } else {
                     stockInfoEl.textContent = 'Produto não encontrado.';
                 }
             },
+            // MÉTODO MODIFICADO PARA O PROBLEMA 2
             handleContentChange(e) {
              const target = e.target;
              if (['stock-category-filter', 'stock-status-filter', 'date-filter-start', 'date-filter-end'].includes(target.id)) {
                  this.state.currentPage = 1;
-                 this.renderProducts();
+                 this.debouncedRenderProducts(); // ALTERADO: Usar a versão com debounce
              }
              if (target.id === 'output-product-select') this.handleOutputProductSelection(target.value);
              
@@ -1579,7 +1764,7 @@
                  this.handleSingleCheckboxChange(); 
              }
              
-             if (target.name === 'output-location') {
+             if (target.name === 'output-location') { // Note: input type radio fires 'change'
                  this.updateOutputQuantityLock();
              }
              
@@ -1590,10 +1775,11 @@
                  if (customDateSelector) {
                     if (period === 'custom') {
                         customDateSelector.classList.remove('hidden');
-                        customDateSelector.classList.add('grid');
+                        customDateSelector.classList.add('grid'); // Or 'flex' or relevant display type
                     } else {
                         customDateSelector.classList.add('hidden');
-                        customDateSelector.classList.remove('grid');
+                        customDateSelector.classList.remove('grid'); // Or 'flex'
+                        // Update chart only if not 'custom' and a valid period is selected
                         this.updateDashboardView();
                     }
                  }
@@ -1602,12 +1788,11 @@
              if (target.id === 'dashboard-date-start' || target.id === 'dashboard-date-end') {
                  this.state.dashboardSettings.startDate = document.getElementById('dashboard-date-start').value;
                  this.state.dashboardSettings.endDate = document.getElementById('dashboard-date-end').value;
+                 // Update chart only if both custom dates are set
                  if (this.state.dashboardSettings.startDate && this.state.dashboardSettings.endDate) {
                      this.updateDashboardView();
                  }
              }
-             // Não precisa de um listener específico para o select de papel do usuário,
-             // o botão "Salvar" ao lado dele no handleContentClick fará a ação.
             },
             handleContentInput(e) {
                 const target = e.target;
@@ -1618,28 +1803,36 @@
                 if (target.id === 'output-quantity') {
                     const max = parseInt(target.max, 10);
                     const currentValue = parseInt(target.value, 10);
-                    if (!isNaN(max) && !isNaN(currentValue) && currentValue > max) {
-                        target.value = max;
-                    }
-                    if (!isNaN(currentValue) && currentValue < 0) {
-                        target.value = 0;
+                    if (!isNaN(currentValue)) { // Check if currentValue is a number
+                        if (!isNaN(max) && currentValue > max) {
+                            target.value = max.toString();
+                        }
+                        if (currentValue < 0) { // Prevent negative quantities
+                            target.value = "0";
+                        }
                     }
                 }
             },
             async handleSaveSettings() { // Salva configurações gerais (itens por página)
-                if (this.state.userRole !== 'admin') return;
+                if (this.state.userRole !== 'admin') {
+                    this.showAlert('Você não tem permissão para salvar configurações.', true);
+                    return;
+                }
                 const input = document.getElementById('items-per-page-input');
                 if (!input) return;
                 const itemsPerPage = parseInt(input.value, 10);
                 if (isNaN(itemsPerPage) || itemsPerPage <= 0) {
-                    return this.showAlert('Número de itens por página inválido.', true);
+                    return this.showAlert('Número de itens por página inválido. Deve ser um número positivo.', true);
                 }
                 
                 this.setLoading(true);
                 try {
                     await setDoc(this.state.firestoreRefs.settings, { itemsPerPage }, { merge: true });
                     this.showAlert('Configurações gerais salvas.');
+                    // itemsPerPage state will be updated by the listenForSettingsUpdates listener,
+                    // which will then call debouncedRenderProducts.
                 } catch(error) {
+                    console.error("Erro ao salvar configurações:", error);
                     this.showAlert('Não foi possível salvar as configurações gerais.', true);
                 } finally {
                     this.setLoading(false);

@@ -24,7 +24,7 @@
         .animate-spin { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: #f3f4f6; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; } /* slate-100 */
         ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 10px; }
         @media print {
             body * { visibility: hidden !important; }
@@ -41,27 +41,39 @@
         .bulk-action-bar.open { max-height: 500px; }
         #toggle-advanced-filters i { transition: transform 0.3s ease-in-out; }
         #toggle-advanced-filters.open i { transform: rotate(180deg); }
-        [data-role-required] { display: none; } /* Default hide elements requiring specific role */
+        [data-role-required] { display: none; }
         #table-loading-indicator {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(255, 255, 255, 0.7);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 10;
-            border-radius: 0.75rem;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 10; border-radius: 0.75rem;
+        }
+        /* ### NOVO INDICADOR DE CARREGAMENTO ### */
+        #loading-bar {
+            position: fixed; top: 0; left: 0; z-index: 100;
+            width: 100%; height: 3px; background-color: #3b82f6; /* bg-blue-500 */
+            display: none; /* Inicia escondido */
+            overflow: hidden;
+        }
+        #loading-bar::before {
+            content: ''; display: block; position: absolute;
+            top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(to right, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%);
+            animation: loading-shimmer 1.5s infinite;
+        }
+        @keyframes loading-shimmer {
+            from { left: -100%; }
+            to { left: 100%; }
         }
     </style>
 </head>
 
-<body class="bg-gray-100 text-gray-900 min-h-screen">
+<!-- ### ALTERAÇÃO: Fundo da página agora é branco ### -->
+<body class="bg-white text-gray-900 min-h-screen">
 
     <!-- Seção de Autenticação -->
-    <div id="auth-section" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-gray-100">
+    <div id="auth-section" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-gray-50">
         <div id="auth-container" class="w-full max-w-md">
             <!-- Formulário de Login -->
             <div id="login-form-container">
@@ -70,8 +82,9 @@
                     <h2 class="text-2xl font-bold text-gray-800 mb-1">Bem-vindo de volta!</h2>
                     <p class="text-gray-500 mb-6">Faça login para acessar o estoque.</p>
                     <form id="login-form" class="space-y-4">
-                        <input type="email" id="login-email" placeholder="Email" class="w-full p-3 bg-gray-100 rounded-lg text-gray-900" required>
-                        <input type="password" id="login-password" placeholder="Senha" class="w-full p-3 bg-gray-100 rounded-lg text-gray-900" required>
+                        <!-- ### ALTERAÇÃO: Estilo dos inputs padronizado ### -->
+                        <input type="email" id="login-email" placeholder="Email" class="w-full p-3 bg-white rounded-lg text-gray-900 border border-gray-300 focus:ring-2 focus:ring-blue-300 focus:border-blue-500" required>
+                        <input type="password" id="login-password" placeholder="Senha" class="w-full p-3 bg-white rounded-lg text-gray-900 border border-gray-300 focus:ring-2 focus:ring-blue-300 focus:border-blue-500" required>
                         <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition">Entrar</button>
                     </form>
                     <p class="mt-6 text-sm">Não tem uma conta? <a href="#" id="show-register-link" class="font-semibold text-blue-600 hover:underline">Registre-se</a></p>
@@ -84,8 +97,8 @@
                     <h2 class="text-2xl font-bold text-gray-800 mb-1">Crie sua Conta</h2>
                     <p class="text-gray-500 mb-6">O registro cria uma conta com permissão de 'Visualizador'.</p>
                     <form id="register-form" class="space-y-4">
-                        <input type="email" id="register-email" placeholder="Email" class="w-full p-3 bg-gray-100 rounded-lg text-gray-900" required>
-                        <input type="password" id="register-password" placeholder="Senha (mínimo 6 caracteres)" class="w-full p-3 bg-gray-100 rounded-lg text-gray-900" required>
+                        <input type="email" id="register-email" placeholder="Email" class="w-full p-3 bg-white rounded-lg text-gray-900 border border-gray-300 focus:ring-2 focus:ring-blue-300 focus:border-blue-500" required>
+                        <input type="password" id="register-password" placeholder="Senha (mínimo 6 caracteres)" class="w-full p-3 bg-white rounded-lg text-gray-900 border border-gray-300 focus:ring-2 focus:ring-blue-300 focus:border-blue-500" required>
                         <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition">Registrar</button>
                     </form>
                     <p class="mt-6 text-sm">Já tem uma conta? <a href="#" id="show-login-link" class="font-semibold text-blue-600 hover:underline">Faça Login</a></p>
@@ -101,22 +114,23 @@
                 <h2 class="text-xl font-bold text-gray-900">Menu</h2>
             </div>
             <nav id="sidebar-nav" class="p-4 space-y-2">
-                <a href="#" data-tab="reports" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-200 text-gray-700">
+                 <!-- ### ALTERAÇÃO: Efeito hover mais suave ### -->
+                <a href="#" data-tab="reports" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700">
                     <i class="fas fa-chart-pie w-6 mr-3"></i>Dashboard
                 </a>
-                <a href="#" data-tab="stock" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-200 text-gray-700">
+                <a href="#" data-tab="stock" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700">
                     <i class="fas fa-warehouse w-6 mr-3"></i>Estoque
                 </a>
-                <a href="#" data-tab="register" data-role-required="admin" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-200 text-gray-700">
+                <a href="#" data-tab="register" data-role-required="admin" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700">
                     <i class="fas fa-plus-circle w-6 mr-3"></i>Cadastros
                 </a>
-                <a href="#" data-tab="outputs" data-role-required="admin" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-200 text-gray-700">
+                <a href="#" data-tab="outputs" data-role-required="admin" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700">
                     <i class="fas fa-arrow-circle-up w-6 mr-3"></i>Saídas
                 </a>
             </nav>
         </div>
         <div class="p-4 border-t border-gray-200">
-             <a href="#" data-tab="settings" data-role-required="admin" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-200 text-gray-700">
+             <a href="#" data-tab="settings" data-role-required="admin" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700">
                 <i class="fas fa-cog w-6 mr-3"></i>Configurações
             </a>
             <a href="#" id="logout-btn" class="flex items-center p-3 rounded-lg hover:bg-red-100 text-red-600 font-semibold">
@@ -126,16 +140,14 @@
     </div>
     <div id="sidebar-overlay" class="fixed inset-0 z-40 hidden"></div>
 
-    <!-- Loading Overlay -->
-    <div id="loading-overlay" class="fixed inset-0 bg-stone-900 bg-opacity-75 flex items-center justify-center z-[60]">
-        <div class="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
-    </div>
+    <!-- ### REMOÇÃO do Loading Overlay. SUBSTITUÍDO pela loading-bar ### -->
+    <div id="loading-bar"></div>
 
     <!-- Main App Section -->
     <div id="app-section" class="hidden">
         <div class="container mx-auto p-4 md:p-8 max-w-7xl">
             <header class="mb-8 text-center relative">
-                <button id="menu-toggle-btn" class="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-md hover:bg-gray-200 text-gray-600">
+                <button id="menu-toggle-btn" class="absolute left-0 top-1/2 -translate-y-1/2 p-2 rounded-md hover:bg-gray-100 text-gray-600">
                     <i class="fas fa-bars fa-lg"></i>
                 </button>
                 <h1 class="text-4xl md:text-5xl font-bold text-gray-900"><i class="fas fa-boxes-stacked mr-3 text-blue-500"></i>Estoque HCM</h1>
@@ -222,7 +234,7 @@
             
             cacheDomElements() {
                 this.state.dom = {
-                    loadingOverlay: document.getElementById('loading-overlay'),
+                    loadingBar: document.getElementById('loading-bar'), // ### NOVO ###
                     appSection: document.getElementById('app-section'),
                     authSection: document.getElementById('auth-section'),
                     authContainer: document.getElementById('auth-container'),
@@ -272,7 +284,7 @@
             handleAuthentication() {
                 onAuthStateChanged(this.auth, async (user) => {
                     this.setLoading(true);
-                    try { // ### ALTERAÇÃO ###: Envolvemos em try/catch para garantir que o loader seja desativado mesmo em caso de erro.
+                    try {
                         if (user) {
                             this.state.currentUser = user;
                             const userDocRef = doc(this.db, 'users', user.uid);
@@ -378,7 +390,7 @@
                     el.style.display = userRole === requiredRole ? displayStyle : 'none';
                 });
             
-                const activeTabEl = document.querySelector('.sidebar-link.bg-gray-200');
+                const activeTabEl = document.querySelector('.sidebar-link.bg-gray-100');
                 if (activeTabEl) {
                     const activeTabId = activeTabEl.dataset.tab;
                     const requiredRoleForActiveTab = activeTabEl.dataset.roleRequired;
@@ -387,7 +399,6 @@
                         this.switchTab('reports');
                     }
                 }
-                // ### ALTERAÇÃO ###: Atualiza a renderização da aba atual após aplicar as permissões.
                 this.renderCurrentTab();
             }
 
@@ -415,11 +426,9 @@
                 
                 this.clearAllListeners();
 
-                // ### ALTERAÇÃO ###: Cria uma promessa que resolve quando todos os dados iniciais forem carregados.
-                // Isso evita que a UI tente renderizar antes de ter os dados, uma das fontes do erro.
                 const initialDataPromise = new Promise((resolve) => {
                     let loadedCount = 0;
-                    const totalToLoad = this.state.userRole === 'admin' ? 6 : 5; // Aumenta se o usuário for admin
+                    const totalToLoad = this.state.userRole === 'admin' ? 6 : 5; 
 
                     const checkDone = () => {
                         loadedCount++;
@@ -438,12 +447,11 @@
                     }
                 });
 
-                await initialDataPromise; // Espera o carregamento inicial
+                await initialDataPromise;
 
-                this.injectPanelContent();
                 this.applyRolePermissions();
 
-                const initialTab = document.querySelector('.sidebar-link.bg-gray-200')?.dataset.tab || 'reports';
+                const initialTab = document.querySelector('.sidebar-link.bg-gray-100')?.dataset.tab || 'reports';
                 const initialTabLink = document.querySelector(`.sidebar-link[data-tab="${initialTab}"]`);
 
                 if (initialTabLink && initialTabLink.dataset.roleRequired && initialTabLink.dataset.roleRequired !== this.state.userRole) {
@@ -680,7 +688,6 @@
                 }
             }
             
-            // ### ALTERAÇÃO ###: Os ouvintes agora são mais específicos e granulares.
             listenForLocationUpdates(onInitialLoad) {
                  if (!this.state.firestoreRefs) return () => {};
                 let isFirstLoad = true;
@@ -705,9 +712,9 @@
                     this.state.locations = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })).sort((a,b) => a.name.localeCompare(b.name));
                     
                     if (this.state.isAuthReady) {
-                        this.debouncedRenderProducts(); // Atualiza o cabeçalho da tabela de estoque
-                        this.renderSettings(); // Atualiza a lista em Configurações
-                        this.updateRegisterForm(); // Atualiza os campos de quantidade no formulário de cadastro
+                        this.debouncedRenderProducts();
+                        this.renderSettings();
+                        this.updateRegisterForm();
                     }
 
                     if (isFirstLoad) {
@@ -762,7 +769,7 @@
                     this.state.categories = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })).sort((a, b) => a.name.localeCompare(b.name));
                     if (this.state.isAuthReady) {
                         this.renderCategories();
-                        this.debouncedRenderProducts(); // Precisa re-renderizar para mostrar nomes de categoria atualizados na tabela
+                        this.debouncedRenderProducts();
                     }
                      if (isFirstLoad) {
                         onInitialLoad();
@@ -800,16 +807,16 @@
                     }
                 }, (error) => console.error("Erro ao ouvir atualizações de usuários:", error));
             }
-            // ### FIM DAS ALTERAÇÕES NOS OUVINTES ###
-
+            
+            // ### ALTERAÇÃO: Função de carregamento atualizada para a nova barra ###
             setLoading(isLoading, isTableOnly = false) {
                 const tableLoader = this.state.dom?.tableLoadingIndicator;
-                const globalLoader = this.state.dom?.loadingOverlay;
+                const loadingBar = this.state.dom?.loadingBar;
 
                 if (isTableOnly && tableLoader) {
                     tableLoader.style.display = isLoading ? 'flex' : 'none';
-                } else if (globalLoader) {
-                    globalLoader.style.display = isLoading ? 'flex' : 'none';
+                } else if (loadingBar) {
+                    loadingBar.style.display = isLoading ? 'block' : 'none';
                 }
             }
         }
@@ -962,7 +969,7 @@
                         const checkbox = this.state.userRole === 'admin' ? `<input type="checkbox" class="product-checkbox h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" data-id="${product.id}" ${isSelected ? 'checked' : ''}>` : '';
                         
                         return `
-                            <tr class="hover:bg-gray-200 transition-colors ${isLowStock ? 'low-stock-warning' : ''} ${isSelected ? 'bg-blue-100' : ''}" data-product-id="${product.id}">
+                            <tr class="hover:bg-gray-100 transition-colors ${isLowStock ? 'low-stock-warning' : ''} ${isSelected ? 'bg-blue-100' : ''}" data-product-id="${product.id}">
                                 <td class="p-3 text-center">${checkbox}</td>
                                 <td class="p-3 font-medium text-gray-900 sticky left-0 bg-white dark:bg-gray-800 shadow-sm">${product.name} ${isLowStock ? '<i class="fas fa-exclamation-triangle text-amber-500 ml-1" title="Estoque baixo!"></i>' : ''}</td>
                                 <td class="p-3 text-center text-gray-700">${category?.name || 'N/A'}</td>
@@ -987,7 +994,7 @@
                             </button>
                         ` : '';
                         return `
-                            <div class="flex justify-between items-center p-2 bg-gray-100 rounded-lg">
+                            <div class="flex justify-between items-center p-2 bg-gray-50 rounded-lg">
                                 <span class="text-gray-900">${cat.name}</span>
                                 ${deleteButton}
                             </div>`;
@@ -1026,7 +1033,7 @@
                             </button>
                         ` : '';
                         return `
-                                <div class="flex justify-between items-center p-2 bg-gray-100 rounded-lg">
+                                <div class="flex justify-between items-center p-2 bg-gray-50 rounded-lg">
                                     <span class="text-gray-900">${loc.name}</span>
                                     ${deleteButton}
                                 </div>
@@ -1054,7 +1061,7 @@
                         <tr class="hover:bg-gray-50">
                             <td class="p-3 text-sm text-gray-700">${user.email}</td>
                             <td class="p-3 text-sm text-gray-700">
-                                <select id="role-select-${user.id}" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900 border-gray-300 focus:ring-blue-500 focus:border-blue-500" ${roleSelectDisabled ? 'disabled' : ''}>
+                                <select id="role-select-${user.id}" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-blue-500 focus:border-blue-500" ${roleSelectDisabled ? 'disabled' : ''}>
                                     <option value="viewer" ${user.role === 'viewer' ? 'selected' : ''}>Visualizador</option>
                                     <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Administrador</option>
                                 </select>
@@ -1089,7 +1096,6 @@
                     this.setLoading(false);
                 }
             },
-            // ### ALTERAÇÃO ###: `updateAllViews` foi removida.
             
             updateRegisterForm() {
                 const container = document.getElementById('add-product-form-locations-container');
@@ -1097,7 +1103,7 @@
                     container.innerHTML = this.state.locations.map(loc => 
                         `<label class="block">
                             <span class="text-gray-700">${loc.name}</span>
-                            <input type="number" id="qty-${loc.id}" name="qty-${loc.id}" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0">
+                            <input type="number" id="qty-${loc.id}" name="qty-${loc.id}" min="0" value="0" class="mt-1 block w-full rounded-md bg-white border border-gray-300 focus:border-blue-500 focus:bg-white focus:ring-blue-500">
                         </label>`
                     ).join('');
                 }
@@ -1139,23 +1145,21 @@
                 const panelToShow = document.getElementById(`panel-${tabId}`);
                 if (panelToShow) panelToShow.classList.remove('hidden');
                 
-                document.querySelectorAll('.sidebar-link').forEach(l => l.classList.toggle('bg-gray-200', l.dataset.tab === tabId));
+                document.querySelectorAll('.sidebar-link').forEach(l => l.classList.toggle('bg-gray-100', l.dataset.tab === tabId));
                 
-                // ### ALTERAÇÃO ###: Chama uma função para renderizar apenas a aba atual.
                 if (this.state.isAuthReady) {
                     this.renderCurrentTab();
                 }
             },
-            // ### ALTERAÇÃO ###: Nova função para renderizar apenas a aba visível.
             renderCurrentTab() {
-                const activeTabEl = document.querySelector('.sidebar-link.bg-gray-200');
+                const activeTabEl = document.querySelector('.sidebar-link.bg-gray-100');
                 if (!activeTabEl) return;
                 
                 const tabId = activeTabEl.dataset.tab;
 
                 switch(tabId) {
                     case 'stock':
-                        this.renderCategories(); // O filtro de categoria precisa ser populado
+                        this.renderCategories();
                         this.debouncedRenderProducts();
                         break;
                     case 'reports':
@@ -1183,7 +1187,7 @@
                 const quantitiesHtml = this.state.locations.map(loc => `
                     <div>
                         <label for="edit-qty-${loc.id}" class="block text-sm font-medium text-gray-700">${loc.name}</label>
-                        <input type="number" id="edit-qty-${loc.id}" value="${productQuantities[loc.id] || 0}" min="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0">
+                        <input type="number" id="edit-qty-${loc.id}" value="${productQuantities[loc.id] || 0}" min="0" class="mt-1 block w-full rounded-md bg-white border border-gray-300 focus:border-blue-500 focus:bg-white focus:ring-blue-500">
                     </div>
                 `).join('');
                 quantitiesContainer.innerHTML = `<div class="grid grid-cols-2 gap-4">${quantitiesHtml}</div>`;
@@ -1213,6 +1217,8 @@
                 if (!reportsPanel || reportsPanel.classList.contains('hidden') || !this.state.isAuthReady) return;
                 
                 this.updateDashboardView();
+                this.renderLowStockAlerts();
+                this.renderTopMovements();
             },
             updateDashboardView() {
                 if(!this.state.isAuthReady) return;
@@ -1227,8 +1233,6 @@
                     btn.classList.toggle('text-gray-700', btn.dataset.type !== chartType);
                 });
                 this.renderMovementsChart();
-                this.renderLowStockAlerts();
-                this.renderTopMovements();
             },
             renderMovementsChart() {
                 const ctx = document.getElementById('movements-chart')?.getContext('2d');
@@ -1270,7 +1274,7 @@
                 });
                 
                 if (this.state.chartInstance) this.state.chartInstance.destroy();
-                const gridColor = 'rgba(0, 0, 0, 0.1)'; const textColor = '#111827';
+                const gridColor = 'rgba(0, 0, 0, 0.05)'; const textColor = '#111827';
                 let chartConfig;
                 if (chartType === 'pie') {
                     const totalEntradas = filteredMovements.filter(m => m.type === 'entrada').reduce((sum, m) => sum + m.quantity, 0);
@@ -1650,24 +1654,25 @@
                     return;
                 }
                 
+                // ### ALTERAÇÃO: Input e Select com estilo padronizado
                 if (this.state.dom.panels.stock) {
-                    this.state.dom.panels.stock.innerHTML = `<div class="space-y-6"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 relative"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-gray-100 rounded-lg text-gray-900"></div><select id="stock-category-filter" class="p-2 bg-gray-100 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-gray-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar hidden mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-red-500 text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-red-600 transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div><div id="table-loading-indicator" class="hidden"><i class="fas fa-spinner animate-spin fa-2x text-blue-500"></i></div><div class="overflow-x-auto"><table class="w-full text-left min-w-[1000px] sm:min-w-[1400px]"><thead></thead><tbody id="product-list" class="divide-y divide-gray-200"></tbody></table></div><div id="pagination-controls" class="flex justify-between items-center mt-4"></div><div id="empty-state" class="hidden text-center py-12"><i class="fas fa-box-open fa-4x text-gray-400"></i><p id="empty-state-message" class="mt-4 text-gray-500">Nenhum produto.</p></div></div></div>`;
+                    this.state.dom.panels.stock.innerHTML = `<div class="space-y-6"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 relative"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-gray-50 rounded-lg text-gray-900 border border-gray-300"></div><select id="stock-category-filter" class="p-2 bg-gray-50 border border-gray-300 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-red-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-red-700 transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-gray-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar hidden mb-4 p-2 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-red-500 text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-red-600 transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div><div id="table-loading-indicator" class="hidden"><i class="fas fa-spinner animate-spin fa-2x text-blue-500"></i></div><div class="overflow-x-auto"><table class="w-full text-left min-w-[1000px] sm:min-w-[1400px]"><thead></thead><tbody id="product-list" class="divide-y divide-gray-200"></tbody></table></div><div id="pagination-controls" class="flex justify-between items-center mt-4"></div><div id="empty-state" class="hidden text-center py-12"><i class="fas fa-box-open fa-4x text-gray-400"></i><p id="empty-state-message" class="mt-4 text-gray-500">Nenhum produto.</p></div></div></div>`;
                 }
                 
                 if (this.state.dom.panels.register) {
-                    this.state.dom.panels.register.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Gerenciar Categorias</h2><form id="add-category-form" class="flex gap-2 mb-4"><input type="text" id="category-name" placeholder="Nova categoria" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12 flex-shrink-0"><i class="fas fa-plus"></i></button></form><div id="category-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Adicionar Produto</h2><form id="add-product-form" class="space-y-4"><label class="block"><span class="text-gray-700">Nome</span><input type="text" id="product-name" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Categoria</span><select id="product-category-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option value="">Selecione...</option></select></label><div id="add-product-form-locations-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div><div class="grid grid-cols-2 gap-4"><label class="block"><span class="text-gray-700">Est. Mínimo</span><input type="number" id="product-min-stock" min="0" value="0" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required></label><label class="block"><span class="text-gray-700">Unid.</span><select id="product-unit-select" class="mt-1 block w-full rounded-md bg-gray-100 border-transparent focus:border-gray-500 focus:bg-white focus:ring-0" required><option>UND</option><option>CX</option><option>KG</option><option>G</option><option>L</option><option>ML</option></select></label></div><button type="submit" class="w-full mt-4 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-plus mr-2"></i>Adicionar Produto</button></form></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-file-excel mr-2 text-green-500"></i>Operações em Lote (Excel)</h2><div class="flex flex-col md:flex-row gap-6"><div class="flex-1 bg-gray-50 p-4 rounded-lg flex flex-col items-center text-center"><i class="fas fa-plus-circle fa-2x text-blue-500 mb-2"></i><h3 class="font-semibold mb-1 text-gray-900">Inserir Novos Produtos</h3><p class="text-sm text-gray-600 mb-3">Baixe o modelo, preencha e importe o arquivo Excel para adicionar vários produtos de uma vez.</p><div class="flex gap-2 w-full"><button id="download-template-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-download mr-2"></i>Baixar Modelo</button><input type="file" id="excel-insert-input" accept=".xlsx, .xls" class="hidden"><button id="upload-insert-trigger-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition"><i class="fas fa-upload mr-2"></i>Importar</button></div><p id="excel-insert-filename" class="text-xs mt-2 text-gray-500"></p></div></div></div>`;
+                    this.state.dom.panels.register.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Gerenciar Categorias</h2><form id="add-category-form" class="flex gap-2 mb-4"><input type="text" id="category-name" placeholder="Nova categoria" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-blue-500 focus:border-blue-500" required><button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12 flex-shrink-0"><i class="fas fa-plus"></i></button></form><div id="category-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Adicionar Produto</h2><form id="add-product-form" class="space-y-4"><label class="block"><span class="text-gray-700">Nome</span><input type="text" id="product-name" class="mt-1 block w-full rounded-md bg-white border border-gray-300 focus:border-blue-500 focus:bg-white focus:ring-blue-500" required></label><label class="block"><span class="text-gray-700">Categoria</span><select id="product-category-select" class="mt-1 block w-full rounded-md bg-white border border-gray-300 focus:border-blue-500 focus:bg-white focus:ring-blue-500" required><option value="">Selecione...</option></select></label><div id="add-product-form-locations-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4"></div><div class="grid grid-cols-2 gap-4"><label class="block"><span class="text-gray-700">Est. Mínimo</span><input type="number" id="product-min-stock" min="0" value="0" class="mt-1 block w-full rounded-md bg-white border border-gray-300 focus:border-blue-500 focus:bg-white focus:ring-blue-500" required></label><label class="block"><span class="text-gray-700">Unid.</span><select id="product-unit-select" class="mt-1 block w-full rounded-md bg-white border border-gray-300 focus:border-blue-500 focus:bg-white focus:ring-blue-500" required><option>UND</option><option>CX</option><option>KG</option><option>G</option><option>L</option><option>ML</option></select></label></div><button type="submit" class="w-full mt-4 bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-plus mr-2"></i>Adicionar Produto</button></form></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-file-excel mr-2 text-green-500"></i>Operações em Lote (Excel)</h2><div class="flex flex-col md:flex-row gap-6"><div class="flex-1 bg-gray-50 p-4 rounded-lg flex flex-col items-center text-center border"><i class="fas fa-plus-circle fa-2x text-blue-500 mb-2"></i><h3 class="font-semibold mb-1 text-gray-900">Inserir Novos Produtos</h3><p class="text-sm text-gray-600 mb-3">Baixe o modelo, preencha e importe o arquivo Excel para adicionar vários produtos de uma vez.</p><div class="flex gap-2 w-full"><button id="download-template-btn" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition"><i class="fas fa-download mr-2"></i>Baixar Modelo</button><input type="file" id="excel-insert-input" accept=".xlsx, .xls" class="hidden"><button id="upload-insert-trigger-btn" class="w-full bg-green-600 text-white py-2 px-4 rounded-lg hover:bg-green-700 transition"><i class="fas fa-upload mr-2"></i>Importar</button></div><p id="excel-insert-filename" class="text-xs mt-2 text-gray-500"></p></div></div></div>`;
                 }
 
                 if (this.state.dom.panels.outputs) {
-                    this.state.dom.panels.outputs.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 max-w-2xl mx-auto"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Registrar Saída de Estoque</h2><form id="add-output-form" class="space-y-4"><div><label for="output-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="output-product-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="">Selecione um produto...</option></select></div><div id="output-location-selector" class="space-y-2"></div><div><label for="output-quantity" class="block text-sm mb-1 text-gray-700">Quantidade da Saída</label><input type="number" id="output-quantity" min="1" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required disabled></div><div><label for="output-motive-select" class="block text-sm mb-1 text-gray-700">Motivo da Saída</label><select id="output-motive-select" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><option value="Venda">Venda</option><option value="Perda">Perda</option><option value="Uso Interno">Uso Interno</option><option value="Outro">Outro</option></select></div><p id="output-stock-info" class="text-sm text-gray-500 font-medium h-5"></p><button type="submit" class="w-full mt-4 bg-red-600 text-white font-bold p-2 rounded-lg hover:bg-red-700 transition"><i class="fas fa-arrow-circle-up mr-2"></i>Registrar Saída</button></form></div>`;
+                    this.state.dom.panels.outputs.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 max-w-2xl mx-auto"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Registrar Saída de Estoque</h2><form id="add-output-form" class="space-y-4"><div><label for="output-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="output-product-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-blue-500 focus:border-blue-500" required><option value="">Selecione um produto...</option></select></div><div id="output-location-selector" class="space-y-2"></div><div><label for="output-quantity" class="block text-sm mb-1 text-gray-700">Quantidade da Saída</label><input type="number" id="output-quantity" min="1" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-blue-500 focus:border-blue-500" required disabled></div><div><label for="output-motive-select" class="block text-sm mb-1 text-gray-700">Motivo da Saída</label><select id="output-motive-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-blue-500 focus:border-blue-500" required><option value="Venda">Venda</option><option value="Perda">Perda</option><option value="Uso Interno">Uso Interno</option><option value="Outro">Outro</option></select></div><p id="output-stock-info" class="text-sm text-gray-500 font-medium h-5"></p><button type="submit" class="w-full mt-4 bg-red-600 text-white font-bold p-2 rounded-lg hover:bg-red-700 transition"><i class="fas fa-arrow-circle-up mr-2"></i>Registrar Saída</button></form></div>`;
                 }
 
                 if (this.state.dom.panels.reports) {
-                    this.state.dom.panels.reports.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 mb-8"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Dashboard de Movimentações</h2><div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border"><div><label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Gráfico</label><div id="chart-type-selector" class="flex rounded-md shadow-sm"><button data-type="bar" class="chart-type-btn relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Barra</button><button data-type="line" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Linha</button><button data-type="pie" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Pizza</button></div></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Período</label><select id="period-selector" class="dashboard-control block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="7days">Últimos 7 dias</option><option value="30days">Últimos 30 dias</option><option value="this_month">Este Mês</option><option value="last_month">Mês Passado</option><option value="custom">Personalizado</option></select></div><div id="custom-date-range-selector" class="hidden md:col-span-1 grid grid-cols-2 gap-4"><div><label for="dashboard-date-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="dashboard-date-start" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="dashboard-date-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="dashboard-date-end" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div></div></div><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><div class="md:col-span-2 bg-gray-50 p-4 rounded-lg h-96"><canvas id="movements-chart"></canvas></div><div class="space-y-4"><div class="bg-amber-100 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-amber-800">Alerta de Estoque Baixo</h3><ul id="low-stock-list" class="space-y-2 max-h-40 overflow-y-auto"></ul><p id="low-stock-empty" class="text-sm text-gray-500 hidden">Tudo em ordem!</p></div><div class="bg-gray-50 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-green-800">Top 5 Entradas Recentes</h3><ul id="top-entradas-list" class="space-y-2"></ul></div><div class="bg-gray-50 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-red-800">Top 5 Saídas Recentes</h3><ul id="top-saidas-list" class="space-y-2"></ul></div></div></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-history mr-2 text-indigo-500"></i>Relatório Histórico</h2><div class="flex items-end gap-4"><div class="flex-grow"><label for="report-date" class="block text-sm font-medium text-gray-700">Verificar estoque na data:</label><input type="date" id="report-date" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg"></div><button id="generate-report-btn" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Gerar Relatório</button></div><div id="report-output" class="hidden mt-6"><div id="print-area"><h3 id="report-title" class="text-xl font-bold text-center"></h3><p id="report-subtitle" class="text-center text-gray-500 mb-4"></p><table class="w-full text-left"><thead class="border-b-2 border-gray-300"><tr><th class="p-3">Produto</th><th class="p-3 text-center">Categoria</th><th class="p-3 text-center">Unidade</th><th class="p-3 text-center">Qtd. em Estoque</th></tr></thead><tbody id="report-list" class="divide-y divide-gray-200"></tbody></table></div><button id="print-report-btn" class="mt-4 bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-800 transition float-right"><i class="fas fa-print mr-2"></i>Imprimir</button></div></div>`;
+                    this.state.dom.panels.reports.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 mb-8"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Dashboard de Movimentações</h2><div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border"><div><label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Gráfico</label><div id="chart-type-selector" class="flex rounded-md shadow-sm"><button data-type="bar" class="chart-type-btn relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Barra</button><button data-type="line" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Linha</button><button data-type="pie" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Pizza</button></div></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Período</label><select id="period-selector" class="dashboard-control block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="7days">Últimos 7 dias</option><option value="30days">Últimos 30 dias</option><option value="this_month">Este Mês</option><option value="last_month">Mês Passado</option><option value="custom">Personalizado</option></select></div><div id="custom-date-range-selector" class="hidden md:col-span-1 grid grid-cols-2 gap-4"><div><label for="dashboard-date-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="dashboard-date-start" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="dashboard-date-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="dashboard-date-end" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div></div></div><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><div class="md:col-span-2 bg-gray-50 p-4 rounded-lg h-96 border"><canvas id="movements-chart"></canvas></div><div class="space-y-4"><div class="bg-amber-100 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-amber-800">Alerta de Estoque Baixo</h3><ul id="low-stock-list" class="space-y-2 max-h-40 overflow-y-auto"></ul><p id="low-stock-empty" class="text-sm text-gray-500 hidden">Tudo em ordem!</p></div><div class="bg-gray-50 p-4 rounded-lg border"><h3 class="font-semibold mb-2 text-green-800">Top 5 Entradas Recentes</h3><ul id="top-entradas-list" class="space-y-2"></ul></div><div class="bg-gray-50 p-4 rounded-lg border"><h3 class="font-semibold mb-2 text-red-800">Top 5 Saídas Recentes</h3><ul id="top-saidas-list" class="space-y-2"></ul></div></div></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-history mr-2 text-indigo-500"></i>Relatório Histórico</h2><div class="flex items-end gap-4"><div class="flex-grow"><label for="report-date" class="block text-sm font-medium text-gray-700">Verificar estoque na data:</label><input type="date" id="report-date" class="mt-1 block w-full p-2 bg-white border border-gray-300 rounded-lg"></div><button id="generate-report-btn" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Gerar Relatório</button></div><div id="report-output" class="hidden mt-6"><div id="print-area"><h3 id="report-title" class="text-xl font-bold text-center"></h3><p id="report-subtitle" class="text-center text-gray-500 mb-4"></p><table class="w-full text-left"><thead class="border-b-2 border-gray-300"><tr><th class="p-3">Produto</th><th class="p-3 text-center">Categoria</th><th class="p-3 text-center">Unidade</th><th class="p-3 text-center">Qtd. em Estoque</th></tr></thead><tbody id="report-list" class="divide-y divide-gray-200"></tbody></table></div><button id="print-report-btn" class="mt-4 bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-800 transition float-right"><i class="fas fa-print mr-2"></i>Imprimir</button></div></div>`;
                 }
                 
                 if (this.state.dom.panels.settings) {
-                    this.state.dom.panels.settings.innerHTML = `<div class="space-y-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Configurações Gerais</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 class="text-lg font-medium text-gray-900 mb-2">Gerenciar Localidades</h3><form id="add-location-form" class="flex gap-2 mb-4"><input type="text" id="location-name" placeholder="Nova localidade" class="w-full p-2 bg-gray-100 rounded-lg text-gray-900" required><button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12 flex-shrink-0"><i class="fas fa-plus"></i></button></form><div id="location-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div><h3 class="text-lg font-medium text-gray-900 mb-2">Configurações de Exibição</h3><div class="space-y-4"><div><label for="items-per-page-input" class="block text-sm font-medium text-gray-700">Itens por página na tabela</label><input type="number" id="items-per-page-input" min="1" class="mt-1 block w-full p-2 bg-gray-100 rounded-lg"></div><button id="save-settings-btn" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition">Salvar Configurações Gerais</button></div></div></div></div><div id="user-management-section" class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200" data-role-required="admin"><h2 class="text-2xl font-semibold mb-6 text-gray-900"><i class="fas fa-users-cog mr-2"></i>Gerenciar Usuários</h2><div class="overflow-x-auto"><table class="w-full text-left"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr><th class="p-3 text-sm font-semibold text-gray-700">Email</th><th class="p-3 text-sm font-semibold text-gray-700">Papel</th><th class="p-3 text-sm font-semibold text-gray-700 text-right">Ação</th></tr></thead><tbody id="user-list-tbody" class="divide-y divide-gray-200"></tbody></table></div><p class="mt-4 text-xs text-gray-500 italic">Administradores não podem alterar seu próprio papel através desta interface.</p></div></div>`;
+                    this.state.dom.panels.settings.innerHTML = `<div class="space-y-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Configurações Gerais</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 class="text-lg font-medium text-gray-900 mb-2">Gerenciar Localidades</h3><form id="add-location-form" class="flex gap-2 mb-4"><input type="text" id="location-name" placeholder="Nova localidade" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-blue-500 focus:border-blue-500" required><button type="submit" class="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition flex items-center justify-center w-12 flex-shrink-0"><i class="fas fa-plus"></i></button></form><div id="location-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div><h3 class="text-lg font-medium text-gray-900 mb-2">Configurações de Exibição</h3><div class="space-y-4"><div><label for="items-per-page-input" class="block text-sm font-medium text-gray-700">Itens por página na tabela</label><input type="number" id="items-per-page-input" min="1" class="mt-1 block w-full p-2 bg-white border border-gray-300 rounded-lg"></div><button id="save-settings-btn" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition">Salvar Configurações Gerais</button></div></div></div></div><div id="user-management-section" class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200" data-role-required="admin"><h2 class="text-2xl font-semibold mb-6 text-gray-900"><i class="fas fa-users-cog mr-2"></i>Gerenciar Usuários</h2><div class="overflow-x-auto"><table class="w-full text-left"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr><th class="p-3 text-sm font-semibold text-gray-700">Email</th><th class="p-3 text-sm font-semibold text-gray-700">Papel</th><th class="p-3 text-sm font-semibold text-gray-700 text-right">Ação</th></tr></thead><tbody id="user-list-tbody" class="divide-y divide-gray-200"></tbody></table></div><p class="mt-4 text-xs text-gray-500 italic">Administradores não podem alterar seu próprio papel através desta interface.</p></div></div>`;
                 }
 
                 this.applyRolePermissions();

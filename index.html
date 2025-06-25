@@ -374,7 +374,6 @@
             showAuthUI() {
                 this.state.dom.authSection.classList.remove('hidden');
                 this.state.dom.authSection.classList.add('flex');
-                // CORREÇÃO: Corrigido o método para usar classList.add
                 this.state.dom.appSection.classList.add('hidden');
                 this.state = {
                     ...this.state, products: [], categories: [], locations: [],
@@ -784,8 +783,9 @@
                     this.state.products = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
                     if (this.state.isAuthReady) {
                         this.debouncedRenderProducts();
-                        this.updateDashboardView();
                         this.populateProductSelects();
+                        // CORRIGIDO: Chama a função principal do dashboard para atualizar tudo
+                        this.renderDashboard(); 
                     }
                     if (isFirstLoad) {
                         onInitialLoad();
@@ -816,7 +816,8 @@
                 return onSnapshot(query(this.state.firestoreRefs.movements), (snapshot) => {
                     this.state.movements = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
                     if (this.state.isAuthReady) {
-                        this.updateDashboardView();
+                        // CORRIGIDO: Chama a função principal do dashboard para atualizar tudo
+                        this.renderDashboard();
                     }
                     if (isFirstLoad) {
                         onInitialLoad();

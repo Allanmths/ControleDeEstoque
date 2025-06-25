@@ -374,7 +374,8 @@
             showAuthUI() {
                 this.state.dom.authSection.classList.remove('hidden');
                 this.state.dom.authSection.classList.add('flex');
-                this.state.dom.appSection.add('hidden');
+                // CORREÇÃO: Corrigido o método para usar classList.add
+                this.state.dom.appSection.classList.add('hidden');
                 this.state = {
                     ...this.state, products: [], categories: [], locations: [],
                     movements: [], selectedProducts: [], currentPage: 1, allUsers: []
@@ -488,7 +489,6 @@
                     if (form.id === 'add-product-form') await this.handleAddProduct(form);
                     if (form.id === 'add-output-form') await this.handleAddOutput(form);
                     if (form.id === 'add-location-form') await this.handleAddLocation(form);
-                    // NOVO: Adiciona o handler para o formulário de transferência
                     if (form.id === 'transfer-stock-form') await this.handleTransferStock(form);
                 } catch (error) {
                     this.showAlert(error.message, true);
@@ -564,7 +564,6 @@
                  this.debouncedRenderProducts();
              }
              if (target.id === 'output-product-select') this.handleOutputProductSelection(target.value);
-             // NOVO: Adiciona handlers para o formulário de transferência
              if (target.id === 'transfer-product-select') this.handleTransferProductSelection(target.value);
              if (target.id === 'transfer-from-location-select') this.handleTransferFromLocationSelection(target.value);
              
@@ -939,7 +938,6 @@
                     quantityInput.placeholder = '';
                 }
             },
-            // NOVO: Função para lidar com a transferência de estoque
             async handleTransferStock(form) {
                 const productId = form.querySelector('#transfer-product-select').value;
                 const fromLocationId = form.querySelector('#transfer-from-location-select').value;
@@ -977,14 +975,12 @@
                     transaction.update(productRef, { quantities: newQuantities });
 
                     const now = serverTimestamp();
-                    // Log da saída
                     const outMovementRef = doc(collection(this.db, this.state.firestoreRefs.movements.path));
                     transaction.set(outMovementRef, {
                         productId, type: 'saida', quantity,
                         motive: 'Transferência (Saída)', location: fromLocationId, date: now
                     });
                     
-                    // Log da entrada
                     const inMovementRef = doc(collection(this.db, this.state.firestoreRefs.movements.path));
                     transaction.set(inMovementRef, {
                         productId, type: 'entrada', quantity,
@@ -994,7 +990,7 @@
 
                 this.showAlert('Transferência realizada com sucesso!');
                 form.reset();
-                this.handleTransferProductSelection(''); // Reseta os selects do formulário
+                this.handleTransferProductSelection(''); 
             },
             async logMovement(productId, type, quantity, motive) {
                 if (!this.state.firestoreRefs) return;
@@ -1243,7 +1239,6 @@
                         selectEl.value = currentValue;
                     } else {
                         selectEl.value = "";
-                        // NOVO: Resetar formulários dependentes se o produto selecionado for removido
                         if (selectId === 'output-product-select') this.handleOutputProductSelection('');
                         if (selectId === 'transfer-product-select') this.handleTransferProductSelection('');
                     }
@@ -1775,7 +1770,6 @@
                     this.showAlert('Nenhum produto válido encontrado no arquivo Excel para processar.');
                 }
             },
-            // MODIFICADO: injeta o conteúdo dos painéis, incluindo o novo card de transferência
             injectPanelContent() {
                 if (!this.state.dom || !this.state.dom.panels) {
                     console.error("DOM ou painéis não foram cacheados corretamente.");
@@ -1812,7 +1806,6 @@
                 if (this.state.dom.panels.outputs) {
                     this.state.dom.panels.outputs.innerHTML = `
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <!-- Card de Saída de Estoque (Existente) -->
                             <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
                                 <h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-arrow-circle-up mr-2 text-danger"></i>Registrar Saída</h2>
                                 <form id="add-output-form" class="space-y-4">
@@ -1824,8 +1817,6 @@
                                     <button type="submit" class="w-full mt-4 bg-danger text-white font-bold p-2 rounded-lg hover:bg-danger-hover transition">Registrar Saída</button>
                                 </form>
                             </div>
-
-                            <!-- NOVO: Card de Transferência de Estoque -->
                             <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
                                 <h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-exchange-alt mr-2 text-primary"></i>Transferir Estoque</h2>
                                 <form id="transfer-stock-form" class="space-y-4">
@@ -1926,14 +1917,12 @@
                     stockInfoEl.textContent = 'Produto não encontrado.';
                 }
             },
-            // NOVO: Handler para seleção de produto no formulário de transferência
             handleTransferProductSelection(productId) {
                 const infoEl = document.getElementById('transfer-stock-info');
                 const fromSelect = document.getElementById('transfer-from-location-select');
                 const toSelect = document.getElementById('transfer-to-location-select');
                 const qtyInput = document.getElementById('transfer-quantity');
 
-                // Reset all dependent fields
                 if(infoEl) infoEl.textContent = '';
                 if(fromSelect) { fromSelect.innerHTML = '<option value="">Selecione a origem</option>'; fromSelect.disabled = true; }
                 if(toSelect) { toSelect.innerHTML = '<option value="">Selecione o destino</option>'; toSelect.disabled = true; }
@@ -1958,13 +1947,11 @@
                     }
                 }
             },
-            // NOVO: Handler para seleção de localidade de origem na transferência
             handleTransferFromLocationSelection(fromLocationId) {
                 const productId = document.getElementById('transfer-product-select').value;
                 const toSelect = document.getElementById('transfer-to-location-select');
                 const qtyInput = document.getElementById('transfer-quantity');
                 
-                // Reset fields
                 if (toSelect) { toSelect.innerHTML = '<option value="">Selecione o destino</option>'; toSelect.disabled = true; }
                 if (qtyInput) { qtyInput.value = ''; qtyInput.disabled = true; qtyInput.placeholder = ''; }
 

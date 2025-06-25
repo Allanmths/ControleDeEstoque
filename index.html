@@ -127,7 +127,6 @@
                 <h2 class="text-xl font-bold text-gray-900">Menu</h2>
             </div>
             <nav id="sidebar-nav" class="p-4 space-y-2">
-                <!-- NOVO: Link da Aba Início -->
                 <a href="#" data-tab="home" class="sidebar-link flex items-center p-3 rounded-lg bg-gray-100 text-gray-700">
                     <i class="fas fa-home w-6 mr-3"></i>Início
                 </a>
@@ -170,7 +169,6 @@
             </header>
             
             <main id="tab-content">
-                <!-- NOVO: Painel da Aba Início -->
                 <div id="panel-home" class="tab-panel"></div>
                 <div id="panel-reports" class="tab-panel hidden"></div>
                 <div id="panel-stock" class="tab-panel hidden"></div>
@@ -258,7 +256,6 @@
                     loginFormContainer: document.getElementById('login-form-container'),
                     registerFormContainer: document.getElementById('register-form-container'),
                     contentEl: document.getElementById('tab-content'),
-                    // MODIFICADO: Adicionado o painel 'home'
                     panels: { home: document.getElementById('panel-home'), stock: document.getElementById('panel-stock'), register: document.getElementById('panel-register'), outputs: document.getElementById('panel-outputs'), reports: document.getElementById('panel-reports'), settings: document.getElementById('panel-settings') },
                     sidebar: { menu: document.getElementById('sidebar-menu'), nav: document.getElementById('sidebar-nav'), overlay: document.getElementById('sidebar-overlay'), toggleBtn: document.getElementById('menu-toggle-btn'), logoutBtn: document.getElementById('logout-btn') },
                     modals: {
@@ -398,7 +395,7 @@
                 document.querySelectorAll('[data-role-required]').forEach(el => {
                     const requiredRole = el.getAttribute('data-role-required');
                     let displayStyle = 'block';
-                    if (el.tagName === 'A' || el.tagName === 'BUTTON' || el.tagName === 'DIV' && el.classList.contains('action-card')) { // MODIFICADO
+                    if (el.tagName === 'A' || el.tagName === 'BUTTON' || el.tagName === 'DIV' && el.classList.contains('action-card')) {
                         displayStyle = 'flex';
                     } else if (el.tagName === 'DIV' && (el.classList.contains('grid') || el.style.display === 'grid')) {
                         displayStyle = 'grid';
@@ -412,7 +409,7 @@
                     const requiredRoleForActiveTab = activeTabEl.dataset.roleRequired;
                     if (requiredRoleForActiveTab && userRole !== requiredRoleForActiveTab) {
                         this.showAlert(`Você não tem mais permissão para acessar a aba '${activeTabId}'. Redirecionando...`, true);
-                        this.switchTab('home'); // MODIFICADO: Redireciona para home
+                        this.switchTab('home');
                     }
                 }
                 this.renderCurrentTab();
@@ -467,7 +464,6 @@
 
                 this.applyRolePermissions();
 
-                // MODIFICADO: Aba inicial padrão é 'home'
                 const initialTab = document.querySelector('.sidebar-link.bg-gray-100')?.dataset.tab || 'home';
                 const initialTabLink = document.querySelector(`.sidebar-link[data-tab="${initialTab}"]`);
 
@@ -505,9 +501,8 @@
             
             handleContentClick(e) {
                 const button = e.target.closest('button');
-                const actionCard = e.target.closest('.action-card'); // NOVO
+                const actionCard = e.target.closest('.action-card');
 
-                // NOVO: Handle click em action cards para navegação
                 if (actionCard && actionCard.dataset.tab) {
                     e.preventDefault();
                     this.switchTab(actionCard.dataset.tab);
@@ -801,7 +796,7 @@
                         this.debouncedRenderProducts();
                         this.populateProductSelects();
                         this.renderDashboard(); 
-                        this.renderHomeTab(); // NOVO
+                        this.renderHomeTab();
                     }
                     if (isFirstLoad) {
                         onInitialLoad();
@@ -818,7 +813,7 @@
                     if (this.state.isAuthReady) {
                         this.renderCategories();
                         this.debouncedRenderProducts();
-                        this.renderHomeTab(); // NOVO: atualiza contagem de categorias
+                        this.renderHomeTab();
                     }
                      if (isFirstLoad) {
                         onInitialLoad();
@@ -834,7 +829,7 @@
                     this.state.movements = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
                     if (this.state.isAuthReady) {
                         this.renderDashboard();
-                        this.renderHomeTab(); // NOVO
+                        this.renderHomeTab();
                     }
                     if (isFirstLoad) {
                         onInitialLoad();
@@ -1014,9 +1009,28 @@
                 if (!this.state.firestoreRefs) return;
                 await addDoc(this.state.firestoreRefs.movements, { productId, type, quantity, motive, date: serverTimestamp() });
             },
+            // CORRIGIDO: renderProducts agora também renderiza o cabeçalho dinamicamente
             renderProducts() {
                 const stockPanel = document.getElementById('panel-stock');
                 if (!stockPanel) return;
+                
+                // NOVO: Bloco para renderizar o cabeçalho da tabela dinamicamente
+                const productTableHeaderRow = stockPanel.querySelector('#product-table-header-row');
+                if(productTableHeaderRow) {
+                    const isAdmin = this.state.userRole === 'admin';
+                    const tableCheckboxHeader = isAdmin ? `<th class="p-3 w-4"><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"></th>` : `<th class="p-3 w-4"></th>`;
+                    const tableActionsHeader = isAdmin ? `<th class="p-3 text-right text-gray-900 whitespace-nowrap font-medium">Ações</th>` : `<th></th>`;
+                    const locationHeaders = this.state.locations.map(loc => `<th class="p-3 text-center text-gray-900 whitespace-nowrap font-medium">${loc.name}</th>`).join('');
+
+                    productTableHeaderRow.innerHTML = `
+                        ${tableCheckboxHeader}
+                        <th class="p-3 text-gray-900 sticky left-0 bg-white hover:bg-white whitespace-nowrap font-medium">Produto</th>
+                        <th class="p-3 text-center text-gray-900 whitespace-nowrap font-medium">Categoria</th>
+                        <th class="p-3 text-center text-gray-900 font-bold whitespace-nowrap">Total</th>
+                        ${locationHeaders}
+                        ${tableActionsHeader}
+                    `;
+                }
 
                 const productListContainer = stockPanel.querySelector('#product-list-container');
                 const productTableBody = stockPanel.querySelector('#product-table-body');
@@ -1050,7 +1064,7 @@
             renderProductRow(product) {
                 const isAdmin = this.state.userRole === 'admin';
                 const category = this.state.categories.find(c => c.id === product.category);
-                const isLowStock = product.totalQuantity <= product.minStock;
+                const isLowStock = product.minStock > 0 && product.totalQuantity <= product.minStock;
                 const isSelected = this.state.selectedProducts.includes(product.id);
                 
                 const quantitiesHtml = this.state.locations.map(loc => `<td class="p-3 text-center text-gray-800">${(product.quantities || {})[loc.id] || 0}</td>`).join('');
@@ -1074,7 +1088,7 @@
             renderProductCard(product) {
                 const isAdmin = this.state.userRole === 'admin';
                 const category = this.state.categories.find(c => c.id === product.category);
-                const isLowStock = product.totalQuantity <= product.minStock;
+                const isLowStock = product.minStock > 0 && product.totalQuantity <= product.minStock;
                 const isSelected = this.state.selectedProducts.includes(product.id);
                 
                 const quantitiesHtml = this.state.locations.map(loc => `
@@ -1298,7 +1312,6 @@
                 const tabId = activeTabEl.dataset.tab;
 
                 switch(tabId) {
-                    // NOVO: Adiciona o caso da aba 'home'
                     case 'home':
                         this.renderHomeTab();
                         break;
@@ -1516,12 +1529,10 @@
                 renderList('top-entradas-list', sorted.filter(m => m.type === 'entrada').slice(0, 5));
                 renderList('top-saidas-list', sorted.filter(m => m.type === 'saida').slice(0, 5));
             },
-            // NOVO: Função para renderizar a aba Início
             renderHomeTab() {
                 const homePanel = this.state.dom.panels.home;
                 if (!homePanel || homePanel.classList.contains('hidden') || !this.state.isAuthReady) return;
                 
-                // Renderizar estatísticas
                 const totalProducts = this.state.products.length;
                 const totalItems = this.state.products.reduce((acc, p) => acc + (p.totalQuantity || 0), 0);
                 const totalCategories = this.state.categories.length;
@@ -1532,7 +1543,6 @@
                 document.getElementById('stat-total-categories').textContent = totalCategories;
                 document.getElementById('stat-low-stock').textContent = lowStockCount;
 
-                // Renderizar feed de atividade recente
                 const activityFeedEl = document.getElementById('recent-activity-feed');
                 if (activityFeedEl) {
                     const recentMovements = [...this.state.movements].sort((a,b) => (b.date?.seconds || 0) - (a.date?.seconds || 0)).slice(0, 7);
@@ -1857,65 +1867,29 @@
                     this.showAlert('Nenhum produto válido encontrado no arquivo Excel para processar.');
                 }
             },
-            // MODIFICADO: Função para injetar o conteúdo de todos os painéis, incluindo o novo painel 'home'
+            // CORRIGIDO: O template da tabela agora tem um cabeçalho estático com um ID
             injectPanelContent() {
                 if (!this.state.dom || !this.state.dom.panels) {
                     console.error("DOM ou painéis não foram cacheados corretamente.");
                     return;
                 }
                 
-                // NOVO: Conteúdo do painel Início
                 if (this.state.dom.panels.home) {
                     this.state.dom.panels.home.innerHTML = `
                     <div class="space-y-8">
-                        <div>
-                            <h2 class="text-3xl font-bold text-gray-900 mb-2">Página Inicial</h2>
-                            <p class="text-gray-500">Uma visão geral e rápida do seu estoque.</p>
-                        </div>
-                        
-                        <!-- Estatísticas Rápidas -->
-                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
-                            <div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-primary-light text-primary p-3 rounded-xl"><i class="fas fa-box"></i></div><div><p class="text-sm text-gray-500">Produtos</p><p id="stat-total-products" class="text-2xl font-bold">0</p></div></div>
-                            <div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-primary-light text-primary p-3 rounded-xl"><i class="fas fa-boxes-stacked"></i></div><div><p class="text-sm text-gray-500">Itens Totais</p><p id="stat-total-items" class="text-2xl font-bold">0</p></div></div>
-                            <div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-primary-light text-primary p-3 rounded-xl"><i class="fas fa-tags"></i></div><div><p class="text-sm text-gray-500">Categorias</p><p id="stat-total-categories" class="text-2xl font-bold">0</p></div></div>
-                            <div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-amber-100 text-warning p-3 rounded-xl"><i class="fas fa-exclamation-triangle"></i></div><div><p class="text-sm text-gray-500">Estoque Baixo</p><p id="stat-low-stock" class="text-2xl font-bold">0</p></div></div>
-                        </div>
-
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                            <!-- Ações Rápidas -->
-                            <div class="lg:col-span-1 space-y-4">
-                                <h3 class="text-xl font-semibold text-gray-900">Ações Rápidas</h3>
-                                <div class="grid grid-cols-2 gap-4">
-                                    <a href="#" class="action-card flex flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="stock"><i class="fas fa-warehouse text-2xl text-primary mb-2"></i><span class="font-semibold text-sm">Ver Estoque</span></a>
-                                    <a href="#" class="action-card flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="register" data-role-required="admin"><i class="fas fa-plus-circle text-2xl text-success mb-2"></i><span class="font-semibold text-sm">Adicionar</span></a>
-                                    <a href="#" class="action-card flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="outputs" data-role-required="admin"><i class="fas fa-arrow-circle-up text-2xl text-danger mb-2"></i><span class="font-semibold text-sm">Registrar Saída</span></a>
-                                    <a href="#" class="action-card flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="reports"><i class="fas fa-chart-pie text-2xl text-indigo-500 mb-2"></i><span class="font-semibold text-sm">Relatórios</span></a>
-                                </div>
-                            </div>
-                            <!-- Atividade Recente -->
-                            <div class="lg:col-span-2">
-                                <h3 class="text-xl font-semibold text-gray-900 mb-4">Atividade Recente</h3>
-                                <div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200">
-                                    <ul id="recent-activity-feed" class="space-y-2"></ul>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    `;
+                        <div><h2 class="text-3xl font-bold text-gray-900 mb-2">Página Inicial</h2><p class="text-gray-500">Uma visão geral e rápida do seu estoque.</p></div>
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6"><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-primary-light text-primary p-3 rounded-xl"><i class="fas fa-box"></i></div><div><p class="text-sm text-gray-500">Produtos</p><p id="stat-total-products" class="text-2xl font-bold">0</p></div></div><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-primary-light text-primary p-3 rounded-xl"><i class="fas fa-boxes-stacked"></i></div><div><p class="text-sm text-gray-500">Itens Totais</p><p id="stat-total-items" class="text-2xl font-bold">0</p></div></div><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-primary-light text-primary p-3 rounded-xl"><i class="fas fa-tags"></i></div><div><p class="text-sm text-gray-500">Categorias</p><p id="stat-total-categories" class="text-2xl font-bold">0</p></div></div><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-amber-100 text-warning p-3 rounded-xl"><i class="fas fa-exclamation-triangle"></i></div><div><p class="text-sm text-gray-500">Estoque Baixo</p><p id="stat-low-stock" class="text-2xl font-bold">0</p></div></div></div>
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8"><div class="lg:col-span-1 space-y-4"><h3 class="text-xl font-semibold text-gray-900">Ações Rápidas</h3><div class="grid grid-cols-2 gap-4"><a href="#" class="action-card flex flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="stock"><i class="fas fa-warehouse text-2xl text-primary mb-2"></i><span class="font-semibold text-sm">Ver Estoque</span></a><a href="#" class="action-card flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="register" data-role-required="admin"><i class="fas fa-plus-circle text-2xl text-success mb-2"></i><span class="font-semibold text-sm">Adicionar</span></a><a href="#" class="action-card flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="outputs" data-role-required="admin"><i class="fas fa-arrow-circle-up text-2xl text-danger mb-2"></i><span class="font-semibold text-sm">Registrar Saída</span></a><a href="#" class="action-card flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="reports"><i class="fas fa-chart-pie text-2xl text-indigo-500 mb-2"></i><span class="font-semibold text-sm">Relatórios</span></a></div></div><div class="lg:col-span-2"><h3 class="text-xl font-semibold text-gray-900 mb-4">Atividade Recente</h3><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200"><ul id="recent-activity-feed" class="space-y-2"></ul></div></div></div>
+                    </div>`;
                 }
 
                 if (this.state.dom.panels.stock) {
-                     const isAdmin = this.state.userRole === 'admin';
-                     const tableHeaders = this.state.locations.map(loc => `<th class="p-3 text-center text-gray-900 whitespace-nowrap font-medium">${loc.name}</th>`).join('');
-                     const tableCheckboxHeader = isAdmin ? `<th class="p-3 w-4"><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"></th>` : `<th class="p-3 w-4"></th>`;
-                     const tableActionsHeader = isAdmin ? `<th class="p-3 text-right text-gray-900 whitespace-nowrap font-medium">Ações</th>` : `<th></th>`;
-                     
                      this.state.dom.panels.stock.innerHTML = `<div class="space-y-6"><div class="bg-white p-4 md:p-6 rounded-2xl shadow-xl border border-gray-200 relative"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-white rounded-lg text-gray-900 border border-gray-300"></div><select id="stock-category-filter" class="p-2 bg-white border border-gray-300 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-white border border-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-slate-50 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-danger text-white font-semibold py-2 px-4 rounded-lg hover:bg-danger-hover transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-slate-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar hidden mb-4 p-2 bg-primary-light border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-danger text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-danger-hover transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div>
                             <div id="product-list-container">
                                 <div class="overflow-x-auto hidden md:block">
                                     <table class="w-full text-left min-w-[1000px] sm:min-w-[1400px]">
                                         <thead class="border-b-2 border-gray-200 bg-white">
-                                            <tr>${tableCheckboxHeader}<th class="p-3 text-gray-900 sticky left-0 bg-white hover:bg-white whitespace-nowrap font-medium">Produto</th><th class="p-3 text-center text-gray-900 whitespace-nowrap font-medium">Categoria</th><th class="p-3 text-center text-gray-900 font-bold whitespace-nowrap">Total</th>${tableHeaders}${tableActionsHeader}</tr>
+                                            <tr id="product-table-header-row"></tr>
                                         </thead>
                                         <tbody id="product-table-body"></tbody>
                                     </table>

@@ -127,6 +127,10 @@
                 <h2 class="text-xl font-bold text-gray-900">Menu</h2>
             </div>
             <nav id="sidebar-nav" class="p-4 space-y-2">
+                <!-- NOVO: Link da Aba Início -->
+                <a href="#" data-tab="home" class="sidebar-link flex items-center p-3 rounded-lg bg-gray-100 text-gray-700">
+                    <i class="fas fa-home w-6 mr-3"></i>Início
+                </a>
                 <a href="#" data-tab="reports" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700">
                     <i class="fas fa-chart-pie w-6 mr-3"></i>Dashboard
                 </a>
@@ -166,7 +170,9 @@
             </header>
             
             <main id="tab-content">
-                <div id="panel-reports" class="tab-panel"></div>
+                <!-- NOVO: Painel da Aba Início -->
+                <div id="panel-home" class="tab-panel"></div>
+                <div id="panel-reports" class="tab-panel hidden"></div>
                 <div id="panel-stock" class="tab-panel hidden"></div>
                 <div id="panel-register" class="tab-panel hidden"></div>
                 <div id="panel-outputs" class="tab-panel hidden"></div>
@@ -252,7 +258,8 @@
                     loginFormContainer: document.getElementById('login-form-container'),
                     registerFormContainer: document.getElementById('register-form-container'),
                     contentEl: document.getElementById('tab-content'),
-                    panels: { stock: document.getElementById('panel-stock'), register: document.getElementById('panel-register'), outputs: document.getElementById('panel-outputs'), reports: document.getElementById('panel-reports'), settings: document.getElementById('panel-settings') },
+                    // MODIFICADO: Adicionado o painel 'home'
+                    panels: { home: document.getElementById('panel-home'), stock: document.getElementById('panel-stock'), register: document.getElementById('panel-register'), outputs: document.getElementById('panel-outputs'), reports: document.getElementById('panel-reports'), settings: document.getElementById('panel-settings') },
                     sidebar: { menu: document.getElementById('sidebar-menu'), nav: document.getElementById('sidebar-nav'), overlay: document.getElementById('sidebar-overlay'), toggleBtn: document.getElementById('menu-toggle-btn'), logoutBtn: document.getElementById('logout-btn') },
                     modals: {
                         edit: { self: document.getElementById('edit-modal'), productName: document.getElementById('edit-product-name'), quantitiesContainer: document.getElementById('edit-quantities-container'), saveBtn: document.getElementById('save-edit'), cancelBtn: document.getElementById('cancel-edit') },
@@ -391,8 +398,7 @@
                 document.querySelectorAll('[data-role-required]').forEach(el => {
                     const requiredRole = el.getAttribute('data-role-required');
                     let displayStyle = 'block';
-                    if (el.tagName === 'A' || el.tagName === 'BUTTON' || 
-                        (el.tagName === 'DIV' && (el.classList.contains('flex') || el.style.display === 'flex'))) {
+                    if (el.tagName === 'A' || el.tagName === 'BUTTON' || el.tagName === 'DIV' && el.classList.contains('action-card')) { // MODIFICADO
                         displayStyle = 'flex';
                     } else if (el.tagName === 'DIV' && (el.classList.contains('grid') || el.style.display === 'grid')) {
                         displayStyle = 'grid';
@@ -406,7 +412,7 @@
                     const requiredRoleForActiveTab = activeTabEl.dataset.roleRequired;
                     if (requiredRoleForActiveTab && userRole !== requiredRoleForActiveTab) {
                         this.showAlert(`Você não tem mais permissão para acessar a aba '${activeTabId}'. Redirecionando...`, true);
-                        this.switchTab('reports');
+                        this.switchTab('home'); // MODIFICADO: Redireciona para home
                     }
                 }
                 this.renderCurrentTab();
@@ -461,11 +467,12 @@
 
                 this.applyRolePermissions();
 
-                const initialTab = document.querySelector('.sidebar-link.bg-gray-100')?.dataset.tab || 'reports';
+                // MODIFICADO: Aba inicial padrão é 'home'
+                const initialTab = document.querySelector('.sidebar-link.bg-gray-100')?.dataset.tab || 'home';
                 const initialTabLink = document.querySelector(`.sidebar-link[data-tab="${initialTab}"]`);
 
                 if (initialTabLink && initialTabLink.dataset.roleRequired && initialTabLink.dataset.roleRequired !== this.state.userRole) {
-                    this.switchTab('reports');
+                    this.switchTab('home');
                 } else {
                     this.switchTab(initialTab);
                 }
@@ -498,6 +505,15 @@
             
             handleContentClick(e) {
                 const button = e.target.closest('button');
+                const actionCard = e.target.closest('.action-card'); // NOVO
+
+                // NOVO: Handle click em action cards para navegação
+                if (actionCard && actionCard.dataset.tab) {
+                    e.preventDefault();
+                    this.switchTab(actionCard.dataset.tab);
+                    return;
+                }
+
                 if (!button) {
                     const ctaLink = e.target.closest('a#cta-add-product');
                     if (ctaLink) {
@@ -784,8 +800,8 @@
                     if (this.state.isAuthReady) {
                         this.debouncedRenderProducts();
                         this.populateProductSelects();
-                        // ALTERAÇÃO APLICADA AQUI
                         this.renderDashboard(); 
+                        this.renderHomeTab(); // NOVO
                     }
                     if (isFirstLoad) {
                         onInitialLoad();
@@ -802,6 +818,7 @@
                     if (this.state.isAuthReady) {
                         this.renderCategories();
                         this.debouncedRenderProducts();
+                        this.renderHomeTab(); // NOVO: atualiza contagem de categorias
                     }
                      if (isFirstLoad) {
                         onInitialLoad();
@@ -816,8 +833,8 @@
                 return onSnapshot(query(this.state.firestoreRefs.movements), (snapshot) => {
                     this.state.movements = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
                     if (this.state.isAuthReady) {
-                        // ALTERAÇÃO APLICADA AQUI
                         this.renderDashboard();
+                        this.renderHomeTab(); // NOVO
                     }
                     if (isFirstLoad) {
                         onInitialLoad();
@@ -1281,6 +1298,10 @@
                 const tabId = activeTabEl.dataset.tab;
 
                 switch(tabId) {
+                    // NOVO: Adiciona o caso da aba 'home'
+                    case 'home':
+                        this.renderHomeTab();
+                        break;
                     case 'stock':
                         this.renderCategories();
                         this.debouncedRenderProducts();
@@ -1494,6 +1515,71 @@
                 
                 renderList('top-entradas-list', sorted.filter(m => m.type === 'entrada').slice(0, 5));
                 renderList('top-saidas-list', sorted.filter(m => m.type === 'saida').slice(0, 5));
+            },
+            // NOVO: Função para renderizar a aba Início
+            renderHomeTab() {
+                const homePanel = this.state.dom.panels.home;
+                if (!homePanel || homePanel.classList.contains('hidden') || !this.state.isAuthReady) return;
+                
+                // Renderizar estatísticas
+                const totalProducts = this.state.products.length;
+                const totalItems = this.state.products.reduce((acc, p) => acc + (p.totalQuantity || 0), 0);
+                const totalCategories = this.state.categories.length;
+                const lowStockCount = this.state.products.filter(p => p.minStock > 0 && p.totalQuantity <= p.minStock).length;
+
+                document.getElementById('stat-total-products').textContent = totalProducts;
+                document.getElementById('stat-total-items').textContent = totalItems;
+                document.getElementById('stat-total-categories').textContent = totalCategories;
+                document.getElementById('stat-low-stock').textContent = lowStockCount;
+
+                // Renderizar feed de atividade recente
+                const activityFeedEl = document.getElementById('recent-activity-feed');
+                if (activityFeedEl) {
+                    const recentMovements = [...this.state.movements].sort((a,b) => (b.date?.seconds || 0) - (a.date?.seconds || 0)).slice(0, 7);
+                    if (recentMovements.length > 0) {
+                        activityFeedEl.innerHTML = recentMovements.map(mov => {
+                            const product = this.state.products.find(p => p.id === mov.productId);
+                            const productName = product ? product.name : 'Produto Excluído';
+                            const date = mov.date?.toDate().toLocaleDateString('pt-BR') || 'Data indefinida';
+                            
+                            let icon, color, text;
+                            switch(mov.type) {
+                                case 'entrada':
+                                    icon = 'fa-arrow-down';
+                                    color = 'text-green-500';
+                                    text = `<strong>${mov.quantity}x</strong> ${productName} entraram no estoque.`;
+                                    break;
+                                case 'saida':
+                                    icon = 'fa-arrow-up';
+                                    color = 'text-red-500';
+                                    text = `<strong>${mov.quantity}x</strong> ${productName} saíram do estoque.`;
+                                    break;
+                                default:
+                                    icon = 'fa-exchange-alt';
+                                    color = 'text-blue-500';
+                                    text = `Movimentação de <strong>${mov.quantity}x</strong> ${productName}.`;
+                            }
+                            if (mov.motive?.includes('Transferência')) {
+                                icon = 'fa-exchange-alt';
+                                color = 'text-blue-500';
+                            }
+
+                            return `
+                                <li class="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg">
+                                    <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 ${color}">
+                                        <i class="fas ${icon}"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-800">${text}</p>
+                                        <p class="text-xs text-gray-500">${mov.motive || 'Sem motivo'} &bull; ${date}</p>
+                                    </div>
+                                </li>
+                            `;
+                        }).join('');
+                    } else {
+                        activityFeedEl.innerHTML = '<p class="text-center text-gray-500 p-4">Nenhuma atividade recente para mostrar.</p>';
+                    }
+                }
             },
             async handleGenerateReport() {
                 const dateInput = document.getElementById('report-date'), reportOutput = document.getElementById('report-output');
@@ -1771,12 +1857,53 @@
                     this.showAlert('Nenhum produto válido encontrado no arquivo Excel para processar.');
                 }
             },
+            // MODIFICADO: Função para injetar o conteúdo de todos os painéis, incluindo o novo painel 'home'
             injectPanelContent() {
                 if (!this.state.dom || !this.state.dom.panels) {
                     console.error("DOM ou painéis não foram cacheados corretamente.");
                     return;
                 }
                 
+                // NOVO: Conteúdo do painel Início
+                if (this.state.dom.panels.home) {
+                    this.state.dom.panels.home.innerHTML = `
+                    <div class="space-y-8">
+                        <div>
+                            <h2 class="text-3xl font-bold text-gray-900 mb-2">Página Inicial</h2>
+                            <p class="text-gray-500">Uma visão geral e rápida do seu estoque.</p>
+                        </div>
+                        
+                        <!-- Estatísticas Rápidas -->
+                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+                            <div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-primary-light text-primary p-3 rounded-xl"><i class="fas fa-box"></i></div><div><p class="text-sm text-gray-500">Produtos</p><p id="stat-total-products" class="text-2xl font-bold">0</p></div></div>
+                            <div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-primary-light text-primary p-3 rounded-xl"><i class="fas fa-boxes-stacked"></i></div><div><p class="text-sm text-gray-500">Itens Totais</p><p id="stat-total-items" class="text-2xl font-bold">0</p></div></div>
+                            <div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-primary-light text-primary p-3 rounded-xl"><i class="fas fa-tags"></i></div><div><p class="text-sm text-gray-500">Categorias</p><p id="stat-total-categories" class="text-2xl font-bold">0</p></div></div>
+                            <div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-amber-100 text-warning p-3 rounded-xl"><i class="fas fa-exclamation-triangle"></i></div><div><p class="text-sm text-gray-500">Estoque Baixo</p><p id="stat-low-stock" class="text-2xl font-bold">0</p></div></div>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            <!-- Ações Rápidas -->
+                            <div class="lg:col-span-1 space-y-4">
+                                <h3 class="text-xl font-semibold text-gray-900">Ações Rápidas</h3>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <a href="#" class="action-card flex flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="stock"><i class="fas fa-warehouse text-2xl text-primary mb-2"></i><span class="font-semibold text-sm">Ver Estoque</span></a>
+                                    <a href="#" class="action-card flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="register" data-role-required="admin"><i class="fas fa-plus-circle text-2xl text-success mb-2"></i><span class="font-semibold text-sm">Adicionar</span></a>
+                                    <a href="#" class="action-card flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="outputs" data-role-required="admin"><i class="fas fa-arrow-circle-up text-2xl text-danger mb-2"></i><span class="font-semibold text-sm">Registrar Saída</span></a>
+                                    <a href="#" class="action-card flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="reports"><i class="fas fa-chart-pie text-2xl text-indigo-500 mb-2"></i><span class="font-semibold text-sm">Relatórios</span></a>
+                                </div>
+                            </div>
+                            <!-- Atividade Recente -->
+                            <div class="lg:col-span-2">
+                                <h3 class="text-xl font-semibold text-gray-900 mb-4">Atividade Recente</h3>
+                                <div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200">
+                                    <ul id="recent-activity-feed" class="space-y-2"></ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    `;
+                }
+
                 if (this.state.dom.panels.stock) {
                      const isAdmin = this.state.userRole === 'admin';
                      const tableHeaders = this.state.locations.map(loc => `<th class="p-3 text-center text-gray-900 whitespace-nowrap font-medium">${loc.name}</th>`).join('');

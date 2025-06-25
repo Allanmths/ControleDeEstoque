@@ -784,7 +784,7 @@
                     if (this.state.isAuthReady) {
                         this.debouncedRenderProducts();
                         this.populateProductSelects();
-                        // CORRIGIDO: Chama a função principal do dashboard para atualizar tudo
+                        // ALTERAÇÃO APLICADA AQUI
                         this.renderDashboard(); 
                     }
                     if (isFirstLoad) {
@@ -816,7 +816,7 @@
                 return onSnapshot(query(this.state.firestoreRefs.movements), (snapshot) => {
                     this.state.movements = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
                     if (this.state.isAuthReady) {
-                        // CORRIGIDO: Chama a função principal do dashboard para atualizar tudo
+                        // ALTERAÇÃO APLICADA AQUI
                         this.renderDashboard();
                     }
                     if (isFirstLoad) {

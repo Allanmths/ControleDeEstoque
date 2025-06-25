@@ -81,10 +81,6 @@
             background: linear-gradient(to right, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%);
             animation: loading-shimmer 1.5s infinite;
         }
-        @keyframes loading-shimmer {
-            from { left: -100%; }
-            to { left: 100%; }
-        }
     </style>
 </head>
 
@@ -492,6 +488,8 @@
                     if (form.id === 'add-product-form') await this.handleAddProduct(form);
                     if (form.id === 'add-output-form') await this.handleAddOutput(form);
                     if (form.id === 'add-location-form') await this.handleAddLocation(form);
+                    // NOVO: Adiciona o handler para o formulário de transferência
+                    if (form.id === 'transfer-stock-form') await this.handleTransferStock(form);
                 } catch (error) {
                     this.showAlert(error.message, true);
                 } finally {
@@ -502,7 +500,6 @@
             handleContentClick(e) {
                 const button = e.target.closest('button');
                 if (!button) {
-                    // Check if it's our CTA link
                     const ctaLink = e.target.closest('a#cta-add-product');
                     if (ctaLink) {
                         e.preventDefault();
@@ -567,6 +564,9 @@
                  this.debouncedRenderProducts();
              }
              if (target.id === 'output-product-select') this.handleOutputProductSelection(target.value);
+             // NOVO: Adiciona handlers para o formulário de transferência
+             if (target.id === 'transfer-product-select') this.handleTransferProductSelection(target.value);
+             if (target.id === 'transfer-from-location-select') this.handleTransferFromLocationSelection(target.value);
              
              if (target.id === 'excel-insert-input') {
                  const file = target.files?.[0];
@@ -938,7 +938,63 @@
                     quantityInput.disabled = true;
                     quantityInput.placeholder = '';
                 }
+            },
+            // NOVO: Função para lidar com a transferência de estoque
+            async handleTransferStock(form) {
+                const productId = form.querySelector('#transfer-product-select').value;
+                const fromLocationId = form.querySelector('#transfer-from-location-select').value;
+                const toLocationId = form.querySelector('#transfer-to-location-select').value;
+                const quantity = parseInt(form.querySelector('#transfer-quantity').value, 10);
 
+                if (!productId || !fromLocationId || !toLocationId || isNaN(quantity) || quantity <= 0) {
+                    throw new Error("Preencha todos os campos do formulário de transferência.");
+                }
+                if (fromLocationId === toLocationId) {
+                    throw new Error("A localidade de origem e destino não podem ser as mesmas.");
+                }
+
+                await runTransaction(this.db, async (transaction) => {
+                    const productRef = doc(this.state.firestoreRefs.products, productId);
+                    const productDoc = await transaction.get(productRef);
+                    if (!productDoc.exists()) throw new Error("Produto não encontrado.");
+                    
+                    const productData = productDoc.data();
+                    const currentQuantities = productData.quantities || {};
+                    const fromQty = currentQuantities[fromLocationId] || 0;
+
+                    if (fromQty < quantity) {
+                        const fromLocationName = this.state.locations.find(l => l.id === fromLocationId)?.name || 'Origem';
+                        throw new Error(`Estoque insuficiente em '${fromLocationName}'. Disponível: ${fromQty}.`);
+                    }
+
+                    const toQty = currentQuantities[toLocationId] || 0;
+                    const newQuantities = {
+                        ...currentQuantities,
+                        [fromLocationId]: fromQty - quantity,
+                        [toLocationId]: toQty + quantity
+                    };
+
+                    transaction.update(productRef, { quantities: newQuantities });
+
+                    const now = serverTimestamp();
+                    // Log da saída
+                    const outMovementRef = doc(collection(this.db, this.state.firestoreRefs.movements.path));
+                    transaction.set(outMovementRef, {
+                        productId, type: 'saida', quantity,
+                        motive: 'Transferência (Saída)', location: fromLocationId, date: now
+                    });
+                    
+                    // Log da entrada
+                    const inMovementRef = doc(collection(this.db, this.state.firestoreRefs.movements.path));
+                    transaction.set(inMovementRef, {
+                        productId, type: 'entrada', quantity,
+                        motive: 'Transferência (Entrada)', location: toLocationId, date: now
+                    });
+                });
+
+                this.showAlert('Transferência realizada com sucesso!');
+                form.reset();
+                this.handleTransferProductSelection(''); // Reseta os selects do formulário
             },
             async logMovement(productId, type, quantity, motive) {
                 if (!this.state.firestoreRefs) return;
@@ -1174,18 +1230,24 @@
                 }
             },
             populateProductSelects() {
-                const outputSelect = document.getElementById('output-product-select');
-                if (!outputSelect) return;
-                const currentValue = outputSelect.value;
-                let options = '<option value="">Selecione um produto...</option>';
+                const selects = ['output-product-select', 'transfer-product-select'];
                 const sortedProducts = [...this.state.products].sort((a,b) => a.name.localeCompare(b.name));
-                options += sortedProducts.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
-                outputSelect.innerHTML = options;
-                if (Array.from(outputSelect.options).some(opt => opt.value === currentValue)) {
-                    outputSelect.value = currentValue;
-                } else {
-                    outputSelect.value = "";
-                }
+                const options = '<option value="">Selecione um produto...</option>' + sortedProducts.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+
+                selects.forEach(selectId => {
+                    const selectEl = document.getElementById(selectId);
+                    if (!selectEl) return;
+                    const currentValue = selectEl.value;
+                    selectEl.innerHTML = options;
+                    if (Array.from(selectEl.options).some(opt => opt.value === currentValue)) {
+                        selectEl.value = currentValue;
+                    } else {
+                        selectEl.value = "";
+                        // NOVO: Resetar formulários dependentes se o produto selecionado for removido
+                        if (selectId === 'output-product-select') this.handleOutputProductSelection('');
+                        if (selectId === 'transfer-product-select') this.handleTransferProductSelection('');
+                    }
+                });
             },
             showAlert(message, isError = false) {
                 Toastify({
@@ -1713,6 +1775,7 @@
                     this.showAlert('Nenhum produto válido encontrado no arquivo Excel para processar.');
                 }
             },
+            // MODIFICADO: injeta o conteúdo dos painéis, incluindo o novo card de transferência
             injectPanelContent() {
                 if (!this.state.dom || !this.state.dom.panels) {
                     console.error("DOM ou painéis não foram cacheados corretamente.");
@@ -1747,7 +1810,35 @@
                 }
 
                 if (this.state.dom.panels.outputs) {
-                    this.state.dom.panels.outputs.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 max-w-2xl mx-auto"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Registrar Saída de Estoque</h2><form id="add-output-form" class="space-y-4"><div><label for="output-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="output-product-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option value="">Selecione um produto...</option></select></div><div id="output-location-selector" class="space-y-2"></div><div><label for="output-quantity" class="block text-sm mb-1 text-gray-700">Quantidade da Saída</label><input type="number" id="output-quantity" min="1" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled></div><div><label for="output-motive-select" class="block text-sm mb-1 text-gray-700">Motivo da Saída</label><select id="output-motive-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option value="Venda">Venda</option><option value="Perda">Perda</option><option value="Uso Interno">Uso Interno</option><option value="Outro">Outro</option></select></div><p id="output-stock-info" class="text-sm text-gray-500 font-medium h-5"></p><button type="submit" class="w-full mt-4 bg-danger text-white font-bold p-2 rounded-lg hover:bg-danger-hover transition"><i class="fas fa-arrow-circle-up mr-2"></i>Registrar Saída</button></form></div>`;
+                    this.state.dom.panels.outputs.innerHTML = `
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <!-- Card de Saída de Estoque (Existente) -->
+                            <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
+                                <h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-arrow-circle-up mr-2 text-danger"></i>Registrar Saída</h2>
+                                <form id="add-output-form" class="space-y-4">
+                                    <div><label for="output-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="output-product-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option value="">Selecione...</option></select></div>
+                                    <div id="output-location-selector" class="space-y-2"></div>
+                                    <div><label for="output-quantity" class="block text-sm mb-1 text-gray-700">Quantidade da Saída</label><input type="number" id="output-quantity" min="1" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled></div>
+                                    <div><label for="output-motive-select" class="block text-sm mb-1 text-gray-700">Motivo</label><select id="output-motive-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option>Venda</option><option>Perda</option><option>Uso Interno</option><option>Outro</option></select></div>
+                                    <p id="output-stock-info" class="text-sm text-gray-500 font-medium h-5"></p>
+                                    <button type="submit" class="w-full mt-4 bg-danger text-white font-bold p-2 rounded-lg hover:bg-danger-hover transition">Registrar Saída</button>
+                                </form>
+                            </div>
+
+                            <!-- NOVO: Card de Transferência de Estoque -->
+                            <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
+                                <h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-exchange-alt mr-2 text-primary"></i>Transferir Estoque</h2>
+                                <form id="transfer-stock-form" class="space-y-4">
+                                    <div><label for="transfer-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="transfer-product-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option value="">Selecione...</option></select></div>
+                                    <p id="transfer-stock-info" class="text-sm text-gray-500 font-medium h-5"></p>
+                                    <div><label for="transfer-from-location-select" class="block text-sm mb-1 text-gray-700">De</label><select id="transfer-from-location-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled><option value="">Selecione a origem</option></select></div>
+                                    <div><label for="transfer-to-location-select" class="block text-sm mb-1 text-gray-700">Para</label><select id="transfer-to-location-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled><option value="">Selecione o destino</option></select></div>
+                                    <div><label for="transfer-quantity" class="block text-sm mb-1 text-gray-700">Quantidade</label><input type="number" id="transfer-quantity" min="1" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled></div>
+                                    <button type="submit" class="w-full mt-4 bg-primary text-white font-bold p-2 rounded-lg hover:bg-primary-hover transition">Confirmar Transferência</button>
+                                </form>
+                            </div>
+                        </div>
+                    `;
                 }
 
                 if (this.state.dom.panels.reports) {
@@ -1835,13 +1926,77 @@
                     stockInfoEl.textContent = 'Produto não encontrado.';
                 }
             },
+            // NOVO: Handler para seleção de produto no formulário de transferência
+            handleTransferProductSelection(productId) {
+                const infoEl = document.getElementById('transfer-stock-info');
+                const fromSelect = document.getElementById('transfer-from-location-select');
+                const toSelect = document.getElementById('transfer-to-location-select');
+                const qtyInput = document.getElementById('transfer-quantity');
+
+                // Reset all dependent fields
+                if(infoEl) infoEl.textContent = '';
+                if(fromSelect) { fromSelect.innerHTML = '<option value="">Selecione a origem</option>'; fromSelect.disabled = true; }
+                if(toSelect) { toSelect.innerHTML = '<option value="">Selecione o destino</option>'; toSelect.disabled = true; }
+                if(qtyInput) { qtyInput.value = ''; qtyInput.disabled = true; qtyInput.placeholder = ''; }
+
+                if (!productId) return;
+
+                const product = this.state.products.find(p => p.id === productId);
+                if (product) {
+                    if (infoEl) infoEl.textContent = `Estoque Total: ${product.totalQuantity || 0} ${product.unit}`;
+                    
+                    const quantities = product.quantities || {};
+                    const locationsWithStock = this.state.locations.filter(loc => quantities[loc.id] > 0);
+                    
+                    if (locationsWithStock.length > 0 && fromSelect) {
+                        let fromOptions = '<option value="">Selecione a origem</option>';
+                        fromOptions += locationsWithStock.map(loc => `<option value="${loc.id}">${loc.name} (${quantities[loc.id]})</option>`).join('');
+                        fromSelect.innerHTML = fromOptions;
+                        fromSelect.disabled = false;
+                    } else if (fromSelect) {
+                        fromSelect.innerHTML = '<option value="">Sem estoque disponível</option>';
+                    }
+                }
+            },
+            // NOVO: Handler para seleção de localidade de origem na transferência
+            handleTransferFromLocationSelection(fromLocationId) {
+                const productId = document.getElementById('transfer-product-select').value;
+                const toSelect = document.getElementById('transfer-to-location-select');
+                const qtyInput = document.getElementById('transfer-quantity');
+                
+                // Reset fields
+                if (toSelect) { toSelect.innerHTML = '<option value="">Selecione o destino</option>'; toSelect.disabled = true; }
+                if (qtyInput) { qtyInput.value = ''; qtyInput.disabled = true; qtyInput.placeholder = ''; }
+
+                if (!productId || !fromLocationId) return;
+
+                const product = this.state.products.find(p => p.id === productId);
+                if (product) {
+                    const availableDestinations = this.state.locations.filter(loc => loc.id !== fromLocationId);
+                    
+                    if (availableDestinations.length > 0 && toSelect) {
+                        let toOptions = '<option value="">Selecione o destino</option>';
+                        toOptions += availableDestinations.map(loc => `<option value="${loc.id}">${loc.name}</option>`).join('');
+                        toSelect.innerHTML = toOptions;
+                        toSelect.disabled = false;
+                    }
+
+                    const maxQty = product.quantities[fromLocationId] || 0;
+                    if (qtyInput) {
+                        qtyInput.max = maxQty;
+                        qtyInput.placeholder = `Máx: ${maxQty}`;
+                        qtyInput.disabled = false;
+                    }
+                }
+            },
             handleContentInput(e) {
                 const target = e.target;
                 if (target.id === 'search-product-input') {
                     this.state.currentPage = 1;
                     this.debouncedRenderProducts();
                 }
-                if (target.id === 'output-quantity') {
+                const inputsToValidate = ['output-quantity', 'transfer-quantity'];
+                if (inputsToValidate.includes(target.id)) {
                     const max = parseInt(target.max, 10);
                     const currentValue = parseInt(target.value, 10);
                     if (!isNaN(currentValue)) {

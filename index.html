@@ -440,7 +440,7 @@
                     locations: collection(this.db, `${basePath}/locations`),
                     settings: doc(this.db, `${basePath}/settings/main`),
                     users: collection(this.db, 'users'),
-                    auditLog: collection(this.db, `artifacts/${appId}/private/auditLog`) // Private collection
+                    auditLog: collection(this.db, `${basePath}/auditLog`) // FIX: Corrected path
                 };
                 
                 this.clearAllListeners();

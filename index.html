@@ -136,19 +136,19 @@
                 <a href="#" data-tab="stock" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700">
                     <i class="fas fa-warehouse w-6 mr-3"></i>Estoque
                 </a>
-                <a href="#" data-tab="register" data-role-required="admin" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700">
+                <a href="#" data-tab="register" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700" data-role-required="admin">
                     <i class="fas fa-plus-circle w-6 mr-3"></i>Cadastros
                 </a>
-                <a href="#" data-tab="movements" data-role-required="admin" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700">
+                <a href="#" data-tab="movements" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700" data-role-required="admin">
                     <i class="fas fa-exchange-alt w-6 mr-3"></i>Movimentações
                 </a>
-                <a href="#" data-tab="audit" data-role-required="admin" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700">
+                <a href="#" data-tab="audit" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700" data-role-required="admin">
                     <i class="fas fa-history w-6 mr-3"></i>Auditoria
                 </a>
             </nav>
         </div>
         <div class="p-4 border-t border-gray-200">
-             <a href="#" data-tab="settings" data-role-required="admin" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700">
+             <a href="#" data-tab="settings" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700" data-role-required="admin">
                 <i class="fas fa-cog w-6 mr-3"></i>Configurações
             </a>
             <a href="#" id="logout-btn" class="flex items-center p-3 rounded-lg hover:bg-red-100 text-danger font-semibold">
@@ -186,6 +186,7 @@
     <!-- Modals -->
     <div id="edit-modal" class="fixed inset-0 modal-backdrop items-center justify-center z-50 hidden"><div class="bg-white w-full max-w-lg p-6 rounded-2xl shadow-2xl m-4"><h3 class="text-xl font-semibold mb-4 text-gray-900">Editar Produto</h3><p id="edit-product-name" class="mb-4 text-gray-600"></p><div id="edit-quantities-container" class="space-y-4"></div><div class="mt-6 flex justify-end space-x-4"><button id="cancel-edit" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancelar</button><button id="save-edit" class="px-6 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition">Salvar</button></div></div></div>
     <div id="delete-modal" class="fixed inset-0 modal-backdrop items-center justify-center z-50 hidden"><div class="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl m-4 text-center"><i class="fas fa-triangle-exclamation fa-3x text-danger mb-4"></i><h3 class="text-xl font-semibold mb-2 text-gray-900">Confirmar Exclusão</h3><p id="delete-modal-text" class="mb-6 text-gray-600"></p><div class="flex justify-center space-x-4"><button id="cancel-delete" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancelar</button><button id="confirm-delete" class="px-6 py-2 bg-danger text-white font-semibold rounded-lg hover:bg-danger-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition">Excluir</button></div></div></div>
+    <div id="permissions-modal" class="fixed inset-0 modal-backdrop items-center justify-center z-50 hidden"><div class="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl m-4"><h3 class="text-xl font-semibold mb-1 text-gray-900">Gerenciar Permissões</h3><p id="permissions-user-email" class="mb-4 text-gray-600"></p><div id="permissions-checkbox-container" class="space-y-3"></div><div class="mt-6 flex justify-end space-x-4"><button id="cancel-permissions" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancelar</button><button id="save-permissions" class="px-6 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary-hover transition">Salvar</button></div></div></div>
 
     <!-- Firebase SDK e Script da Aplicação -->
     <script type="module">
@@ -273,6 +274,7 @@
                     modals: {
                         edit: { self: document.getElementById('edit-modal'), productName: document.getElementById('edit-product-name'), quantitiesContainer: document.getElementById('edit-quantities-container'), saveBtn: document.getElementById('save-edit'), cancelBtn: document.getElementById('cancel-edit') },
                         delete: { self: document.getElementById('delete-modal'), text: document.getElementById('delete-modal-text'), confirmBtn: document.getElementById('confirm-delete'), cancelBtn: document.getElementById('cancel-delete') },
+                        permissions: { self: document.getElementById('permissions-modal'), userEmail: document.getElementById('permissions-user-email'), checkboxContainer: document.getElementById('permissions-checkbox-container'), saveBtn: document.getElementById('save-permissions'), cancelBtn: document.getElementById('cancel-permissions') },
                     },
                 };
             }
@@ -290,6 +292,8 @@
                 dom.modals.edit.saveBtn.addEventListener('click', (e) => this.handleSaveEdit(e.target));
                 dom.modals.delete.cancelBtn.addEventListener('click', () => this.closeDeleteModal());
                 dom.modals.delete.confirmBtn.addEventListener('click', () => this.handleDelete());
+                dom.modals.permissions.cancelBtn.addEventListener('click', () => this.closePermissionsModal());
+                dom.modals.permissions.saveBtn.addEventListener('click', () => this.handleSavePermissions());
                 dom.sidebar.toggleBtn.addEventListener('click', () => this.toggleSidebar(true));
                 dom.sidebar.overlay.addEventListener('click', () => this.toggleSidebar(false));
                 dom.sidebar.menu.addEventListener('click', (e) => {
@@ -359,7 +363,16 @@
                     await setDoc(doc(this.db, "users", userCredential.user.uid), {
                         email: userCredential.user.email,
                         role: "viewer",
-                        createdAt: serverTimestamp()
+                        createdAt: serverTimestamp(),
+                        permissions: { // Default permissions for new users
+                            home: true,
+                            reports: true,
+                            stock: true,
+                            register: false,
+                            movements: false,
+                            settings: false,
+                            audit: false
+                        }
                     });
                 } catch (error) {
                     this.showAlert(this.getFriendlyAuthError(error.code), true);
@@ -401,23 +414,47 @@
                 if (welcomeEl) {
                     welcomeEl.textContent = `Bem-vindo! Você está logado como ${userRole === 'admin' ? 'Administrador' : 'Visualizador'}.`;
                 }
-                
+
+                // Show/hide sidebar links based on permissions
+                document.querySelectorAll('#sidebar-nav .sidebar-link').forEach(link => {
+                    const tabId = link.dataset.tab;
+                    link.style.display = this.checkUserPermissionForTab(tabId) ? 'flex' : 'none';
+                });
+
+                // Show/hide finer-grained elements based on role
                 document.querySelectorAll('[data-role-required]').forEach(el => {
                     const requiredRole = el.getAttribute('data-role-required');
                     const isFlex = el.tagName === 'A' || el.tagName === 'BUTTON' || (el.tagName === 'DIV' && el.classList.contains('action-card'));
-                    const isGrid = el.tagName === 'DIV' && (el.classList.contains('grid') || el.style.display === 'grid');
                     let displayStyle = 'block';
                     if (isFlex) displayStyle = 'flex';
-                    else if (isGrid) displayStyle = 'grid';
                     
                     el.style.display = userRole === requiredRole ? displayStyle : 'none';
                 });
             
                 const activeTabEl = document.querySelector('.sidebar-link.bg-gray-100');
-                if (activeTabEl && activeTabEl.dataset.roleRequired && activeTabEl.dataset.roleRequired !== this.state.userRole) {
+                if (activeTabEl && !this.checkUserPermissionForTab(activeTabEl.dataset.tab)) {
                     this.showAlert(`Você não tem mais permissão para acessar a aba '${activeTabEl.dataset.tab}'. Redirecionando...`, true);
                     this.switchTab('home');
                 }
+            }
+
+            checkUserPermissionForTab(tabId) {
+                if (!this.state.currentUser || !this.state.isAuthReady) return false;
+                
+                if (this.state.userRole === 'admin') return true;
+                
+                const userDoc = this.state.allUsers.find(u => u.id === this.state.currentUser.uid);
+                
+                if (userDoc && userDoc.permissions) {
+                    return userDoc.permissions[tabId] === true;
+                }
+                
+                const targetLink = document.querySelector(`.sidebar-link[data-tab="${tabId}"]`);
+                if (targetLink && !targetLink.dataset.roleRequired) {
+                    return true;
+                }
+                
+                return false;
             }
 
             getFriendlyAuthError(code) {
@@ -440,7 +477,7 @@
                     locations: collection(this.db, `${basePath}/locations`),
                     settings: doc(this.db, `${basePath}/settings/main`),
                     users: collection(this.db, 'users'),
-                    auditLog: collection(this.db, `${basePath}/auditLog`) // FIX: Corrected path
+                    auditLog: collection(this.db, `${basePath}/auditLog`)
                 };
                 
                 this.clearAllListeners();
@@ -464,6 +501,8 @@
                     if (this.state.userRole === 'admin') {
                         this.state.unsubscribers.push(this.listenForUserUpdates(checkDone));
                         this.state.unsubscribers.push(this.listenForAuditLogUpdates(checkDone));
+                    } else { // viewer needs user data to check permissions
+                        this.state.unsubscribers.push(this.listenForUserUpdates(checkDone));
                     }
                 });
 
@@ -501,6 +540,14 @@
             
             handleContentClick(e) {
                 const button = e.target.closest('button');
+                if(!button) return; // Exit if no button was clicked
+
+                if (button.classList.contains('manage-permissions-btn')) {
+                    const userId = button.dataset.userId;
+                    if(userId) this.openPermissionsModal(userId);
+                    return;
+                }
+                
                 const actionCard = e.target.closest('.action-card');
 
                 if (actionCard && actionCard.dataset.tab) {
@@ -821,7 +868,7 @@
             }
 
             listenForUserUpdates(onInitialLoad) {
-                if (!this.state.firestoreRefs || this.state.userRole !== 'admin') {
+                if (!this.state.firestoreRefs) { // No need to check for admin role, viewers need their own data
                     if (typeof onInitialLoad === 'function') onInitialLoad();
                     return () => {};
                 }
@@ -1024,8 +1071,6 @@
                 this.handleTransferProductSelection(''); 
             },
             async logMovement(productId, type, quantity, motive) {
-                // Esta função pode ser mantida para compatibilidade ou refatorada,
-                // mas a auditoria principal agora é feita por logAudit.
                 if (!this.state.firestoreRefs) return;
                 await addDoc(this.state.firestoreRefs.movements, { productId, type, quantity, motive, date: serverTimestamp() });
             },
@@ -1236,8 +1281,12 @@
                             <td class="p-3 text-right">
                                 ${!isCurrentUser ? `
                                 <button data-user-id="${user.id}" class="save-user-role-btn bg-primary text-white text-xs font-semibold py-1 px-3 rounded-md hover:bg-primary-hover transition">
-                                    Salvar
-                                </button>` : '<span class="text-xs text-gray-500 italic">Você</span>'}
+                                    Salvar Papel
+                                </button>
+                                <button data-user-id="${user.id}" class="manage-permissions-btn text-indigo-600 hover:text-indigo-800 text-xs font-semibold py-1 px-3 rounded-md ml-2 border border-indigo-200 hover:bg-indigo-50">
+                                    Permissões
+                                </button>
+                                ` : '<span class="text-xs text-gray-500 italic">Você</span>'}
                             </td>
                         </tr>
                     `;
@@ -1275,7 +1324,78 @@
                     button.innerHTML = originalContent;
                 }
             },
-            
+            openPermissionsModal(userId) {
+                const user = this.state.allUsers.find(u => u.id === userId);
+                if (!user) return this.showAlert('Usuário não encontrado.', true);
+
+                const { self, userEmail, checkboxContainer } = this.state.dom.modals.permissions;
+                self.dataset.userId = userId;
+                userEmail.textContent = user.email;
+
+                const ALL_TABS = [
+                    { id: 'home', name: 'Início' },
+                    { id: 'reports', name: 'Dashboard' },
+                    { id: 'stock', name: 'Estoque' },
+                    { id: 'register', name: 'Cadastros' },
+                    { id: 'movements', name: 'Movimentações' },
+                    { id: 'audit', name: 'Auditoria' },
+                    { id: 'settings', name: 'Configurações' },
+                ];
+                
+                const userPermissions = user.permissions || {};
+                const isTargetAdmin = user.role === 'admin';
+
+                checkboxContainer.innerHTML = ALL_TABS.map(tab => `
+                    <label class="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50">
+                        <input type="checkbox" data-tab-id="${tab.id}" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" 
+                            ${(userPermissions[tab.id] || isTargetAdmin) ? 'checked' : ''} 
+                            ${isTargetAdmin ? 'disabled' : ''}>
+                        <span class="${isTargetAdmin ? 'text-gray-500' : 'text-gray-800'}">${tab.name}</span>
+                    </label>
+                `).join('');
+
+                if (isTargetAdmin) {
+                    const note = document.createElement('p');
+                    note.className = 'text-xs text-gray-500 italic mt-4';
+                    note.textContent = 'Administradores sempre têm acesso a todas as abas.';
+                    checkboxContainer.appendChild(note);
+                }
+                
+                self.classList.replace('hidden', 'flex');
+            },
+            closePermissionsModal() {
+                this.state.dom.modals.permissions.self.classList.replace('flex', 'hidden');
+            },
+            async handleSavePermissions() {
+                const { self, checkboxContainer } = this.state.dom.modals.permissions;
+                const userId = self.dataset.userId;
+                if (!userId) return;
+
+                const userToChange = this.state.allUsers.find(u => u.id === userId);
+                if (!userToChange) return;
+
+                const newPermissions = {};
+                checkboxContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                    newPermissions[checkbox.dataset.tabId] = checkbox.checked;
+                });
+
+                this.setLoading(true);
+                try {
+                    const userRef = doc(this.db, 'users', userId);
+                    await updateDoc(userRef, { permissions: newPermissions });
+                    this.logAudit('USER_PERMISSIONS_CHANGE', {
+                        targetUserEmail: userToChange.email,
+                        newPermissions: Object.keys(newPermissions).filter(p => newPermissions[p])
+                    });
+                    this.showAlert('Permissões do usuário atualizadas.');
+                    this.closePermissionsModal();
+                } catch (error) {
+                    console.error('Erro ao salvar permissões:', error);
+                    this.showAlert('Não foi possível salvar as permissões.', true);
+                } finally {
+                    this.setLoading(false);
+                }
+            },
             updateRegisterForm() {
                 const container = document.getElementById('add-product-form-locations-container');
                 if (container) {
@@ -1319,10 +1439,9 @@
                 overlay.classList.toggle('hidden', !show);
             },
             switchTab(tabId) {
-                const targetLink = document.querySelector(`.sidebar-link[data-tab="${tabId}"]`);
-                if (targetLink && targetLink.dataset.roleRequired && targetLink.dataset.roleRequired !== this.state.userRole) {
+                if (!this.checkUserPermissionForTab(tabId)) {
                     this.showAlert('Você não tem permissão para acessar esta aba.', true);
-                    return; 
+                    return;
                 }
 
                 document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
@@ -2021,6 +2140,10 @@
                         case 'USER_ROLE_CHANGE':
                              actionText = 'Papel Alterado';
                             detailsText = `Papel de ${details.targetUserEmail} alterado de ${details.oldRole} para ${details.newRole}.`;
+                            break;
+                        case 'USER_PERMISSIONS_CHANGE':
+                            actionText = 'Permissões Alteradas';
+                            detailsText = `Permissões de ${details.targetUserEmail} atualizadas.`;
                             break;
                         case 'BULK_PRODUCT_INSERT':
                              actionText = 'Importação Excel';

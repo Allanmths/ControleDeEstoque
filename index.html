@@ -310,8 +310,10 @@
                                 this.state.userRole = 'viewer'; 
                             }
                             
+                            // **FIX:** Set auth ready flag BEFORE initializing the app data and UI.
+                            this.state.isAuthReady = true; 
+                            
                             await this.initializeAppForUser();
-                            this.state.isAuthReady = true;
                             this.showAppUI();
                         } else {
                             this.state.currentUser = null;
@@ -754,9 +756,8 @@
                     this.state.locations = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })).sort((a,b) => a.name.localeCompare(b.name));
                     
                     if (this.state.isAuthReady) {
-                        this.debouncedRenderProducts();
-                        this.renderSettings();
-                        this.updateRegisterForm();
+                        // **OPTIMIZATION:** Only render the current tab
+                        this.renderCurrentTab();
                     }
 
                     if (isFirstLoad) {
@@ -777,8 +778,8 @@
                         this.state.itemsPerPage = 10;
                     }
                     if (this.state.isAuthReady) {
-                        this.renderSettings();
-                        this.debouncedRenderProducts();
+                        // **OPTIMIZATION:** Only render the current tab
+                        this.renderCurrentTab();
                     }
                     if (isFirstLoad) {
                         onInitialLoad();
@@ -793,10 +794,9 @@
                 return onSnapshot(query(this.state.firestoreRefs.products), (snapshot) => {
                     this.state.products = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
                     if (this.state.isAuthReady) {
-                        this.debouncedRenderProducts();
+                        // **OPTIMIZATION:** Render current tab and populate selects that are used across multiple tabs
+                        this.renderCurrentTab();
                         this.populateProductSelects();
-                        this.renderDashboard(); 
-                        this.renderHomeTab();
                     }
                     if (isFirstLoad) {
                         onInitialLoad();
@@ -811,9 +811,8 @@
                 return onSnapshot(query(this.state.firestoreRefs.categories), (snapshot) => {
                     this.state.categories = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })).sort((a, b) => a.name.localeCompare(b.name));
                     if (this.state.isAuthReady) {
-                        this.renderCategories();
-                        this.debouncedRenderProducts();
-                        this.renderHomeTab();
+                        // **OPTIMIZATION:** Only render the current tab
+                        this.renderCurrentTab();
                     }
                      if (isFirstLoad) {
                         onInitialLoad();
@@ -828,8 +827,8 @@
                 return onSnapshot(query(this.state.firestoreRefs.movements), (snapshot) => {
                     this.state.movements = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
                     if (this.state.isAuthReady) {
-                        this.renderDashboard();
-                        this.renderHomeTab();
+                        // **OPTIMIZATION:** Only render the current tab
+                        this.renderCurrentTab();
                     }
                     if (isFirstLoad) {
                         onInitialLoad();
@@ -844,7 +843,8 @@
                 return onSnapshot(query(this.state.firestoreRefs.users), (snapshot) => {
                     this.state.allUsers = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
                     if (this.state.isAuthReady) {
-                        this.renderUserManagement();
+                        // **OPTIMIZATION:** Only render the current tab
+                        this.renderCurrentTab();
                     }
                      if (isFirstLoad) {
                         onInitialLoad();
@@ -1734,7 +1734,7 @@
                     } else if (startDate || endDate) {
                         matchesDate = false;
                     }
-            
+                
                     return matchesCategory && matchesSearch && matchesStatus && matchesDate;
                 }).sort((a,b) => a.name.localeCompare(b.name)); 
             },
@@ -1884,21 +1884,21 @@
                 }
 
                 if (this.state.dom.panels.stock) {
-                     this.state.dom.panels.stock.innerHTML = `<div class="space-y-6"><div class="bg-white p-4 md:p-6 rounded-2xl shadow-xl border border-gray-200 relative"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-white rounded-lg text-gray-900 border border-gray-300"></div><select id="stock-category-filter" class="p-2 bg-white border border-gray-300 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-white border border-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-slate-50 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-danger text-white font-semibold py-2 px-4 rounded-lg hover:bg-danger-hover transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-slate-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar hidden mb-4 p-2 bg-primary-light border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-danger text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-danger-hover transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div>
-                            <div id="product-list-container">
-                                <div class="overflow-x-auto hidden md:block">
-                                    <table class="w-full text-left min-w-[1000px] sm:min-w-[1400px]">
-                                        <thead class="border-b-2 border-gray-200 bg-white">
-                                            <tr id="product-table-header-row"></tr>
-                                        </thead>
-                                        <tbody id="product-table-body"></tbody>
-                                    </table>
-                                </div>
-                                <div id="product-card-list" class="block md:hidden"></div>
-                            </div>
-                            <div id="pagination-controls" class="flex justify-between items-center mt-4"></div>
-                            <div id="empty-state" class="hidden"></div>
-                        </div></div>`;
+                     this.state.dom.panels.stock.innerHTML = `<div class="space-y-6"><div class="bg-white p-4 md:p-6 rounded-2xl shadow-xl border border-gray-200 relative"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-white rounded-lg text-gray-900 border border-gray-300"></div><select id="stock-category-filter" class="p-2 bg-white border border-gray-300 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-white border border-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-slate-50 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-danger text-white font-semibold py-2 px-4 rounded-lg hover:bg-danger-hover transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-slate-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar hidden mb-4 p-2 bg-primary-light border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-danger text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-danger-hover transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div>
+                                 <div id="product-list-container">
+                                     <div class="overflow-x-auto hidden md:block">
+                                         <table class="w-full text-left min-w-[1000px] sm:min-w-[1400px]">
+                                             <thead class="border-b-2 border-gray-200 bg-white">
+                                                 <tr id="product-table-header-row"></tr>
+                                             </thead>
+                                             <tbody id="product-table-body"></tbody>
+                                         </table>
+                                     </div>
+                                     <div id="product-card-list" class="block md:hidden"></div>
+                                 </div>
+                                 <div id="pagination-controls" class="flex justify-between items-center mt-4"></div>
+                                 <div id="empty-state" class="hidden"></div>
+                             </div></div>`;
                 }
                 
                 if (this.state.dom.panels.register) {
@@ -1907,31 +1907,31 @@
 
                 if (this.state.dom.panels.outputs) {
                     this.state.dom.panels.outputs.innerHTML = `
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
-                                <h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-arrow-circle-up mr-2 text-danger"></i>Registrar Saída</h2>
-                                <form id="add-output-form" class="space-y-4">
-                                    <div><label for="output-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="output-product-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option value="">Selecione...</option></select></div>
-                                    <div id="output-location-selector" class="space-y-2"></div>
-                                    <div><label for="output-quantity" class="block text-sm mb-1 text-gray-700">Quantidade da Saída</label><input type="number" id="output-quantity" min="1" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled></div>
-                                    <div><label for="output-motive-select" class="block text-sm mb-1 text-gray-700">Motivo</label><select id="output-motive-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option>Venda</option><option>Perda</option><option>Uso Interno</option><option>Outro</option></select></div>
-                                    <p id="output-stock-info" class="text-sm text-gray-500 font-medium h-5"></p>
-                                    <button type="submit" class="w-full mt-4 bg-danger text-white font-bold p-2 rounded-lg hover:bg-danger-hover transition">Registrar Saída</button>
-                                </form>
-                            </div>
-                            <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
-                                <h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-exchange-alt mr-2 text-primary"></i>Transferir Estoque</h2>
-                                <form id="transfer-stock-form" class="space-y-4">
-                                    <div><label for="transfer-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="transfer-product-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option value="">Selecione...</option></select></div>
-                                    <p id="transfer-stock-info" class="text-sm text-gray-500 font-medium h-5"></p>
-                                    <div><label for="transfer-from-location-select" class="block text-sm mb-1 text-gray-700">De</label><select id="transfer-from-location-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled><option value="">Selecione a origem</option></select></div>
-                                    <div><label for="transfer-to-location-select" class="block text-sm mb-1 text-gray-700">Para</label><select id="transfer-to-location-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled><option value="">Selecione o destino</option></select></div>
-                                    <div><label for="transfer-quantity" class="block text-sm mb-1 text-gray-700">Quantidade</label><input type="number" id="transfer-quantity" min="1" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled></div>
-                                    <button type="submit" class="w-full mt-4 bg-primary text-white font-bold p-2 rounded-lg hover:bg-primary-hover transition">Confirmar Transferência</button>
-                                </form>
-                            </div>
-                        </div>
-                    `;
+                                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                                    <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
+                                        <h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-arrow-circle-up mr-2 text-danger"></i>Registrar Saída</h2>
+                                        <form id="add-output-form" class="space-y-4">
+                                            <div><label for="output-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="output-product-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option value="">Selecione...</option></select></div>
+                                            <div id="output-location-selector" class="space-y-2"></div>
+                                            <div><label for="output-quantity" class="block text-sm mb-1 text-gray-700">Quantidade da Saída</label><input type="number" id="output-quantity" min="1" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled></div>
+                                            <div><label for="output-motive-select" class="block text-sm mb-1 text-gray-700">Motivo</label><select id="output-motive-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option>Venda</option><option>Perda</option><option>Uso Interno</option><option>Outro</option></select></div>
+                                            <p id="output-stock-info" class="text-sm text-gray-500 font-medium h-5"></p>
+                                            <button type="submit" class="w-full mt-4 bg-danger text-white font-bold p-2 rounded-lg hover:bg-danger-hover transition">Registrar Saída</button>
+                                        </form>
+                                    </div>
+                                    <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
+                                        <h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-exchange-alt mr-2 text-primary"></i>Transferir Estoque</h2>
+                                        <form id="transfer-stock-form" class="space-y-4">
+                                            <div><label for="transfer-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="transfer-product-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option value="">Selecione...</option></select></div>
+                                            <p id="transfer-stock-info" class="text-sm text-gray-500 font-medium h-5"></p>
+                                            <div><label for="transfer-from-location-select" class="block text-sm mb-1 text-gray-700">De</label><select id="transfer-from-location-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled><option value="">Selecione a origem</option></select></div>
+                                            <div><label for="transfer-to-location-select" class="block text-sm mb-1 text-gray-700">Para</label><select id="transfer-to-location-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled><option value="">Selecione o destino</option></select></div>
+                                            <div><label for="transfer-quantity" class="block text-sm mb-1 text-gray-700">Quantidade</label><input type="number" id="transfer-quantity" min="1" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled></div>
+                                            <button type="submit" class="w-full mt-4 bg-primary text-white font-bold p-2 rounded-lg hover:bg-primary-hover transition">Confirmar Transferência</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            `;
                 }
 
                 if (this.state.dom.panels.reports) {

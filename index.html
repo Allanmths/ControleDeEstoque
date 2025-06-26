@@ -207,6 +207,9 @@
             };
         };
         
+        // ATENÇÃO: Expor a API Key no lado do cliente é aceitável para muitos casos de uso do Firebase,
+        // desde que você proteja seus dados com as Regras de Segurança do Firestore, Auth e Storage.
+        // Em um ambiente de produção mais sensível, considere carregar esta configuração de um backend seguro.
         const firebaseConfig = {
             apiKey: "AIzaSyDVxDoPVP-uhWwfXsdlouk5uv-jt-P6tL8",
             authDomain: "controledeestoque-7ea51.firebaseapp.com",
@@ -837,7 +840,6 @@
                 }
             }
             
-            // --- ALL METHODS BELOW ARE NOW PART OF THE CLASS ---
             async handleAddCategory(form) {
                 const name = form.querySelector('#category-name').value.trim();
                 if (name && this.state.firestoreRefs) {
@@ -1823,7 +1825,7 @@
                         await this.handleBulkInsert(json);
                     } catch (error) {
                         console.error("Erro ao processar arquivo Excel:", error);
-                        this.showAlert(`Não foi possível ler o arquivo: ${error.message}`, true);
+                        this.showAlert(`Falha ao processar o arquivo Excel. Verifique o formato e tente novamente.`, true);
                     } finally {
                         filenameEl.textContent = '';
                         this.setLoading(false);
@@ -2158,8 +2160,7 @@
             },
             async handleSaveSettings() {
                 if (this.state.userRole !== 'admin') {
-                    this.showAlert('Você não tem permissão para salvar configurações.', true);
-                    return;
+                    return this.showAlert('Você não tem permissão para salvar configurações.', true);
                 }
                 const input = document.getElementById('items-per-page-input');
                 if (!input) return;
@@ -2178,7 +2179,7 @@
                 } finally {
                     this.setLoading(false);
                 }
-            },
+            } // CORREÇÃO: A vírgula que causava o erro de sintaxe foi removida daqui.
         }
 
         new StockApp();

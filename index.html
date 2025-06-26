@@ -323,7 +323,7 @@
                             this.showAuthUI();
                         }
                     } catch (error) {
-                        console.error("Erro fatal durante a autenticação ou inicialização:", error);
+                        console.error("Fatal error during authentication or initialization:", error);
                         this.showAlert("Ocorreu um erro crítico ao carregar a aplicação.", true);
                     } finally {
                         this.setLoading(false);
@@ -1087,12 +1087,16 @@
                 const isLowStock = product.minStock > 0 && product.totalQuantity <= product.minStock;
                 const isSelected = this.state.selectedProducts.includes(product.id);
                 
-                const quantitiesHtml = this.state.locations.map(loc => `
-                    <div class="flex justify-between text-sm">
-                        <span>${loc.name}</span>
-                        <span class="font-medium">${(product.quantities || {})[loc.id] || 0}</span>
-                    </div>
-                `).join('');
+                const quantitiesHtml = this.state.locations.map(loc => {
+                    const qty = (product.quantities || {})[loc.id] || 0;
+                    if (qty === 0) return ''; // <-- FIX: Only show locations with stock
+                    return `
+                        <div class="flex justify-between items-start gap-2 text-sm">
+                            <span class="text-gray-600 break-words">${loc.name}</span>
+                            <span class="font-semibold text-gray-900 flex-shrink-0">${qty}</span>
+                        </div>
+                    `;
+                }).join('');
 
                 const actionButtons = isAdmin ? `
                     <div class="mt-2">

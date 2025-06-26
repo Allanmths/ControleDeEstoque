@@ -70,16 +70,20 @@
         [data-role-required] { display: none; }
         
         #loading-bar {
-            position: fixed; top: 0; left: 0; z-index: 100;
+            position: fixed; top: 0; left: 0; z-index: 9999;
             width: 100%; height: 3px; background-color: var(--color-primary);
             display: none; /* Inicia escondido */
-            overflow: hidden;
+            transition: opacity 0.3s ease;
         }
+        #loading-bar.show { display: block; }
         #loading-bar::before {
             content: ''; display: block; position: absolute;
             top: 0; left: -100%; width: 100%; height: 100%;
             background: linear-gradient(to right, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%);
             animation: loading-shimmer 1.5s infinite;
+        }
+        @keyframes loading-shimmer {
+            100% { left: 100%; }
         }
     </style>
 </head>
@@ -207,7 +211,7 @@
             apiKey: "AIzaSyDVxDoPVP-uhWwfXsdlouk5uv-jt-P6tL8",
             authDomain: "controledeestoque-7ea51.firebaseapp.com",
             projectId: "controledeestoque-7ea51",
-            storageBucket: "controledeestoque-7ea51.firebasestorage.app",
+            storageBucket: "controledeestoque-7ea51.appspot.com",
             messagingSenderId: "355699807496",
             appId: "1:355699807496:web:6432766da431e535b888bd"
         };
@@ -225,7 +229,9 @@
                 firestoreRefs: null, dom: null, chartInstance: null,
                 deleteQueue: { id: null, type: null, isBulk: false },
                 isAuthReady: false,
-                currentUser: null, userRole: null,
+                currentUser: null, 
+                currentUserData: null,
+                userRole: null, // 'admin' or 'viewer'
                 dashboardSettings: { chartType: 'bar', period: '7days', startDate: null, endDate: null },
                 unsubscribers: [],
             };
@@ -279,6 +285,12 @@
                 };
             }
             
+            setLoading(isLoading) {
+                if (this.state.dom.loadingBar) {
+                    this.state.dom.loadingBar.classList.toggle('show', isLoading);
+                }
+            }
+
             setupEventListeners() {
                 const { dom } = this.state;
                 if (!dom) return;
@@ -320,13 +332,20 @@
                             const userDocRef = doc(this.db, 'users', user.uid);
                             const userDoc = await getDoc(userDocRef);
 
-                            this.state.userRole = userDoc.exists() ? userDoc.data().role : 'viewer';
+                            if (userDoc.exists()) {
+                                this.state.currentUserData = userDoc.data();
+                                this.state.userRole = this.state.currentUserData.role;
+                            } else {
+                                this.state.userRole = 'viewer';
+                                this.state.currentUserData = { permissions: { home: true, reports: true, stock: true } }; 
+                            }
                             
-                            await this.initializeAppForUser();
                             this.state.isAuthReady = true;
+                            await this.initializeAppForUser();
                             this.showAppUI();
                         } else {
                             this.state.currentUser = null;
+                            this.state.currentUserData = null;
                             this.state.userRole = null;
                             this.state.isAuthReady = false;
                             this.state.allUsers = [];
@@ -350,6 +369,7 @@
                     await signInWithEmailAndPassword(this.auth, email, password);
                 } catch (error) {
                     this.showAlert(this.getFriendlyAuthError(error.code), true);
+                } finally {
                     this.setLoading(false);
                 }
             }
@@ -362,7 +382,7 @@
                     const userCredential = await createUserWithEmailAndPassword(this.auth, email, password);
                     await setDoc(doc(this.db, "users", userCredential.user.uid), {
                         email: userCredential.user.email,
-                        role: "viewer",
+                        role: "viewer", // Default role
                         createdAt: serverTimestamp(),
                         permissions: { // Default permissions for new users
                             home: true,
@@ -376,6 +396,7 @@
                     });
                 } catch (error) {
                     this.showAlert(this.getFriendlyAuthError(error.code), true);
+                } finally {
                     this.setLoading(false);
                 }
             }
@@ -383,6 +404,7 @@
             async handleLogout() {
                 this.setLoading(true);
                 await signOut(this.auth);
+                // onAuthStateChanged will handle the UI switch
             }
             
             toggleAuthForm(showRegister) {
@@ -404,33 +426,30 @@
                 this.state.dom.appSection.classList.add('hidden');
                 this.state = {
                     ...this.state, products: [], categories: [], locations: [],
-                    movements: [], selectedProducts: [], currentPage: 1, allUsers: [], auditLog: []
+                    movements: [], selectedProducts: [], currentPage: 1, allUsers: [], auditLog: [],
+                    currentUserData: null
                 };
             }
             
             applyRolePermissions() {
                 const { userRole } = this.state;
+                const isAdmin = userRole === 'admin';
                 const welcomeEl = document.getElementById('user-welcome-message');
                 if (welcomeEl) {
-                    welcomeEl.textContent = `Bem-vindo! Você está logado como ${userRole === 'admin' ? 'Administrador' : 'Visualizador'}.`;
+                    welcomeEl.textContent = `Bem-vindo! Você está logado como ${isAdmin ? 'Administrador' : 'Visualizador'}.`;
                 }
-
-                // Show/hide sidebar links based on permissions
+                
+                // Sidebar links based on custom permissions
                 document.querySelectorAll('#sidebar-nav .sidebar-link').forEach(link => {
                     const tabId = link.dataset.tab;
                     link.style.display = this.checkUserPermissionForTab(tabId) ? 'flex' : 'none';
                 });
 
-                // Show/hide finer-grained elements based on role
-                document.querySelectorAll('[data-role-required]').forEach(el => {
-                    const requiredRole = el.getAttribute('data-role-required');
-                    const isFlex = el.tagName === 'A' || el.tagName === 'BUTTON' || (el.tagName === 'DIV' && el.classList.contains('action-card'));
-                    let displayStyle = 'block';
-                    if (isFlex) displayStyle = 'flex';
-                    
-                    el.style.display = userRole === requiredRole ? displayStyle : 'none';
+                // General UI elements based on simple admin role
+                document.querySelectorAll('[data-role-required="admin"]').forEach(el => {
+                    el.style.display = isAdmin ? '' : 'none';
                 });
-            
+                
                 const activeTabEl = document.querySelector('.sidebar-link.bg-gray-100');
                 if (activeTabEl && !this.checkUserPermissionForTab(activeTabEl.dataset.tab)) {
                     this.showAlert(`Você não tem mais permissão para acessar a aba '${activeTabEl.dataset.tab}'. Redirecionando...`, true);
@@ -438,39 +457,12 @@
                 }
             }
 
-            // [REFACTOR] Função de verificação de permissão aprimorada
             checkUserPermissionForTab(tabId) {
-                if (!this.state.currentUser || !this.state.isAuthReady) {
-                    return false; // Se a autenticação não está pronta, nega o acesso.
-                }
+                if (!this.state.currentUser || !this.state.isAuthReady) return false;
+                if (this.state.userRole === 'admin') return true;
                 
-                // Admin sempre tem acesso a tudo.
-                if (this.state.userRole === 'admin') {
-                    return true;
-                }
-                
-                // Lógica mais clara e segura para 'viewers'.
-                const userDoc = this.state.allUsers.find(u => u.id === this.state.currentUser.uid);
-                
-                // Se o documento do usuário não foi encontrado (não deveria acontecer, mas é uma boa defesa).
-                if (!userDoc) {
-                    return false;
-                }
-
-                // Se o usuário tem um objeto de permissões definido, verifica a permissão para a aba específica.
-                if (userDoc.permissions) {
-                    return userDoc.permissions[tabId] === true;
-                }
-                
-                // Como fallback, se o objeto `permissions` não existir,
-                // permite acesso apenas a abas que não requerem papel de admin.
-                const targetLink = document.querySelector(`.sidebar-link[data-tab="${tabId}"]`);
-                if (targetLink && !targetLink.dataset.roleRequired) {
-                    return true;
-                }
-                
-                // O padrão final é negar o acesso.
-                return false;
+                const permissions = this.state.currentUserData?.permissions;
+                return permissions ? permissions[tabId] === true : false;
             }
 
             getFriendlyAuthError(code) {
@@ -484,7 +476,6 @@
                 }
             }
 
-            // [FIX] Função de inicialização corrigida para carregar dados do usuário para todos os papéis.
             async initializeAppForUser() {
                 const basePath = `artifacts/${appId}/public/data`;
                 this.state.firestoreRefs = {
@@ -499,38 +490,50 @@
                 
                 this.clearAllListeners();
 
-                const initialDataPromise = new Promise((resolve) => {
-                    let loadedCount = 0;
-                    // O total a ser carregado é ajustado para incluir a busca de usuários para 'viewers' (6) e auditoria para 'admins' (7).
-                    const totalToLoad = this.state.userRole === 'admin' ? 7 : 6; 
+                const dataFetchPromises = [
+                    this.createSnapshotListener(this.state.firestoreRefs.settings, (docSnap) => {
+                        if (docSnap.exists()) this.state.itemsPerPage = docSnap.data().itemsPerPage || 10;
+                    }),
+                    this.createSnapshotListener(query(this.state.firestoreRefs.locations), (snapshot) => {
+                        this.state.locations = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => a.name.localeCompare(b.name));
+                    }),
+                    this.createSnapshotListener(query(this.state.firestoreRefs.categories), (snapshot) => {
+                        this.state.categories = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name));
+                    }),
+                    this.createSnapshotListener(query(this.state.firestoreRefs.products), (snapshot) => {
+                        this.state.products = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                    }),
+                    this.createSnapshotListener(query(this.state.firestoreRefs.movements), (snapshot) => {
+                        this.state.movements = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                    })
+                ];
 
-                    const checkDone = () => {
-                        loadedCount++;
-                        if (loadedCount >= totalToLoad) {
-                            resolve();
-                        }
-                    };
+                if (this.state.userRole === 'admin') {
+                    dataFetchPromises.push(this.createSnapshotListener(query(this.state.firestoreRefs.users), (snapshot) => {
+                        this.state.allUsers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                    }));
+                    dataFetchPromises.push(this.createSnapshotListener(query(this.state.firestoreRefs.auditLog), (snapshot) => {
+                         this.state.auditLog = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                    }));
+                }
 
-                    this.state.unsubscribers.push(this.listenForSettingsUpdates(checkDone));
-                    this.state.unsubscribers.push(this.listenForLocationUpdates(checkDone));
-                    this.state.unsubscribers.push(this.listenForCategoryUpdates(checkDone));
-                    this.state.unsubscribers.push(this.listenForProductUpdates(checkDone));
-                    this.state.unsubscribers.push(this.listenForMovements(checkDone));
-                    
-                    // O listener de usuários agora é chamado para todos os papéis.
-                    this.state.unsubscribers.push(this.listenForUserUpdates(checkDone));
-                    
-                    if (this.state.userRole === 'admin') {
-                        this.state.unsubscribers.push(this.listenForAuditLogUpdates(checkDone));
-                    }
+                await Promise.all(dataFetchPromises);
+                this.renderCurrentTab(); // Render after all initial data is loaded
+            }
+
+            createSnapshotListener(queryOrRef, callback) {
+                return new Promise((resolve) => {
+                    const unsubscribe = onSnapshot(queryOrRef, (snapshot) => {
+                        callback(snapshot);
+                        // Re-render relevant parts of the UI after data changes
+                        this.renderCurrentTab();
+                    }, (error) => {
+                        console.error("Firestore listener error:", error);
+                        this.showAlert("Erro ao sincronizar dados com o servidor.", true);
+                    });
+                    this.state.unsubscribers.push(unsubscribe);
+                    resolve();
                 });
-
-                await initialDataPromise;
-
-                // A partir daqui, o código só executa quando todos os dados essenciais (incluindo permissões) foram carregados.
-                this.applyRolePermissions();
-                const initialTab = document.querySelector('.sidebar-link.bg-gray-100')?.dataset.tab || 'home';
-                this.switchTab(initialTab);
             }
 
             clearAllListeners() {
@@ -540,10 +543,13 @@
             
             async handleFormSubmit(e) {
                 e.preventDefault();
-                if (this.state.userRole !== 'admin') {
-                    return this.showAlert('Você não tem permissão para realizar esta ação.', true);
-                }
+                const isAdmin = this.state.userRole === 'admin';
                 const form = e.target;
+                
+                if (!isAdmin) {
+                     return this.showAlert('Você não tem permissão para realizar esta ação.', true);
+                }
+                
                 this.setLoading(true);
                 try {
                     if (form.id === 'add-category-form') await this.handleAddCategory(form);
@@ -559,23 +565,18 @@
             }
             
             handleContentClick(e) {
-                const button = e.target.closest('button');
-                if(!button) return; // Exit if no button was clicked
-
-                if (button.classList.contains('manage-permissions-btn')) {
-                    const userId = button.dataset.userId;
-                    if(userId) this.openPermissionsModal(userId);
-                    return;
-                }
-                
                 const actionCard = e.target.closest('.action-card');
-
                 if (actionCard && actionCard.dataset.tab) {
                     e.preventDefault();
-                    this.switchTab(actionCard.dataset.tab);
+                    if(this.checkUserPermissionForTab(actionCard.dataset.tab)){
+                        this.switchTab(actionCard.dataset.tab);
+                    } else {
+                        this.showAlert('Você não tem permissão para acessar esta área.', true);
+                    }
                     return;
                 }
 
+                const button = e.target.closest('button');
                 if (!button) {
                     const ctaLink = e.target.closest('a#cta-add-product');
                     if (ctaLink) {
@@ -583,7 +584,13 @@
                         this.switchTab('register');
                     }
                     return;
-                };
+                }
+                
+                if (button.classList.contains('manage-permissions-btn')) {
+                    const userId = button.dataset.userId;
+                    if(userId) this.openPermissionsModal(userId);
+                    return;
+                }
 
                 if (button.classList.contains('chart-type-btn')) {
                     this.state.dashboardSettings.chartType = button.dataset.type;
@@ -635,56 +642,56 @@
             }
             
             handleContentChange(e) {
-             const target = e.target;
-             if (['stock-category-filter', 'stock-status-filter', 'date-filter-start', 'date-filter-end'].includes(target.id)) {
-                 this.state.currentPage = 1;
-                 this.debouncedRenderProducts();
-             }
-             if (target.id === 'output-product-select') this.handleOutputProductSelection(target.value);
-             if (target.id === 'transfer-product-select') this.handleTransferProductSelection(target.value);
-             if (target.id === 'transfer-from-location-select') this.handleTransferFromLocationSelection(target.value);
-             
-             if (target.id === 'excel-insert-input') {
-                 const file = target.files?.[0];
-                 const filenameEl = document.getElementById('excel-insert-filename');
-                 if(file && filenameEl) {
-                     this.handleExcelParse(file, filenameEl);
-                 }
-             }
-             
-             if (target.id === 'select-all-checkbox') {
-                 this.handleSelectAllChange(e);
-             } else if (target.classList.contains('product-checkbox')) {
-                 this.handleSingleCheckboxChange(); 
-             }
-             
-             if (target.name === 'output-location') {
-                 this.updateOutputQuantityLock();
-             }
-             
-             if (target.id === 'period-selector') {
-                 const period = target.value;
-                 this.state.dashboardSettings.period = period;
-                 const customDateSelector = document.getElementById('custom-date-range-selector');
-                 if (customDateSelector) {
-                     if (period === 'custom') {
-                         customDateSelector.classList.remove('hidden');
-                         customDateSelector.classList.add('grid');
-                     } else {
-                         customDateSelector.classList.add('hidden');
-                         customDateSelector.classList.remove('grid');
-                         this.updateDashboardView();
-                     }
-                 }
-             }
-             
-             if (target.id === 'dashboard-date-start' || target.id === 'dashboard-date-end') {
-                 this.state.dashboardSettings.startDate = document.getElementById('dashboard-date-start').value;
-                 this.state.dashboardSettings.endDate = document.getElementById('dashboard-date-end').value;
-                 if (this.state.dashboardSettings.startDate && this.state.dashboardSettings.endDate) {
-                     this.updateDashboardView();
-                 }
-             }
+                const target = e.target;
+                if (['stock-category-filter', 'stock-status-filter', 'date-filter-start', 'date-filter-end'].includes(target.id)) {
+                    this.state.currentPage = 1;
+                    this.debouncedRenderProducts();
+                }
+                if (target.id === 'output-product-select') this.handleOutputProductSelection(target.value);
+                if (target.id === 'transfer-product-select') this.handleTransferProductSelection(target.value);
+                if (target.id === 'transfer-from-location-select') this.handleTransferFromLocationSelection(target.value);
+                
+                if (target.id === 'excel-insert-input') {
+                    const file = target.files?.[0];
+                    const filenameEl = document.getElementById('excel-insert-filename');
+                    if(file && filenameEl) {
+                        this.handleExcelParse(file, filenameEl);
+                    }
+                }
+                
+                if (target.id === 'select-all-checkbox') {
+                    this.handleSelectAllChange(e);
+                } else if (target.classList.contains('product-checkbox')) {
+                    this.handleSingleCheckboxChange(); 
+                }
+                
+                if (target.name === 'output-location') {
+                    this.updateOutputQuantityLock();
+                }
+                
+                if (target.id === 'period-selector') {
+                    const period = target.value;
+                    this.state.dashboardSettings.period = period;
+                    const customDateSelector = document.getElementById('custom-date-range-selector');
+                    if (customDateSelector) {
+                        if (period === 'custom') {
+                            customDateSelector.classList.remove('hidden');
+                            customDateSelector.classList.add('grid');
+                        } else {
+                            customDateSelector.classList.add('hidden');
+                            customDateSelector.classList.remove('grid');
+                            this.updateDashboardView();
+                        }
+                    }
+                }
+                
+                if (target.id === 'dashboard-date-start' || target.id === 'dashboard-date-end') {
+                    this.state.dashboardSettings.startDate = document.getElementById('dashboard-date-start').value;
+                    this.state.dashboardSettings.endDate = document.getElementById('dashboard-date-end').value;
+                    if (this.state.dashboardSettings.startDate && this.state.dashboardSettings.endDate) {
+                        this.updateDashboardView();
+                    }
+                }
             }
             
             handleSelectAllChange(e) {
@@ -703,9 +710,13 @@
 
             updateSelectionState() {
                 this.state.selectedProducts = Array.from(document.querySelectorAll('#product-list .product-checkbox:checked')).map(cb => cb.dataset.id);
-                document.querySelectorAll('#product-list tr[data-product-id]').forEach(row => {
+                document.querySelectorAll('#product-table-body tr[data-product-id]').forEach(row => {
                     const id = row.dataset.productId;
-                    row.classList.toggle('bg-blue-100', this.state.selectedProducts.includes(id));
+                    row.classList.toggle('bg-primary-light', this.state.selectedProducts.includes(id));
+                });
+                document.querySelectorAll('#product-card-list div[data-product-id]').forEach(card => {
+                    const id = card.dataset.productId;
+                    card.classList.toggle('bg-primary-light', this.state.selectedProducts.includes(id));
                 });
                 
                 const allVisibleCheckboxes = document.querySelectorAll('#product-list .product-checkbox');
@@ -729,7 +740,7 @@
                     if (!id) throw new Error("ID do produto não encontrado no modal.");
 
                     const oldProduct = this.state.products.find(p => p.id === id);
-                    if (!oldProduct) return this.showAlert('Produto não encontrado.', true);
+                    if (!oldProduct) throw new Error('Produto não encontrado.');
 
                     const newQuantities = {};
                     let newTotalQuantity = 0;
@@ -812,120 +823,6 @@
                 }
             }
             
-            listenForLocationUpdates(onInitialLoad) {
-                if (!this.state.firestoreRefs) return () => {};
-                let isFirstLoad = true;
-                return onSnapshot(query(this.state.firestoreRefs.locations), async (snapshot) => {
-                    this.state.locations = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })).sort((a,b) => a.name.localeCompare(b.name));
-                    
-                    if (this.state.isAuthReady) this.renderCurrentTab();
-
-                    if (isFirstLoad) {
-                        onInitialLoad();
-                        isFirstLoad = false;
-                    }
-                }, (error) => console.error("Erro ao ouvir atualizações de localidades:", error));
-            }
-
-            listenForSettingsUpdates(onInitialLoad) {
-                if (!this.state.firestoreRefs) return () => {};
-                let isFirstLoad = true;
-                return onSnapshot(this.state.firestoreRefs.settings, async (docSnap) => {
-                    if (docSnap.exists()) {
-                        this.state.itemsPerPage = docSnap.data().itemsPerPage || 10;
-                    } else if (this.state.userRole === 'admin') {
-                        await setDoc(this.state.firestoreRefs.settings, { itemsPerPage: 10 });
-                        this.state.itemsPerPage = 10;
-                    }
-                    if (this.state.isAuthReady) this.renderCurrentTab();
-                    if (isFirstLoad) {
-                        onInitialLoad();
-                        isFirstLoad = false;
-                    }
-                }, (error) => console.error("Erro ao ouvir atualizações de configurações:", error));
-            }
-
-            listenForProductUpdates(onInitialLoad) {
-                if (!this.state.firestoreRefs) return () => {};
-                let isFirstLoad = true;
-                return onSnapshot(query(this.state.firestoreRefs.products), (snapshot) => {
-                    this.state.products = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
-                    if (this.state.isAuthReady) {
-                        this.renderCurrentTab();
-                        this.populateProductSelects();
-                    }
-                    if (isFirstLoad) {
-                        onInitialLoad();
-                        isFirstLoad = false;
-                    }
-                }, (error) => console.error("Erro ao ouvir atualizações de produtos:", error));
-            }
-
-            listenForCategoryUpdates(onInitialLoad) {
-                if (!this.state.firestoreRefs) return () => {};
-                let isFirstLoad = true;
-                return onSnapshot(query(this.state.firestoreRefs.categories), (snapshot) => {
-                    this.state.categories = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() })).sort((a, b) => a.name.localeCompare(b.name));
-                    if (this.state.isAuthReady) this.renderCurrentTab();
-                     if (isFirstLoad) {
-                        onInitialLoad();
-                        isFirstLoad = false;
-                    }
-                }, (error) => console.error("Erro ao ouvir atualizações de categorias:", error));
-            }
-            
-            listenForMovements(onInitialLoad) {
-                if (!this.state.firestoreRefs) return () => {};
-                let isFirstLoad = true;
-                return onSnapshot(query(this.state.firestoreRefs.movements), (snapshot) => {
-                    this.state.movements = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
-                    if (this.state.isAuthReady) this.renderCurrentTab();
-                    if (isFirstLoad) {
-                        onInitialLoad();
-                        isFirstLoad = false;
-                    }
-                }, (error) => console.error("Erro ao ouvir atualizações de movimentações:", error));
-            }
-
-            listenForUserUpdates(onInitialLoad) {
-                if (!this.state.firestoreRefs) {
-                    if (typeof onInitialLoad === 'function') onInitialLoad();
-                    return () => {};
-                }
-                let isFirstLoad = true;
-                return onSnapshot(query(this.state.firestoreRefs.users), (snapshot) => {
-                    this.state.allUsers = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
-                    if (this.state.isAuthReady) this.renderCurrentTab();
-                     if (isFirstLoad) {
-                        onInitialLoad();
-                        isFirstLoad = false;
-                    }
-                }, (error) => console.error("Erro ao ouvir atualizações de usuários:", error));
-            }
-
-            listenForAuditLogUpdates(onInitialLoad) {
-                if (!this.state.firestoreRefs || this.state.userRole !== 'admin') {
-                    if (typeof onInitialLoad === 'function') onInitialLoad();
-                    return () => {};
-                }
-                let isFirstLoad = true;
-                return onSnapshot(query(this.state.firestoreRefs.auditLog), (snapshot) => {
-                    this.state.auditLog = snapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() }));
-                    if (this.state.isAuthReady) this.renderCurrentTab();
-                    if (isFirstLoad) {
-                        onInitialLoad();
-                        isFirstLoad = false;
-                    }
-                }, (error) => console.error("Erro ao ouvir atualizações do log de auditoria:", error));
-            }
-
-            setLoading(isLoading) {
-                const loadingBar = this.state.dom?.loadingBar;
-                if (loadingBar) {
-                    loadingBar.style.display = isLoading ? 'block' : 'none';
-                }
-            }
-
             async logAudit(action, details = {}) {
                 if (!this.state.firestoreRefs?.auditLog || !this.state.currentUser) return;
                 try {
@@ -939,9 +836,8 @@
                     console.error("Falha ao registrar log de auditoria:", error);
                 }
             }
-        }
-
-        Object.assign(StockApp.prototype, {
+            
+            // --- ALL METHODS BELOW ARE NOW PART OF THE CLASS ---
             async handleAddCategory(form) {
                 const name = form.querySelector('#category-name').value.trim();
                 if (name && this.state.firestoreRefs) {
@@ -952,7 +848,7 @@
                 } else {
                     throw new Error("Nome da categoria inválido.");
                 }
-            },
+            }
             async handleAddLocation(form) {
                 const name = form.querySelector('#location-name').value.trim();
                 if (name && this.state.firestoreRefs) {
@@ -967,7 +863,7 @@
                 } else {
                     throw new Error("Nome da localidade inválido.");
                 }
-            },
+            }
             async handleAddProduct(form) {
                 const minStock = parseInt(form.querySelector('#product-min-stock').value, 10);
                 if (isNaN(minStock) || minStock < 1) {
@@ -1004,7 +900,7 @@
                 } else {
                     throw new Error("Dados do produto inválidos. Verifique nome, categoria e unidade.");
                 }
-            },
+            }
             async handleAddOutput(form) {
                 const productId = form.querySelector('#output-product-select').value;
                 const product = this.state.products.find(p => p.id === productId);
@@ -1040,7 +936,7 @@
                 this.showAlert('Saída registrada com sucesso.');
                 form.reset();
                 this.handleOutputProductSelection('');
-            },
+            }
             async handleTransferStock(form) {
                 const productId = form.querySelector('#transfer-product-select').value;
                 const product = this.state.products.find(p => p.id === productId);
@@ -1089,11 +985,11 @@
                 this.showAlert('Transferência realizada com sucesso!');
                 form.reset();
                 this.handleTransferProductSelection(''); 
-            },
+            }
             async logMovement(productId, type, quantity, motive) {
                 if (!this.state.firestoreRefs) return;
                 await addDoc(this.state.firestoreRefs.movements, { productId, type, quantity, motive, date: serverTimestamp() });
-            },
+            }
             renderProducts() {
                 const stockPanel = document.getElementById('panel-stock');
                 if (!stockPanel) return;
@@ -1107,7 +1003,7 @@
 
                     productTableHeaderRow.innerHTML = `
                         ${tableCheckboxHeader}
-                        <th class="p-3 text-gray-900 sticky left-0 bg-white hover:bg-white whitespace-nowrap font-medium">Produto</th>
+                        <th class="p-3 text-left text-gray-900 sticky left-0 bg-white hover:bg-white whitespace-nowrap font-medium">Produto</th>
                         <th class="p-3 text-center text-gray-900 whitespace-nowrap font-medium">Categoria</th>
                         <th class="p-3 text-center text-gray-900 font-bold whitespace-nowrap">Total</th>
                         ${locationHeaders}
@@ -1143,7 +1039,7 @@
                 }
                 this.renderPaginationControls(filteredProducts.length);
                 this.updateSelectionState();
-            },
+            }
             renderProductRow(product) {
                 const isAdmin = this.state.userRole === 'admin';
                 const category = this.state.categories.find(c => c.id === product.category);
@@ -1156,18 +1052,18 @@
                     <button data-action="edit" data-id="${product.id}" class="text-primary hover:text-primary-hover p-2"><i class="fas fa-edit"></i></button>
                     <button data-action="delete" data-id="${product.id}" class="text-danger hover:text-danger-hover p-2"><i class="fas fa-trash"></i></button>
                 ` : '';
-                const checkbox = isAdmin ? `<input type="checkbox" class="product-checkbox h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" data-id="${product.id}" ${isSelected ? 'checked' : ''}>` : '';
+                const checkbox = isAdmin ? `<td class="p-3 text-center"><input type="checkbox" class="product-checkbox h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" data-id="${product.id}" ${isSelected ? 'checked' : ''}></td>` : '<td class="p-3 w-4"></td>';
 
                 return `
                     <tr class="border-b border-gray-200 hover:bg-slate-50 transition-colors ${isLowStock ? 'low-stock-warning' : ''} ${isSelected ? 'bg-primary-light' : ''}" data-product-id="${product.id}">
-                        <td class="p-3 text-center">${checkbox}</td>
-                        <td class="p-3 font-medium text-gray-900 sticky left-0 bg-white hover:bg-white">${product.name} ${isLowStock ? `<i class="fas fa-exclamation-triangle text-warning ml-1" title="Estoque baixo!"></i>` : ''}</td>
+                        ${checkbox}
+                        <td class="p-3 font-medium text-gray-900 sticky left-0 bg-white hover:bg-slate-50">${product.name} ${isLowStock ? `<i class="fas fa-exclamation-triangle text-warning ml-1" title="Estoque baixo!"></i>` : ''}</td>
                         <td class="p-3 text-center text-gray-800">${category?.name || 'N/A'}</td>
                         <td class="p-3 text-center font-bold text-gray-900">${product.totalQuantity || 0}</td>
                         ${quantitiesHtml}
                         <td class="p-3 text-right">${actionButtons}</td>
                     </tr>`;
-            },
+            }
             renderProductCard(product) {
                 const isAdmin = this.state.userRole === 'admin';
                 const category = this.state.categories.find(c => c.id === product.category);
@@ -1214,7 +1110,7 @@
                         <div class="ml-7">${actionButtons}</div>
                     </div>
                 `;
-            },
+            }
             renderCategories() {
                 const categoryList = document.getElementById('category-list');
                 if (categoryList) {
@@ -1253,7 +1149,7 @@
                         }
                     }
                 });
-            },
+            }
             renderSettings() {
                 const locationsList = document.getElementById('location-list');
                 if (locationsList) {
@@ -1279,7 +1175,7 @@
                 if(this.state.userRole === 'admin' && document.getElementById('user-management-section')) {
                     this.renderUserManagement();
                 }
-            },
+            }
              renderUserManagement() {
                 if (this.state.userRole !== 'admin') return; 
                 const userListTbody = document.getElementById('user-list-tbody');
@@ -1311,7 +1207,7 @@
                         </tr>
                     `;
                 }).join('');
-            },
+            }
             async handleChangeUserRole(userId, newRole, button) {
                 if (this.state.userRole !== 'admin') {
                     return this.showAlert('Apenas administradores podem alterar papéis.', true);
@@ -1343,7 +1239,7 @@
                     button.disabled = false;
                     button.innerHTML = originalContent;
                 }
-            },
+            }
             openPermissionsModal(userId) {
                 const user = this.state.allUsers.find(u => u.id === userId);
                 if (!user) return this.showAlert('Usuário não encontrado.', true);
@@ -1382,10 +1278,10 @@
                 }
                 
                 self.classList.replace('hidden', 'flex');
-            },
+            }
             closePermissionsModal() {
                 this.state.dom.modals.permissions.self.classList.replace('flex', 'hidden');
-            },
+            }
             async handleSavePermissions() {
                 const { self, checkboxContainer } = this.state.dom.modals.permissions;
                 const userId = self.dataset.userId;
@@ -1415,7 +1311,7 @@
                 } finally {
                     this.setLoading(false);
                 }
-            },
+            }
             updateRegisterForm() {
                 const container = document.getElementById('add-product-form-locations-container');
                 if (container) {
@@ -1426,7 +1322,7 @@
                         </label>`
                     ).join('');
                 }
-            },
+            }
             populateProductSelects() {
                 const selects = ['output-product-select', 'transfer-product-select'];
                 const sortedProducts = [...this.state.products].sort((a,b) => a.name.localeCompare(b.name));
@@ -1445,19 +1341,19 @@
                         if (selectId === 'transfer-product-select') this.handleTransferProductSelection('');
                     }
                 });
-            },
+            }
             showAlert(message, isError = false) {
                 Toastify({
                     text: message, duration: 3000, newWindow: true, close: true, gravity: "top", position: "right", stopOnFocus: true,
                     style: { background: isError ? 'linear-gradient(to right, #ef4444, #dc2626)' : 'linear-gradient(to right, #22c55e, #16a34a)', borderRadius: '8px', fontSize: '14px', padding: '12px 20px' },
                     onClick: function(){}
                 }).showToast();
-            },
+            }
             toggleSidebar(show) {
                 const { menu, overlay } = this.state.dom.sidebar;
                 menu.classList.toggle('-translate-x-full', !show);
                 overlay.classList.toggle('hidden', !show);
-            },
+            }
             switchTab(tabId) {
                 if (!this.checkUserPermissionForTab(tabId)) {
                     this.showAlert('Você não tem permissão para acessar esta aba.', true);
@@ -1468,14 +1364,14 @@
                 const panelToShow = document.getElementById(`panel-${tabId}`);
                 if (panelToShow) panelToShow.classList.remove('hidden');
                 
-                document.querySelectorAll('.sidebar-link').forEach(l => l.classList.toggle('bg-gray-100', l.dataset.tab === tabId));
+                document.querySelectorAll('.sidebar-link').forEach(l => l.classList.toggle('bg-primary-light', l.dataset.tab === tabId));
                 
                 if (this.state.isAuthReady) {
                     this.renderCurrentTab();
                 }
-            },
+            }
             renderCurrentTab() {
-                const activeTabEl = document.querySelector('.sidebar-link.bg-gray-100');
+                const activeTabEl = document.querySelector('.sidebar-link.bg-primary-light');
                 if (!activeTabEl) return;
                 
                 const tabId = activeTabEl.dataset.tab;
@@ -1489,7 +1385,7 @@
                     case 'settings': this.renderSettings(); break;
                     case 'audit': this.renderAuditLog(); break;
                 }
-            },
+            }
             openEditModal(productId) {
                 const product = this.state.products.find(p => p.id === productId);
                 if (!product) return this.showAlert('Produto não encontrado.', true);
@@ -1505,8 +1401,8 @@
                 `).join('');
                 quantitiesContainer.innerHTML = `<div class="grid grid-cols-2 gap-4">${quantitiesHtml}</div>`;
                 self.classList.replace('hidden', 'flex');
-            },
-            closeEditModal() { this.state.dom.modals.edit.self.classList.replace('flex', 'hidden'); },
+            }
+            closeEditModal() { this.state.dom.modals.edit.self.classList.replace('flex', 'hidden'); }
             openDeleteModal(id, type, isBulk = false) {
                 this.state.deleteQueue = { id, type, isBulk };
                 const { self, text } = this.state.dom.modals.delete;
@@ -1520,11 +1416,11 @@
                     text.textContent = `Tem certeza que deseja excluir "${itemName || 'item desconhecido'}"? Esta ação não pode ser desfeita.`;
                 }
                 self.classList.replace('hidden', 'flex');
-            },
+            }
             closeDeleteModal() {
                 this.state.dom.modals.delete.self.classList.replace('flex', 'hidden');
                 this.state.deleteQueue = { id: null, type: null, isBulk: false };
-            },
+            }
             renderDashboard() {
                 const reportsPanel = document.getElementById('panel-reports');
                 if (!reportsPanel || reportsPanel.classList.contains('hidden') || !this.state.isAuthReady) return;
@@ -1532,7 +1428,7 @@
                 this.updateDashboardView();
                 this.renderLowStockAlerts();
                 this.renderTopMovements();
-            },
+            }
             updateDashboardView() {
                 if(!this.state.isAuthReady) return;
                 const reportsPanel = document.getElementById('panel-reports');
@@ -1546,7 +1442,7 @@
                     btn.classList.toggle('text-gray-700', btn.dataset.type !== chartType);
                 });
                 this.renderMovementsChart();
-            },
+            }
             renderMovementsChart() {
                 const ctx = document.getElementById('movements-chart')?.getContext('2d');
                 if (!ctx) return;
@@ -1757,35 +1653,30 @@
                 this.setLoading(true);
                 const historicalStock = {};
                 
+                // Initialize stock for all products created before or on the target date
                 this.state.products.forEach(p => {
                     if (p.createdAt?.toDate && p.createdAt.toDate() <= targetDate) {
-                        historicalStock[p.id] = { ...p, currentQuantityAtDate: 0, categoryName: this.state.categories.find(c=>c.id === p.category)?.name || 'N/A' };
+                        historicalStock[p.id] = { 
+                            ...p, 
+                            currentQuantityAtDate: 0, 
+                            categoryName: this.state.categories.find(c=>c.id === p.category)?.name || 'N/A' 
+                        };
                     }
                 });
-
+                
+                // Recalculate stock based on movements up to the target date
                 this.state.movements
                     .filter(m => m.date?.toDate && m.date.toDate() <= targetDate && historicalStock[m.productId])
                     .sort((a,b) => (a.date.seconds || 0) - (b.date.seconds || 0))
                     .forEach(m => {
                         const productEntry = historicalStock[m.productId];
                         if (productEntry) {
-                            const productCreatedAt = productEntry.createdAt.toDate();
-                            const movementDate = m.date.toDate();
-
-                            if ((m.motive === 'Criação de Produto' || m.motive === 'Importação Excel') &&
-                                productCreatedAt.getFullYear() === movementDate.getFullYear() &&
-                                productCreatedAt.getMonth() === movementDate.getMonth() &&
-                                productCreatedAt.getDate() === movementDate.getDate() &&
-                                m.type === 'entrada'
-                                ) {
-                                productEntry.currentQuantityAtDate = m.quantity;
-                            } else {
-                                productEntry.currentQuantityAtDate += (m.type === 'entrada' ? m.quantity : -m.quantity);
-                            }
+                           productEntry.currentQuantityAtDate += (m.type === 'entrada' ? m.quantity : -m.quantity);
                         }
                     });
 
                 document.getElementById('report-list').innerHTML = Object.values(historicalStock)
+                    .filter(p => p.currentQuantityAtDate > 0) // Optional: show only products with stock
                     .sort((a,b) => a.name.localeCompare(b.name))
                     .map(p => `
                     <tr class="border-b border-gray-200">
@@ -1809,7 +1700,7 @@
                 }
                 const startItem = (this.state.currentPage - 1) * this.state.itemsPerPage + 1;
                 const endItem = Math.min(this.state.currentPage * this.state.itemsPerPage, totalItems);
-                controlsContainer.innerHTML = `<span class="text-sm text-gray-700">Mostrando <span class="font-semibold">${startItem}</span> a <span class="font-semibold">${endItem}</span> de <span class="font-semibold">${totalItems}</span></span><div><button data-action="page-prev" class="px-3 h-8 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-l-lg hover:bg-slate-50 disabled:opacity-50" ${this.state.currentPage === 1 ? 'disabled' : ''}>Anterior</button><button data-action="page-next" class="px-3 h-8 text-sm font-medium text-gray-700 bg-white border-l-0 border border-gray-300 rounded-r-lg hover:bg-slate-50 disabled:opacity-50" ${this.state.currentPage === totalPages ? 'disabled' : ''}>Próximo</button></div>`;
+                controlsContainer.innerHTML = `<span class="text-sm text-gray-700">Mostrando <span class="font-semibold">${startItem}</span> a <span class="font-semibold">${endItem}</span> de <span class="font-semibold">${totalItems}</span></span><div class="inline-flex rounded-md shadow-sm -space-x-px"><button data-action="page-prev" class="px-3 h-8 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-l-lg hover:bg-slate-50 disabled:opacity-50" ${this.state.currentPage === 1 ? 'disabled' : ''}>Anterior</button><button data-action="page-next" class="px-3 h-8 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-r-lg hover:bg-slate-50 disabled:opacity-50" ${this.state.currentPage === totalPages ? 'disabled' : ''}>Próximo</button></div>`;
             },
             renderBulkActionBar() {
                 const actionBar = document.getElementById('bulk-action-bar');
@@ -1821,10 +1712,8 @@
 
                 if (this.state.userRole !== 'admin' || this.state.selectedProducts.length === 0) {
                     actionBar.classList.remove('open');
-                    actionBar.classList.add('hidden');
                 } else {
                     selectedCountEl.textContent = `${this.state.selectedProducts.length} selecionado(s)`;
-                    actionBar.classList.remove('hidden');
                     actionBar.classList.add('open');
                 }
             },
@@ -1901,7 +1790,7 @@
                 }
                 const { jsPDF } = window.jspdf;
                 const doc = new jsPDF({ orientation: 'landscape' });
-                doc.text(`Relatório de Estoque - ${new Date().toLocaleDateString()}`, 14, 16);
+                doc.text(`Relatório de Estoque - ${new Date().toLocaleDateString('pt-BR')}`, 14, 16);
                 const head = [['Produto', 'Categoria', ...this.state.locations.map(l => l.name), 'Total']];
                 const body = filteredProducts.map(p => {
                     const productQuantities = p.quantities || {};
@@ -1914,7 +1803,7 @@
                 });
                 doc.autoTable({
                     head: head, body: body, startY: 20,
-                    headStyles: { fillColor: [22, 163, 74] },
+                    headStyles: { fillColor: [37, 99, 235] }, // --color-primary
                     styles: { fontSize: 8, cellPadding: 1.5, overflow: 'linebreak' },
                     columnStyles: { 0: { cellWidth: 50 } }
                 });
@@ -1960,6 +1849,7 @@
                 const localLocations = [...this.state.locations];
                 
                 let productsProcessedCount = 0;
+                let newCategoriesCount = 0;
 
                 for (const row of data) {
                     let categoryName = row.category?.toString().trim();
@@ -1975,6 +1865,7 @@
                         batch.set(newCatRef, { name: categoryName });
                         category = { id: newCatRef.id, name: categoryName };
                         localCategories.set(categoryName.toLowerCase(), category);
+                        newCategoriesCount++;
                     }
                     
                     const quantities = {}; let totalQuantity = 0;
@@ -1990,7 +1881,7 @@
                     const productData = {
                         name: productName, category: category.id, quantities, totalQuantity,
                         unit: row.unit?.toString().trim() || 'UND', 
-                        minStock: parseInt(row.minStock, 10) || 1, // Default to 1 if not provided/invalid
+                        minStock: parseInt(row.minStock, 10) || 1, 
                         createdAt: serverTimestamp()
                     };
                     batch.set(newProdRef, productData);
@@ -2001,14 +1892,14 @@
                         batch.set(movRef, { 
                             productId: newProdRef.id, type: 'entrada', 
                             quantity: totalQuantity, motive: 'Importação Excel', 
-                            date: productData.createdAt
+                            date: serverTimestamp() // Use serverTimestamp for consistency
                         });
                     }
                 }
 
                 if (productsProcessedCount > 0) {
                     await batch.commit();
-                    this.logAudit('BULK_PRODUCT_INSERT', { count: productsProcessedCount });
+                    this.logAudit('BULK_PRODUCT_INSERT', { count: productsProcessedCount, newCategories: newCategoriesCount });
                     this.showAlert(`${productsProcessedCount} produtos processados e adicionados do arquivo Excel.`);
                 } else {
                     this.showAlert('Nenhum produto válido encontrado no arquivo Excel para processar.');
@@ -2021,19 +1912,14 @@
                 }
                 
                 if (this.state.dom.panels.home) {
-                    this.state.dom.panels.home.innerHTML = `
-                    <div class="space-y-8">
-                        <div><h2 class="text-3xl font-bold text-gray-900 mb-2">Página Inicial</h2><p class="text-gray-500">Uma visão geral e rápida do seu estoque.</p></div>
-                        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6"><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-primary-light text-primary p-3 rounded-xl"><i class="fas fa-box"></i></div><div><p class="text-sm text-gray-500">Produtos</p><p id="stat-total-products" class="text-2xl font-bold">0</p></div></div><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-primary-light text-primary p-3 rounded-xl"><i class="fas fa-boxes-stacked"></i></div><div><p class="text-sm text-gray-500">Itens Totais</p><p id="stat-total-items" class="text-2xl font-bold">0</p></div></div><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-primary-light text-primary p-3 rounded-xl"><i class="fas fa-tags"></i></div><div><p class="text-sm text-gray-500">Categorias</p><p id="stat-total-categories" class="text-2xl font-bold">0</p></div></div><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-amber-100 text-warning p-3 rounded-xl"><i class="fas fa-exclamation-triangle"></i></div><div><p class="text-sm text-gray-500">Estoque Baixo</p><p id="stat-low-stock" class="text-2xl font-bold">0</p></div></div></div>
-                        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8"><div class="lg:col-span-1 space-y-4"><h3 class="text-xl font-semibold text-gray-900">Ações Rápidas</h3><div class="grid grid-cols-2 gap-4"><a href="#" class="action-card flex flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="stock"><i class="fas fa-warehouse text-2xl text-primary mb-2"></i><span class="font-semibold text-sm">Ver Estoque</span></a><a href="#" class="action-card flex flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="register" data-role-required="admin"><i class="fas fa-plus-circle text-2xl text-success mb-2"></i><span class="font-semibold text-sm">Adicionar</span></a><a href="#" class="action-card flex flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="movements" data-role-required="admin"><i class="fas fa-exchange-alt text-2xl text-danger mb-2"></i><span class="font-semibold text-sm">Movimentar</span></a><a href="#" class="action-card flex flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="reports"><i class="fas fa-chart-pie text-2xl text-indigo-500 mb-2"></i><span class="font-semibold text-sm">Relatórios</span></a></div></div><div class="lg:col-span-2"><h3 class="text-xl font-semibold text-gray-900 mb-4">Atividade Recente</h3><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200"><ul id="recent-activity-feed" class="space-y-2"></ul></div></div></div>
-                    </div>`;
+                    this.state.dom.panels.home.innerHTML = `<div class="space-y-8"><div><h2 class="text-3xl font-bold text-gray-900 mb-2">Página Inicial</h2><p class="text-gray-500">Uma visão geral e rápida do seu estoque.</p></div><div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6"><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-primary-light text-primary p-3 rounded-xl"><i class="fas fa-box"></i></div><div><p class="text-sm text-gray-500">Produtos</p><p id="stat-total-products" class="text-2xl font-bold">0</p></div></div><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-primary-light text-primary p-3 rounded-xl"><i class="fas fa-boxes-stacked"></i></div><div><p class="text-sm text-gray-500">Itens Totais</p><p id="stat-total-items" class="text-2xl font-bold">0</p></div></div><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-primary-light text-primary p-3 rounded-xl"><i class="fas fa-tags"></i></div><div><p class="text-sm text-gray-500">Categorias</p><p id="stat-total-categories" class="text-2xl font-bold">0</p></div></div><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-amber-100 text-warning p-3 rounded-xl"><i class="fas fa-exclamation-triangle"></i></div><div><p class="text-sm text-gray-500">Estoque Baixo</p><p id="stat-low-stock" class="text-2xl font-bold">0</p></div></div></div><div class="grid grid-cols-1 lg:grid-cols-3 gap-8"><div class="lg:col-span-1 space-y-4"><h3 class="text-xl font-semibold text-gray-900">Ações Rápidas</h3><div class="grid grid-cols-2 gap-4"><a href="#" class="action-card flex flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="stock"><i class="fas fa-warehouse text-2xl text-primary mb-2"></i><span class="font-semibold text-sm">Ver Estoque</span></a><a href="#" class="action-card flex flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="register" data-role-required="admin"><i class="fas fa-plus-circle text-2xl text-success mb-2"></i><span class="font-semibold text-sm">Adicionar</span></a><a href="#" class="action-card flex flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="movements" data-role-required="admin"><i class="fas fa-exchange-alt text-2xl text-danger mb-2"></i><span class="font-semibold text-sm">Movimentar</span></a><a href="#" class="action-card flex flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="reports"><i class="fas fa-chart-pie text-2xl text-indigo-500 mb-2"></i><span class="font-semibold text-sm">Relatórios</span></a></div></div><div class="lg:col-span-2"><h3 class="text-xl font-semibold text-gray-900 mb-4">Atividade Recente</h3><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200"><ul id="recent-activity-feed" class="space-y-2"></ul></div></div></div></div>`;
                 }
 
                 if (this.state.dom.panels.stock) {
-                     this.state.dom.panels.stock.innerHTML = `<div class="space-y-6"><div class="bg-white p-4 md:p-6 rounded-2xl shadow-xl border border-gray-200 relative overflow-hidden"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-white rounded-lg text-gray-900 border border-gray-300"></div><select id="stock-category-filter" class="p-2 bg-white border border-gray-300 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-white border border-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-slate-50 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-danger text-white font-semibold py-2 px-4 rounded-lg hover:bg-danger-hover transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-slate-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar hidden mb-4 p-2 bg-primary-light border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-danger text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-danger-hover transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div>
+                     this.state.dom.panels.stock.innerHTML = `<div class="space-y-6"><div class="bg-white p-4 md:p-6 rounded-2xl shadow-xl border border-gray-200 relative"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-white rounded-lg text-gray-900 border border-gray-300"></div><select id="stock-category-filter" class="p-2 bg-white border border-gray-300 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-white border border-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-slate-50 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-danger text-white font-semibold py-2 px-4 rounded-lg hover:bg-danger-hover transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-slate-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar mb-4 p-2 bg-primary-light border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-danger text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-danger-hover transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div>
                             <div id="product-list-container">
                                 <div class="overflow-x-auto hidden md:block">
-                                    <table class="w-full text-left min-w-[1000px] sm:min-w-[1400px]">
+                                    <table class="w-full text-left" id="product-list">
                                         <thead class="border-b-2 border-gray-200 bg-white">
                                             <tr id="product-table-header-row"></tr>
                                         </thead>
@@ -2052,32 +1938,7 @@
                 }
 
                 if (this.state.dom.panels.movements) {
-                    this.state.dom.panels.movements.innerHTML = `
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                            <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
-                                <h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-arrow-circle-up mr-2 text-danger"></i>Registrar Saída</h2>
-                                <form id="add-output-form" class="space-y-4">
-                                    <div><label for="output-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="output-product-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option value="">Selecione...</option></select></div>
-                                    <div id="output-location-selector" class="space-y-2"></div>
-                                    <div><label for="output-quantity" class="block text-sm mb-1 text-gray-700">Quantidade da Saída</label><input type="number" id="output-quantity" min="1" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled></div>
-                                    <div><label for="output-motive-select" class="block text-sm mb-1 text-gray-700">Motivo</label><select id="output-motive-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option>Venda</option><option>Perda</option><option>Uso Interno</option><option>Outro</option></select></div>
-                                    <p id="output-stock-info" class="text-sm text-gray-500 font-medium h-5"></p>
-                                    <button type="submit" class="w-full mt-4 bg-danger text-white font-bold p-2 rounded-lg hover:bg-danger-hover transition">Registrar Saída</button>
-                                </form>
-                            </div>
-                            <div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200">
-                                <h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-exchange-alt mr-2 text-primary"></i>Transferir Estoque</h2>
-                                <form id="transfer-stock-form" class="space-y-4">
-                                    <div><label for="transfer-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="transfer-product-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option value="">Selecione...</option></select></div>
-                                    <p id="transfer-stock-info" class="text-sm text-gray-500 font-medium h-5"></p>
-                                    <div><label for="transfer-from-location-select" class="block text-sm mb-1 text-gray-700">De</label><select id="transfer-from-location-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled><option value="">Selecione a origem</option></select></div>
-                                    <div><label for="transfer-to-location-select" class="block text-sm mb-1 text-gray-700">Para</label><select id="transfer-to-location-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled><option value="">Selecione o destino</option></select></div>
-                                    <div><label for="transfer-quantity" class="block text-sm mb-1 text-gray-700">Quantidade</label><input type="number" id="transfer-quantity" min="1" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled></div>
-                                    <button type="submit" class="w-full mt-4 bg-primary text-white font-bold p-2 rounded-lg hover:bg-primary-hover transition">Confirmar Transferência</button>
-                                </form>
-                            </div>
-                        </div>
-                    `;
+                    this.state.dom.panels.movements.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-arrow-circle-up mr-2 text-danger"></i>Registrar Saída</h2><form id="add-output-form" class="space-y-4"><div><label for="output-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="output-product-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option value="">Selecione...</option></select></div><div id="output-location-selector" class="space-y-2"></div><div><label for="output-quantity" class="block text-sm mb-1 text-gray-700">Quantidade da Saída</label><input type="number" id="output-quantity" min="1" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled></div><div><label for="output-motive-select" class="block text-sm mb-1 text-gray-700">Motivo</label><select id="output-motive-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option>Venda</option><option>Perda</option><option>Uso Interno</option><option>Outro</option></select></div><p id="output-stock-info" class="text-sm text-gray-500 font-medium h-5"></p><button type="submit" class="w-full mt-4 bg-danger text-white font-bold p-2 rounded-lg hover:bg-danger-hover transition">Registrar Saída</button></form></div><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-exchange-alt mr-2 text-primary"></i>Transferir Estoque</h2><form id="transfer-stock-form" class="space-y-4"><div><label for="transfer-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="transfer-product-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option value="">Selecione...</option></select></div><p id="transfer-stock-info" class="text-sm text-gray-500 font-medium h-5"></p><div><label for="transfer-from-location-select" class="block text-sm mb-1 text-gray-700">De</label><select id="transfer-from-location-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled><option value="">Selecione a origem</option></select></div><div><label for="transfer-to-location-select" class="block text-sm mb-1 text-gray-700">Para</label><select id="transfer-to-location-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled><option value="">Selecione o destino</option></select></div><div><label for="transfer-quantity" class="block text-sm mb-1 text-gray-700">Quantidade</label><input type="number" id="transfer-quantity" min="1" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled></div><button type="submit" class="w-full mt-4 bg-primary text-white font-bold p-2 rounded-lg hover:bg-primary-hover transition">Confirmar Transferência</button></form></div></div>`;
                 }
 
                 if (this.state.dom.panels.reports) {
@@ -2115,60 +1976,20 @@
                     let actionText = action;
                     let detailsText = JSON.stringify(details);
 
-                    // Format details for better readability
                     switch (action) {
-                        case 'PRODUCT_CREATE':
-                            actionText = 'Produto Criado';
-                            detailsText = `Produto "${details.productName}" criado com estoque inicial de ${details.initialStock}.`;
-                            break;
-                        case 'PRODUCT_EDIT':
-                            actionText = 'Produto Editado';
-                            detailsText = `Produto "${details.productName}" teve seu ${details.details}.`;
-                            break;
-                        case 'PRODUCT_DELETE':
-                            actionText = 'Produto Excluído';
-                            detailsText = `Produto "${details.productName}" foi excluído.`;
-                            break;
-                        case 'BULK_PRODUCT_DELETE':
-                            actionText = 'Exclusão em Lote';
-                            detailsText = `${details.count} produtos excluídos: ${details.productNames.join(', ')}.`;
-                            break;
-                        case 'CATEGORY_CREATE':
-                            actionText = 'Categoria Criada';
-                            detailsText = `Categoria "${details.categoryName}" foi criada.`;
-                            break;
-                        case 'CATEGORY_DELETE':
-                            actionText = 'Categoria Excluída';
-                            detailsText = `Categoria "${details.categoryName}" foi excluída.`;
-                            break;
-                        case 'LOCATION_CREATE':
-                            actionText = 'Localidade Criada';
-                            detailsText = `Localidade "${details.locationName}" foi criada.`;
-                            break;
-                        case 'LOCATION_DELETE':
-                            actionText = 'Localidade Excluída';
-                            detailsText = `Localidade "${details.locationName}" foi excluída.`;
-                            break;
-                        case 'STOCK_OUTPUT':
-                            actionText = 'Saída de Estoque';
-                            detailsText = `${details.quantity}x de "${details.productName}" saíram de ${details.locationName} (Motivo: ${details.motive}).`;
-                            break;
-                        case 'STOCK_TRANSFER':
-                             actionText = 'Transferência';
-                            detailsText = `${details.quantity}x de "${details.productName}" movidos de ${details.from} para ${details.to}.`;
-                            break;
-                        case 'USER_ROLE_CHANGE':
-                             actionText = 'Papel Alterado';
-                            detailsText = `Papel de ${details.targetUserEmail} alterado de ${details.oldRole} para ${details.newRole}.`;
-                            break;
-                        case 'USER_PERMISSIONS_CHANGE':
-                            actionText = 'Permissões Alteradas';
-                            detailsText = `Permissões de ${details.targetUserEmail} atualizadas.`;
-                            break;
-                        case 'BULK_PRODUCT_INSERT':
-                             actionText = 'Importação Excel';
-                            detailsText = `${details.count} produtos foram importados.`;
-                            break;
+                        case 'PRODUCT_CREATE': actionText = 'Produto Criado'; detailsText = `Produto "${details.productName}" criado com estoque inicial de ${details.initialStock}.`; break;
+                        case 'PRODUCT_EDIT': actionText = 'Produto Editado'; detailsText = `Produto "${details.productName}" teve seu ${details.details}.`; break;
+                        case 'PRODUCT_DELETE': actionText = 'Produto Excluído'; detailsText = `Produto "${details.productName}" foi excluído.`; break;
+                        case 'BULK_PRODUCT_DELETE': actionText = 'Exclusão em Lote'; detailsText = `${details.count} produtos excluídos: ${details.productNames.join(', ')}.`; break;
+                        case 'CATEGORY_CREATE': actionText = 'Categoria Criada'; detailsText = `Categoria "${details.categoryName}" foi criada.`; break;
+                        case 'CATEGORY_DELETE': actionText = 'Categoria Excluída'; detailsText = `Categoria "${details.categoryName}" foi excluída.`; break;
+                        case 'LOCATION_CREATE': actionText = 'Localidade Criada'; detailsText = `Localidade "${details.locationName}" foi criada.`; break;
+                        case 'LOCATION_DELETE': actionText = 'Localidade Excluída'; detailsText = `Localidade "${details.locationName}" foi excluída.`; break;
+                        case 'STOCK_OUTPUT': actionText = 'Saída de Estoque'; detailsText = `${details.quantity}x de "${details.productName}" saíram de ${details.locationName} (Motivo: ${details.motive}).`; break;
+                        case 'STOCK_TRANSFER': actionText = 'Transferência'; detailsText = `${details.quantity}x de "${details.productName}" movidos de ${details.from} para ${details.to}.`; break;
+                        case 'USER_ROLE_CHANGE': actionText = 'Papel Alterado'; detailsText = `Papel de ${details.targetUserEmail} alterado de ${details.oldRole} para ${details.newRole}.`; break;
+                        case 'USER_PERMISSIONS_CHANGE': actionText = 'Permissões Alteradas'; detailsText = `Permissões de ${details.targetUserEmail} atualizadas.`; break;
+                        case 'BULK_PRODUCT_INSERT': actionText = 'Importação Excel'; detailsText = `${details.count} produtos foram importados.`; break;
                     }
 
                     return `
@@ -2358,7 +2179,7 @@
                     this.setLoading(false);
                 }
             },
-        });
+        }
 
         new StockApp();
     </script>

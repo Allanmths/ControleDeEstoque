@@ -438,22 +438,38 @@
                 }
             }
 
+            // [REFACTOR] Função de verificação de permissão aprimorada
             checkUserPermissionForTab(tabId) {
-                if (!this.state.currentUser || !this.state.isAuthReady) return false;
+                if (!this.state.currentUser || !this.state.isAuthReady) {
+                    return false; // Se a autenticação não está pronta, nega o acesso.
+                }
                 
-                if (this.state.userRole === 'admin') return true;
+                // Admin sempre tem acesso a tudo.
+                if (this.state.userRole === 'admin') {
+                    return true;
+                }
                 
+                // Lógica mais clara e segura para 'viewers'.
                 const userDoc = this.state.allUsers.find(u => u.id === this.state.currentUser.uid);
                 
-                if (userDoc && userDoc.permissions) {
+                // Se o documento do usuário não foi encontrado (não deveria acontecer, mas é uma boa defesa).
+                if (!userDoc) {
+                    return false;
+                }
+
+                // Se o usuário tem um objeto de permissões definido, verifica a permissão para a aba específica.
+                if (userDoc.permissions) {
                     return userDoc.permissions[tabId] === true;
                 }
                 
+                // Como fallback, se o objeto `permissions` não existir,
+                // permite acesso apenas a abas que não requerem papel de admin.
                 const targetLink = document.querySelector(`.sidebar-link[data-tab="${tabId}"]`);
                 if (targetLink && !targetLink.dataset.roleRequired) {
                     return true;
                 }
                 
+                // O padrão final é negar o acesso.
                 return false;
             }
 
@@ -468,6 +484,7 @@
                 }
             }
 
+            // [FIX] Função de inicialização corrigida para carregar dados do usuário para todos os papéis.
             async initializeAppForUser() {
                 const basePath = `artifacts/${appId}/public/data`;
                 this.state.firestoreRefs = {
@@ -484,7 +501,8 @@
 
                 const initialDataPromise = new Promise((resolve) => {
                     let loadedCount = 0;
-                    const totalToLoad = this.state.userRole === 'admin' ? 7 : 5; 
+                    // O total a ser carregado é ajustado para incluir a busca de usuários para 'viewers' (6) e auditoria para 'admins' (7).
+                    const totalToLoad = this.state.userRole === 'admin' ? 7 : 6; 
 
                     const checkDone = () => {
                         loadedCount++;
@@ -498,16 +516,18 @@
                     this.state.unsubscribers.push(this.listenForCategoryUpdates(checkDone));
                     this.state.unsubscribers.push(this.listenForProductUpdates(checkDone));
                     this.state.unsubscribers.push(this.listenForMovements(checkDone));
+                    
+                    // O listener de usuários agora é chamado para todos os papéis.
+                    this.state.unsubscribers.push(this.listenForUserUpdates(checkDone));
+                    
                     if (this.state.userRole === 'admin') {
-                        this.state.unsubscribers.push(this.listenForUserUpdates(checkDone));
                         this.state.unsubscribers.push(this.listenForAuditLogUpdates(checkDone));
-                    } else { // viewer needs user data to check permissions
-                        this.state.unsubscribers.push(this.listenForUserUpdates(checkDone));
                     }
                 });
 
                 await initialDataPromise;
 
+                // A partir daqui, o código só executa quando todos os dados essenciais (incluindo permissões) foram carregados.
                 this.applyRolePermissions();
                 const initialTab = document.querySelector('.sidebar-link.bg-gray-100')?.dataset.tab || 'home';
                 this.switchTab(initialTab);
@@ -868,7 +888,7 @@
             }
 
             listenForUserUpdates(onInitialLoad) {
-                if (!this.state.firestoreRefs) { // No need to check for admin role, viewers need their own data
+                if (!this.state.firestoreRefs) {
                     if (typeof onInitialLoad === 'function') onInitialLoad();
                     return () => {};
                 }

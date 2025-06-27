@@ -769,15 +769,24 @@
                         newQuantities[loc.id] = qty;
                         newTotalQuantity += qty;
                     });
-                
-                    await updateDoc(doc(this.state.firestoreRefs.products, id), {
+                    
+                    const newMinStockInput = quantitiesContainer.querySelector('#edit-min-stock');
+                    const newMinStock = parseInt(newMinStockInput.value, 10);
+                    if (isNaN(newMinStock) || newMinStock < 0) {
+                        throw new Error("O estoque mínimo deve ser um número válido e não negativo.");
+                    }
+
+                    const updateData = {
                         quantities: newQuantities,
-                        totalQuantity: newTotalQuantity
-                    });
+                        totalQuantity: newTotalQuantity,
+                        minStock: newMinStock,
+                    };
+
+                    await updateDoc(doc(this.state.firestoreRefs.products, id), updateData);
                     
                     this.logAudit('PRODUCT_EDIT', { 
                         productName: oldProduct.name,
-                        details: `Estoque alterado de ${oldProduct.totalQuantity} para ${newTotalQuantity}`
+                        details: `Estoque alterado. Mínimo: ${oldProduct.minStock} -> ${newMinStock}. Total: ${oldProduct.totalQuantity} -> ${newTotalQuantity}.`
                     });
                     
                     this.showAlert('Produto atualizado.');
@@ -1429,13 +1438,22 @@
                 self.dataset.productId = productId;
                 productName.textContent = product.name;
                 const productQuantities = product.quantities || {};
+                
                 const quantitiesHtml = this.state.locations.map(loc => `
                     <div>
                         <label for="edit-qty-${loc.id}" class="block text-sm font-medium text-gray-700">${loc.name}</label>
                         <input type="number" id="edit-qty-${loc.id}" value="${productQuantities[loc.id] || 0}" min="0" class="mt-1 block w-full rounded-md bg-white border border-gray-300 focus:border-primary focus:bg-white focus:ring-primary">
                     </div>
                 `).join('');
-                quantitiesContainer.innerHTML = `<div class="grid grid-cols-2 gap-4">${quantitiesHtml}</div>`;
+
+                const minStockHtml = `
+                    <div class="col-span-2">
+                         <label for="edit-min-stock" class="block text-sm font-medium text-gray-700">Estoque Mínimo</label>
+                         <input type="number" id="edit-min-stock" value="${product.minStock || 0}" min="0" class="mt-1 block w-full rounded-md bg-white border border-gray-300 focus:border-primary focus:bg-white focus:ring-primary">
+                    </div>
+                `;
+
+                quantitiesContainer.innerHTML = `<div class="grid grid-cols-2 gap-4">${quantitiesHtml}${minStockHtml}</div>`;
                 self.classList.replace('hidden', 'flex');
             }
             closeEditModal() { this.state.dom.modals.edit.self.classList.replace('flex', 'hidden'); }
@@ -1760,12 +1778,12 @@
                 let startDate = null;
                 if (startDateVal) {
                     const parts = startDateVal.split('-');
-                    startDate = new Date(parts[0], parts[1]-1, parts[2], 0, 0, 0, 0);
+                    startDate = new Date(parts[0], parseInt(parts[1]) - 1, parseInt(parts[2]), 0, 0, 0, 0);
                 }
                 let endDate = null;
                 if (endDateVal) {
                     const parts = endDateVal.split('-');
-                    endDate = new Date(parts[0], parts[1]-1, parts[2], 23, 59, 59, 999);
+                    endDate = new Date(parts[0], parseInt(parts[1]) - 1, parseInt(parts[2]), 23, 59, 59, 999);
                 }
 
                 return this.state.products.filter(p => {

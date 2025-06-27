@@ -431,10 +431,15 @@
                 this.state.dom.authSection.classList.add('flex');
                 this.state.dom.appSection.classList.add('hidden');
                 
-                this.state = {
-                    ...this.state, products: [], categories: [], locations: [],
-                    movements: [], selectedProducts: [], currentPage: 1, allUsers: [], auditLog: [],
-                };
+                // Reset data state explicitly
+                this.state.products = [];
+                this.state.categories = [];
+                this.state.locations = [];
+                this.state.movements = [];
+                this.state.allUsers = [];
+                this.state.auditLog = [];
+                this.state.selectedProducts = [];
+                this.state.currentPage = 1;
             }
             
             applyRolePermissions() {
@@ -1348,6 +1353,12 @@
                 overlay.classList.toggle('hidden', !show);
             }
             switchTab(tabId) {
+                // FIX: Add a guard to prevent any tab switching before authentication is ready.
+                // This stops erroneous calls on the login screen from showing an error.
+                if (!this.state.isAuthReady) {
+                    return;
+                }
+
                 if (!this.checkUserPermissionForTab(tabId)) {
                     this.showAlert('Você não tem permissão para acessar esta aba.', true);
                     return;
@@ -1362,9 +1373,8 @@
                 this.renderCurrentTab();
             }
             renderCurrentTab() {
-                // *** CORREÇÃO PRINCIPAL ***
-                // Este "guarda" impede qualquer tentativa de renderização se a aplicação não estiver
-                // totalmente autenticada e pronta, resolvendo o erro na tela de login.
+                // This guard prevents any attempt to render if the application isn't
+                // fully authenticated and ready.
                 if (!this.state.isAuthReady) return;
 
                 const activeTabEl = document.querySelector('.sidebar-link.bg-gray-100');

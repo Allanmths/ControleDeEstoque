@@ -81,16 +81,13 @@
             background: linear-gradient(to right, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%);
             animation: loading-shimmer 1.5s infinite;
         }
-        @keyframes loading-shimmer {
-            100% { left: 100%; }
-        }
     </style>
 </head>
 
 <body class="bg-white text-gray-900 min-h-screen">
 
     <!-- Seção de Autenticação -->
-    <div id="auth-section" class="fixed inset-0 z-[100] hidden items-center justify-center p-4 bg-gray-50">
+    <div id="auth-section" class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-50">
         <div id="auth-container" class="w-full max-w-md">
             <!-- Formulário de Login -->
             <div id="login-form-container">
@@ -253,6 +250,7 @@
             init() {
                 this.cacheDomElements();
                 this.injectPanelContent();
+                this.setupFirestoreRefs();
                 this.setupEventListeners();
                 this.handleAuthentication();
             }
@@ -325,36 +323,46 @@
             handleAuthentication() {
                 onAuthStateChanged(this.auth, async (user) => {
                     this.setLoading(true);
-                    try {
-                        if (user) {
+                    this.clearAllListeners(); // Limpa listeners antigos antes de qualquer coisa
+
+                    if (user) {
+                        try {
                             this.state.currentUser = user;
                             const userDocRef = doc(this.db, 'users', user.uid);
                             const userDoc = await getDoc(userDocRef);
 
                             if (userDoc.exists()) {
                                 this.state.currentUserData = userDoc.data();
-                                this.state.userRole = this.state.currentUserData.role;
+                                this.state.userRole = this.state.currentUserData.role || 'viewer';
+                                if (!this.state.currentUserData.permissions) {
+                                     this.state.currentUserData.permissions = { home: true, reports: true, stock: true, register: false, movements: false, settings: false, audit: false };
+                                }
                             } else {
+                                // Usuário existe no Auth mas não no Firestore, trata como visualizador padrão
                                 this.state.userRole = 'viewer';
-                                this.state.currentUserData = { permissions: { home: true, reports: false, stock: true } }; 
+                                this.state.currentUserData = { 
+                                    email: user.email,
+                                    role: 'viewer',
+                                    permissions: { home: true, reports: true, stock: true, register: false, movements: false, settings: false, audit: false } 
+                                };
                             }
                             
-                            this.state.isAuthReady = true;
-                            await this.initializeAppForUser();
-                            this.showAppUI();
-                        } else {
-                            this.state.currentUser = null;
-                            this.state.currentUserData = null;
-                            this.state.userRole = null;
-                            this.state.isAuthReady = false;
-                            this.state.allUsers = [];
-                            this.clearAllListeners();
-                            this.showAuthUI();
+                            this.state.isAuthReady = true; // Autenticação e dados do usuário carregados
+                            
+                            this.showAppUI(); // Mostra UI principal e aplica permissões
+                            this.initializeAppDataListeners(); // SÓ AGORA anexa os listeners de dados
+                            this.renderCurrentTab(); // Renderiza a aba ativa pela primeira vez
+
+                        } catch (error) {
+                            console.error("Erro fatal durante a autenticação ou inicialização:", error);
+                            this.showAlert("Ocorreu um erro crítico ao carregar a aplicação.", true);
+                            this.showAuthUI(); // Garante que o usuário seja deslogado em caso de erro grave
+                        } finally {
+                            this.setLoading(false);
                         }
-                    } catch (error) {
-                        console.error("Erro fatal durante a autenticação ou inicialização:", error);
-                        this.showAlert("Ocorreu um erro crítico ao carregar a aplicação.", true);
-                    } finally {
+                    } else {
+                        // Nenhum usuário logado
+                        this.showAuthUI();
                         this.setLoading(false);
                     }
                 });
@@ -413,22 +421,28 @@
                 this.state.dom.authSection.classList.remove('flex');
                 this.state.dom.appSection.classList.remove('hidden');
                 this.applyRolePermissions();
-                this.renderCurrentTab();
             }
 
             showAuthUI() {
+                this.state.isAuthReady = false;
+                this.state.currentUser = null;
+                this.state.currentUserData = null;
+                this.state.userRole = null;
+                this.state.allUsers = [];
+
                 this.state.dom.authSection.classList.remove('hidden');
                 this.state.dom.authSection.classList.add('flex');
                 this.state.dom.appSection.classList.add('hidden');
+                
+                // Limpa o estado para não vazar dados do usuário anterior
                 this.state = {
                     ...this.state, products: [], categories: [], locations: [],
                     movements: [], selectedProducts: [], currentPage: 1, allUsers: [], auditLog: [],
-                    currentUserData: null
                 };
             }
             
             applyRolePermissions() {
-                const { userRole } = this.state;
+                const { userRole, currentUserData } = this.state;
                 const welcomeEl = document.getElementById('user-welcome-message');
                 if (welcomeEl) {
                     welcomeEl.textContent = `Bem-vindo! Você está logado como ${userRole === 'admin' ? 'Administrador' : 'Visualizador'}.`;
@@ -441,7 +455,7 @@
                 
                 const activeTabEl = document.querySelector('.sidebar-link.bg-gray-100');
                 if (activeTabEl && !this.checkUserPermissionForTab(activeTabEl.dataset.tab)) {
-                    this.showAlert(`Você não tem mais permissão para acessar a aba '${activeTabEl.dataset.tab}'. Redirecionando...`, true);
+                    // Se o usuário não tem permissão para a aba ativa, muda para a home
                     this.switchTab('home');
                 }
             }
@@ -464,8 +478,8 @@
                     default: return 'Ocorreu um erro. Tente novamente.';
                 }
             }
-
-            async initializeAppForUser() {
+            
+            setupFirestoreRefs() {
                 const basePath = `artifacts/${appId}/public/data`;
                 this.state.firestoreRefs = {
                     products: collection(this.db, `${basePath}/products`),
@@ -476,9 +490,9 @@
                     users: collection(this.db, 'users'),
                     auditLog: collection(this.db, `${basePath}/auditLog`)
                 };
-                
-                this.clearAllListeners();
+            }
 
+            initializeAppDataListeners() {
                 const dataFetchPromises = [
                     this.createSnapshotListener(this.state.firestoreRefs.settings, (docSnap) => {
                         if (docSnap.exists()) this.state.itemsPerPage = docSnap.data().itemsPerPage || 10;
@@ -507,7 +521,7 @@
                     }));
                 }
 
-                await Promise.all(dataFetchPromises);
+                return Promise.all(dataFetchPromises);
             }
 
             createSnapshotListener(queryOrRef, callback) {
@@ -515,7 +529,9 @@
                     let isInitialLoad = true;
                     const unsubscribe = onSnapshot(queryOrRef, (snapshot) => {
                         callback(snapshot);
-                        if (this.state.isAuthReady) this.renderCurrentTab();
+                        // A renderização é chamada aqui para refletir mudanças em tempo real.
+                        // Como os listeners só são ativados quando a auth está pronta, isso é seguro.
+                        this.renderCurrentTab();
                         if (isInitialLoad) {
                             isInitialLoad = false;
                             resolve();
@@ -523,7 +539,7 @@
                     }, (error) => {
                         console.error("Firestore listener error:", error);
                         this.showAlert("Erro ao sincronizar dados com o servidor.", true);
-                        reject(error);
+                        if (isInitialLoad) reject(error);
                     });
                     this.state.unsubscribers.push(unsubscribe);
                 });
@@ -1363,6 +1379,8 @@
                 }
             }
             renderCurrentTab() {
+                if (!this.state.isAuthReady) return; // Guarda para não renderizar nada antes da hora
+
                 const activeTabEl = document.querySelector('.sidebar-link.bg-gray-100');
                 if (!activeTabEl) return;
                 
@@ -1920,6 +1938,167 @@
                 }
 
                 this.applyRolePermissions();
+            }
+            // MÉTODOS DE RENDERIZAÇÃO DE LOCALIDADES, ETC (Não alterados)
+            handleOutputProductSelection(productId) {
+                const stockInfo = document.getElementById('output-stock-info');
+                const locationSelector = document.getElementById('output-location-selector');
+                const quantityInput = document.getElementById('output-quantity');
+                
+                if (!stockInfo || !locationSelector || !quantityInput) return;
+
+                if (!productId) {
+                    stockInfo.textContent = '';
+                    locationSelector.innerHTML = '';
+                    quantityInput.disabled = true;
+                    quantityInput.value = '';
+                    return;
+                }
+                
+                const product = this.state.products.find(p => p.id === productId);
+                if (!product) return;
+                
+                locationSelector.innerHTML = this.state.locations.map(loc => {
+                    const qtyInLoc = product.quantities?.[loc.id] || 0;
+                    return `<label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 ${qtyInLoc === 0 ? 'opacity-50 cursor-not-allowed' : ''}">
+                                <input type="radio" name="output-location" value="${loc.id}" class="h-4 w-4 text-primary focus:ring-primary" ${qtyInLoc === 0 ? 'disabled' : ''}>
+                                <span>${loc.name} <span class="text-xs text-gray-500">(Disp: ${qtyInLoc})</span></span>
+                            </label>`;
+                }).join('');
+                
+                stockInfo.textContent = `Estoque total de ${product.name}: ${product.totalQuantity || 0}`;
+                this.updateOutputQuantityLock();
+            }
+
+            updateOutputQuantityLock() {
+                const quantityInput = document.getElementById('output-quantity');
+                const selectedLocationRadio = document.querySelector('input[name="output-location"]:checked');
+                if (quantityInput) {
+                    quantityInput.disabled = !selectedLocationRadio;
+                }
+            }
+
+            handleTransferProductSelection(productId) {
+                const stockInfo = document.getElementById('transfer-stock-info');
+                const fromSelect = document.getElementById('transfer-from-location-select');
+                const toSelect = document.getElementById('transfer-to-location-select');
+                const quantityInput = document.getElementById('transfer-quantity');
+
+                if (!productId) {
+                    stockInfo.innerHTML = '&nbsp;';
+                    fromSelect.innerHTML = '<option value="">Selecione a origem</option>';
+                    fromSelect.disabled = true;
+                    toSelect.innerHTML = '<option value="">Selecione o destino</option>';
+                    toSelect.disabled = true;
+                    quantityInput.disabled = true;
+                    return;
+                }
+                
+                const product = this.state.products.find(p => p.id === productId);
+                if (!product) return;
+
+                stockInfo.innerHTML = this.state.locations
+                    .map(loc => `<span>${loc.name}: <strong>${product.quantities?.[loc.id] || 0}</strong></span>`)
+                    .join(' &bull; ');
+                
+                const locationsWithOptions = this.state.locations.map(loc => `<option value="${loc.id}">${loc.name} (Disp: ${product.quantities?.[loc.id] || 0})</option>`).join('');
+                
+                fromSelect.innerHTML = `<option value="">Selecione a origem</option>${locationsWithOptions}`;
+                toSelect.innerHTML = `<option value="">Selecione o destino</option>${locationsWithOptions}`;
+                
+                fromSelect.disabled = false;
+            }
+
+            handleTransferFromLocationSelection(fromLocationId) {
+                const toSelect = document.getElementById('transfer-to-location-select');
+                const quantityInput = document.getElementById('transfer-quantity');
+                
+                if (!fromLocationId) {
+                    toSelect.disabled = true;
+                    quantityInput.disabled = true;
+                    return;
+                }
+                
+                toSelect.disabled = false;
+                quantityInput.disabled = false;
+                
+                // Desabilitar a mesma opção no 'select' de destino
+                Array.from(toSelect.options).forEach(opt => {
+                    opt.disabled = opt.value === fromLocationId;
+                    if (opt.selected && opt.disabled) {
+                        toSelect.value = "";
+                    }
+                });
+            }
+            
+            async handleSaveSettings() {
+                if (this.state.userRole !== 'admin') {
+                    return this.showAlert('Apenas administradores podem salvar configurações.', true);
+                }
+                const itemsPerPageInput = document.getElementById('items-per-page-input');
+                const itemsPerPage = parseInt(itemsPerPageInput.value, 10);
+                
+                if (isNaN(itemsPerPage) || itemsPerPage < 1) {
+                    return this.showAlert('Itens por página deve ser um número maior que zero.', true);
+                }
+                
+                this.setLoading(true);
+                try {
+                    await setDoc(this.state.firestoreRefs.settings, { itemsPerPage }, { merge: true });
+                    this.state.itemsPerPage = itemsPerPage;
+                    this.logAudit('SETTINGS_UPDATE', { itemsPerPage });
+                    this.showAlert('Configurações salvas com sucesso!');
+                    this.debouncedRenderProducts();
+                } catch(error) {
+                    console.error("Erro ao salvar configurações:", error);
+                    this.showAlert('Falha ao salvar as configurações.', true);
+                } finally {
+                    this.setLoading(false);
+                }
+            }
+            
+            renderAuditLog() {
+                if (!this.state.isAuthReady || this.state.userRole !== 'admin') return;
+
+                const auditLogBody = document.getElementById('audit-log-body');
+                if (!auditLogBody) return;
+
+                const sortedLog = [...this.state.auditLog].sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
+
+                auditLogBody.innerHTML = sortedLog.map(log => {
+                    const timestamp = log.timestamp?.toDate().toLocaleString('pt-BR') || 'Data inválida';
+                    return `
+                        <tr class="border-b border-gray-200 hover:bg-gray-50">
+                            <td class="p-3 text-sm text-gray-700 whitespace-nowrap">${timestamp}</td>
+                            <td class="p-3 text-sm text-gray-700">${log.userEmail}</td>
+                            <td class="p-3 text-sm text-gray-900 font-medium">${log.action}</td>
+                            <td class="p-3 text-sm text-gray-700">${this.formatAuditDetails(log.action, log.details)}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            formatAuditDetails(action, details) {
+                if (!details) return 'N/A';
+                switch(action) {
+                    case 'PRODUCT_CREATE': return `Produto '${details.productName}' criado com estoque inicial de ${details.initialStock}.`;
+                    case 'PRODUCT_EDIT': return `Produto '${details.productName}': ${details.details}.`;
+                    case 'PRODUCT_DELETE': return `Produto '${details.productName}' excluído.`;
+                    case 'BULK_PRODUCT_DELETE': return `${details.count} produtos excluídos: ${details.productNames.join(', ')}.`;
+                    case 'BULK_PRODUCT_INSERT': return `${details.count} produtos inseridos via Excel. ${details.newCategories} novas categorias.`;
+                    case 'STOCK_OUTPUT': return `Saída de ${details.quantity}x '${details.productName}' de '${details.locationName}' (Motivo: ${details.motive}).`;
+                    case 'STOCK_TRANSFER': return `Transferência de ${details.quantity}x '${details.productName}' de '${details.from}' para '${details.to}'.`;
+                    case 'USER_ROLE_CHANGE': return `Papel de '${details.targetUserEmail}' alterado de '${details.oldRole}' para '${details.newRole}'.`;
+                    case 'USER_PERMISSIONS_CHANGE': return `Permissões de '${details.targetUserEmail}' atualizadas: ${details.newPermissions.join(', ')}.`;
+                    default: return JSON.stringify(details);
+                }
+            }
+            
+            handleContentInput(e) {
+                if (e.target.id === 'search-product-input') {
+                    this.state.currentPage = 1;
+                    this.debouncedRenderProducts();
+                }
             }
         }
         

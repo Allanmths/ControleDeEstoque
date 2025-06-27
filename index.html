@@ -67,12 +67,11 @@
         .bulk-action-bar.open { max-height: 500px; }
         #toggle-advanced-filters i { transition: transform 0.3s ease-in-out; }
         #toggle-advanced-filters.open i { transform: rotate(180deg); }
-        [data-role-required] { display: none; }
         
         #loading-bar {
             position: fixed; top: 0; left: 0; z-index: 9999;
             width: 100%; height: 3px; background-color: var(--color-primary);
-            display: none; /* Inicia escondido */
+            display: none;
             transition: opacity 0.3s ease;
         }
         #loading-bar.show { display: block; }
@@ -140,19 +139,19 @@
                 <a href="#" data-tab="stock" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700">
                     <i class="fas fa-warehouse w-6 mr-3"></i>Estoque
                 </a>
-                <a href="#" data-tab="register" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700" data-role-required="admin">
+                <a href="#" data-tab="register" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700">
                     <i class="fas fa-plus-circle w-6 mr-3"></i>Cadastros
                 </a>
-                <a href="#" data-tab="movements" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700" data-role-required="admin">
+                <a href="#" data-tab="movements" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700">
                     <i class="fas fa-exchange-alt w-6 mr-3"></i>Movimentações
                 </a>
-                <a href="#" data-tab="audit" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700" data-role-required="admin">
+                <a href="#" data-tab="audit" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700">
                     <i class="fas fa-history w-6 mr-3"></i>Auditoria
                 </a>
             </nav>
         </div>
         <div class="p-4 border-t border-gray-200">
-             <a href="#" data-tab="settings" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700" data-role-required="admin">
+             <a href="#" data-tab="settings" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700">
                 <i class="fas fa-cog w-6 mr-3"></i>Configurações
             </a>
             <a href="#" id="logout-btn" class="flex items-center p-3 rounded-lg hover:bg-red-100 text-danger font-semibold">
@@ -207,9 +206,6 @@
             };
         };
         
-        // ATENÇÃO: Expor a API Key no lado do cliente é aceitável para muitos casos de uso do Firebase,
-        // desde que você proteja seus dados com as Regras de Segurança do Firestore, Auth e Storage.
-        // Em um ambiente de produção mais sensível, considere carregar esta configuração de um backend seguro.
         const firebaseConfig = {
             apiKey: "AIzaSyDVxDoPVP-uhWwfXsdlouk5uv-jt-P6tL8",
             authDomain: "controledeestoque-7ea51.firebaseapp.com",
@@ -234,7 +230,7 @@
                 isAuthReady: false,
                 currentUser: null, 
                 currentUserData: null,
-                userRole: null, // 'admin' or 'viewer'
+                userRole: null, 
                 dashboardSettings: { chartType: 'bar', period: '7days', startDate: null, endDate: null },
                 unsubscribers: [],
             };
@@ -340,7 +336,7 @@
                                 this.state.userRole = this.state.currentUserData.role;
                             } else {
                                 this.state.userRole = 'viewer';
-                                this.state.currentUserData = { permissions: { home: true, reports: true, stock: true } }; 
+                                this.state.currentUserData = { permissions: { home: true, reports: false, stock: true } }; 
                             }
                             
                             this.state.isAuthReady = true;
@@ -372,7 +368,6 @@
                     await signInWithEmailAndPassword(this.auth, email, password);
                 } catch (error) {
                     this.showAlert(this.getFriendlyAuthError(error.code), true);
-                } finally {
                     this.setLoading(false);
                 }
             }
@@ -385,9 +380,9 @@
                     const userCredential = await createUserWithEmailAndPassword(this.auth, email, password);
                     await setDoc(doc(this.db, "users", userCredential.user.uid), {
                         email: userCredential.user.email,
-                        role: "viewer", // Default role
+                        role: "viewer",
                         createdAt: serverTimestamp(),
-                        permissions: { // Default permissions for new users
+                        permissions: {
                             home: true,
                             reports: true,
                             stock: true,
@@ -399,7 +394,6 @@
                     });
                 } catch (error) {
                     this.showAlert(this.getFriendlyAuthError(error.code), true);
-                } finally {
                     this.setLoading(false);
                 }
             }
@@ -407,7 +401,6 @@
             async handleLogout() {
                 this.setLoading(true);
                 await signOut(this.auth);
-                // onAuthStateChanged will handle the UI switch
             }
             
             toggleAuthForm(showRegister) {
@@ -436,21 +429,14 @@
             
             applyRolePermissions() {
                 const { userRole } = this.state;
-                const isAdmin = userRole === 'admin';
                 const welcomeEl = document.getElementById('user-welcome-message');
                 if (welcomeEl) {
-                    welcomeEl.textContent = `Bem-vindo! Você está logado como ${isAdmin ? 'Administrador' : 'Visualizador'}.`;
+                    welcomeEl.textContent = `Bem-vindo! Você está logado como ${userRole === 'admin' ? 'Administrador' : 'Visualizador'}.`;
                 }
-                
-                // Sidebar links based on custom permissions
+
                 document.querySelectorAll('#sidebar-nav .sidebar-link').forEach(link => {
                     const tabId = link.dataset.tab;
                     link.style.display = this.checkUserPermissionForTab(tabId) ? 'flex' : 'none';
-                });
-
-                // General UI elements based on simple admin role
-                document.querySelectorAll('[data-role-required="admin"]').forEach(el => {
-                    el.style.display = isAdmin ? '' : 'none';
                 });
                 
                 const activeTabEl = document.querySelector('.sidebar-link.bg-gray-100');
@@ -505,6 +491,7 @@
                     }),
                     this.createSnapshotListener(query(this.state.firestoreRefs.products), (snapshot) => {
                         this.state.products = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                        this.populateProductSelects();
                     }),
                     this.createSnapshotListener(query(this.state.firestoreRefs.movements), (snapshot) => {
                         this.state.movements = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -521,21 +508,24 @@
                 }
 
                 await Promise.all(dataFetchPromises);
-                this.renderCurrentTab(); // Render after all initial data is loaded
             }
 
             createSnapshotListener(queryOrRef, callback) {
-                return new Promise((resolve) => {
+                return new Promise((resolve, reject) => {
+                    let isInitialLoad = true;
                     const unsubscribe = onSnapshot(queryOrRef, (snapshot) => {
                         callback(snapshot);
-                        // Re-render relevant parts of the UI after data changes
-                        this.renderCurrentTab();
+                        if (this.state.isAuthReady) this.renderCurrentTab();
+                        if (isInitialLoad) {
+                            isInitialLoad = false;
+                            resolve();
+                        }
                     }, (error) => {
                         console.error("Firestore listener error:", error);
                         this.showAlert("Erro ao sincronizar dados com o servidor.", true);
+                        reject(error);
                     });
                     this.state.unsubscribers.push(unsubscribe);
-                    resolve();
                 });
             }
 
@@ -645,56 +635,56 @@
             }
             
             handleContentChange(e) {
-                const target = e.target;
-                if (['stock-category-filter', 'stock-status-filter', 'date-filter-start', 'date-filter-end'].includes(target.id)) {
-                    this.state.currentPage = 1;
-                    this.debouncedRenderProducts();
-                }
-                if (target.id === 'output-product-select') this.handleOutputProductSelection(target.value);
-                if (target.id === 'transfer-product-select') this.handleTransferProductSelection(target.value);
-                if (target.id === 'transfer-from-location-select') this.handleTransferFromLocationSelection(target.value);
-                
-                if (target.id === 'excel-insert-input') {
-                    const file = target.files?.[0];
-                    const filenameEl = document.getElementById('excel-insert-filename');
-                    if(file && filenameEl) {
-                        this.handleExcelParse(file, filenameEl);
-                    }
-                }
-                
-                if (target.id === 'select-all-checkbox') {
-                    this.handleSelectAllChange(e);
-                } else if (target.classList.contains('product-checkbox')) {
-                    this.handleSingleCheckboxChange(); 
-                }
-                
-                if (target.name === 'output-location') {
-                    this.updateOutputQuantityLock();
-                }
-                
-                if (target.id === 'period-selector') {
-                    const period = target.value;
-                    this.state.dashboardSettings.period = period;
-                    const customDateSelector = document.getElementById('custom-date-range-selector');
-                    if (customDateSelector) {
-                        if (period === 'custom') {
-                            customDateSelector.classList.remove('hidden');
-                            customDateSelector.classList.add('grid');
-                        } else {
-                            customDateSelector.classList.add('hidden');
-                            customDateSelector.classList.remove('grid');
-                            this.updateDashboardView();
-                        }
-                    }
-                }
-                
-                if (target.id === 'dashboard-date-start' || target.id === 'dashboard-date-end') {
-                    this.state.dashboardSettings.startDate = document.getElementById('dashboard-date-start').value;
-                    this.state.dashboardSettings.endDate = document.getElementById('dashboard-date-end').value;
-                    if (this.state.dashboardSettings.startDate && this.state.dashboardSettings.endDate) {
-                        this.updateDashboardView();
-                    }
-                }
+             const target = e.target;
+             if (['stock-category-filter', 'stock-status-filter', 'date-filter-start', 'date-filter-end'].includes(target.id)) {
+                 this.state.currentPage = 1;
+                 this.debouncedRenderProducts();
+             }
+             if (target.id === 'output-product-select') this.handleOutputProductSelection(target.value);
+             if (target.id === 'transfer-product-select') this.handleTransferProductSelection(target.value);
+             if (target.id === 'transfer-from-location-select') this.handleTransferFromLocationSelection(target.value);
+             
+             if (target.id === 'excel-insert-input') {
+                 const file = target.files?.[0];
+                 const filenameEl = document.getElementById('excel-insert-filename');
+                 if(file && filenameEl) {
+                     this.handleExcelParse(file, filenameEl);
+                 }
+             }
+             
+             if (target.id === 'select-all-checkbox') {
+                 this.handleSelectAllChange(e);
+             } else if (target.classList.contains('product-checkbox')) {
+                 this.handleSingleCheckboxChange(); 
+             }
+             
+             if (target.name === 'output-location') {
+                 this.updateOutputQuantityLock();
+             }
+             
+             if (target.id === 'period-selector') {
+                 const period = target.value;
+                 this.state.dashboardSettings.period = period;
+                 const customDateSelector = document.getElementById('custom-date-range-selector');
+                 if (customDateSelector) {
+                     if (period === 'custom') {
+                         customDateSelector.classList.remove('hidden');
+                         customDateSelector.classList.add('grid');
+                     } else {
+                         customDateSelector.classList.add('hidden');
+                         customDateSelector.classList.remove('grid');
+                         this.updateDashboardView();
+                     }
+                 }
+             }
+             
+             if (target.id === 'dashboard-date-start' || target.id === 'dashboard-date-end') {
+                 this.state.dashboardSettings.startDate = document.getElementById('dashboard-date-start').value;
+                 this.state.dashboardSettings.endDate = document.getElementById('dashboard-date-end').value;
+                 if (this.state.dashboardSettings.startDate && this.state.dashboardSettings.endDate) {
+                     this.updateDashboardView();
+                 }
+             }
             }
             
             handleSelectAllChange(e) {
@@ -1005,7 +995,7 @@
 
                     productTableHeaderRow.innerHTML = `
                         ${tableCheckboxHeader}
-                        <th class="p-3 text-left text-gray-900 sticky left-0 bg-white hover:bg-white whitespace-nowrap font-medium">Produto</th>
+                        <th class="p-3 text-left text-gray-900 sticky left-0 bg-white hover:bg-slate-50 whitespace-nowrap font-medium">Produto</th>
                         <th class="p-3 text-center text-gray-900 whitespace-nowrap font-medium">Categoria</th>
                         <th class="p-3 text-center text-gray-900 font-bold whitespace-nowrap">Total</th>
                         ${locationHeaders}
@@ -1366,14 +1356,14 @@
                 const panelToShow = document.getElementById(`panel-${tabId}`);
                 if (panelToShow) panelToShow.classList.remove('hidden');
                 
-                document.querySelectorAll('.sidebar-link').forEach(l => l.classList.toggle('bg-primary-light', l.dataset.tab === tabId));
+                document.querySelectorAll('.sidebar-link').forEach(l => l.classList.toggle('bg-gray-100', l.dataset.tab === tabId));
                 
                 if (this.state.isAuthReady) {
                     this.renderCurrentTab();
                 }
             }
             renderCurrentTab() {
-                const activeTabEl = document.querySelector('.sidebar-link.bg-primary-light');
+                const activeTabEl = document.querySelector('.sidebar-link.bg-gray-100');
                 if (!activeTabEl) return;
                 
                 const tabId = activeTabEl.dataset.tab;
@@ -1548,7 +1538,7 @@
                 if (ctx && typeof Chart !== 'undefined') {
                     this.state.chartInstance = new Chart(ctx, chartConfig);
                 }
-            },
+            }
             renderLowStockAlerts() {
                 const listEl = document.getElementById('low-stock-list'), emptyEl = document.getElementById('low-stock-empty');
                 if (!listEl || !emptyEl) return;
@@ -1559,7 +1549,7 @@
                 } else {
                     listEl.classList.add('hidden'); emptyEl.classList.remove('hidden');
                 }
-            },
+            }
             renderTopMovements() {
                 const renderList = (elementId, data) => {
                     const listEl = document.getElementById(elementId);
@@ -1582,7 +1572,7 @@
                 
                 renderList('top-entradas-list', sorted.filter(m => m.type === 'entrada').slice(0, 5));
                 renderList('top-saidas-list', sorted.filter(m => m.type === 'saida').slice(0, 5));
-            },
+            }
             renderHomeTab() {
                 const homePanel = this.state.dom.panels.home;
                 if (!homePanel || homePanel.classList.contains('hidden') || !this.state.isAuthReady) return;
@@ -1604,47 +1594,26 @@
                         activityFeedEl.innerHTML = recentMovements.map(mov => {
                             const product = this.state.products.find(p => p.id === mov.productId);
                             const productName = product ? product.name : 'Produto Excluído';
-                            const date = mov.date?.toDate().toLocaleDateString('pt-BR') || 'Data indefinida';
+                            const date = mov.date?.toDate().toLocaleString('pt-BR') || 'Data indefinida';
                             
                             let icon, color, text;
                             switch(mov.type) {
-                                case 'entrada':
-                                    icon = 'fa-arrow-down';
-                                    color = 'text-green-500';
-                                    text = `<strong>${mov.quantity}x</strong> ${productName} entraram no estoque.`;
-                                    break;
-                                case 'saida':
-                                    icon = 'fa-arrow-up';
-                                    color = 'text-red-500';
-                                    text = `<strong>${mov.quantity}x</strong> ${productName} saíram do estoque.`;
-                                    break;
-                                default:
-                                    icon = 'fa-exchange-alt';
-                                    color = 'text-blue-500';
-                                    text = `Movimentação de <strong>${mov.quantity}x</strong> ${productName}.`;
+                                case 'entrada': icon = 'fa-arrow-down'; color = 'text-green-500'; text = `<strong>${mov.quantity}x</strong> ${productName} entraram no estoque.`; break;
+                                case 'saida': icon = 'fa-arrow-up'; color = 'text-red-500'; text = `<strong>${mov.quantity}x</strong> ${productName} saíram do estoque.`; break;
+                                default: icon = 'fa-exchange-alt'; color = 'text-blue-500'; text = `Movimentação de <strong>${mov.quantity}x</strong> ${productName}.`;
                             }
                             if (mov.motive?.includes('Transferência')) {
                                 icon = 'fa-exchange-alt';
                                 color = 'text-blue-500';
                             }
 
-                            return `
-                                <li class="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg">
-                                    <div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 ${color}">
-                                        <i class="fas ${icon}"></i>
-                                    </div>
-                                    <div>
-                                        <p class="text-sm text-gray-800">${text}</p>
-                                        <p class="text-xs text-gray-500">${mov.motive || 'Sem motivo'} &bull; ${date}</p>
-                                    </div>
-                                </li>
-                            `;
+                            return `<li class="flex items-center space-x-4 p-3 hover:bg-gray-50 rounded-lg"><div class="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center bg-gray-100 ${color}"><i class="fas ${icon}"></i></div><div><p class="text-sm text-gray-800">${text}</p><p class="text-xs text-gray-500">${mov.motive || 'Sem motivo'} &bull; ${date}</p></div></li>`;
                         }).join('');
                     } else {
                         activityFeedEl.innerHTML = '<p class="text-center text-gray-500 p-4">Nenhuma atividade recente para mostrar.</p>';
                     }
                 }
-            },
+            }
             async handleGenerateReport() {
                 const dateInput = document.getElementById('report-date'), reportOutput = document.getElementById('report-output');
                 if (!dateInput || !reportOutput || !dateInput.value) return this.showAlert('Selecione uma data para gerar o relatório.', true);
@@ -1655,18 +1624,12 @@
                 this.setLoading(true);
                 const historicalStock = {};
                 
-                // Initialize stock for all products created before or on the target date
                 this.state.products.forEach(p => {
                     if (p.createdAt?.toDate && p.createdAt.toDate() <= targetDate) {
-                        historicalStock[p.id] = { 
-                            ...p, 
-                            currentQuantityAtDate: 0, 
-                            categoryName: this.state.categories.find(c=>c.id === p.category)?.name || 'N/A' 
-                        };
+                        historicalStock[p.id] = { ...p, currentQuantityAtDate: 0, categoryName: this.state.categories.find(c=>c.id === p.category)?.name || 'N/A' };
                     }
                 });
                 
-                // Recalculate stock based on movements up to the target date
                 this.state.movements
                     .filter(m => m.date?.toDate && m.date.toDate() <= targetDate && historicalStock[m.productId])
                     .sort((a,b) => (a.date.seconds || 0) - (b.date.seconds || 0))
@@ -1678,20 +1641,14 @@
                     });
 
                 document.getElementById('report-list').innerHTML = Object.values(historicalStock)
-                    .filter(p => p.currentQuantityAtDate > 0) // Optional: show only products with stock
+                    .filter(p => p.currentQuantityAtDate > 0)
                     .sort((a,b) => a.name.localeCompare(b.name))
-                    .map(p => `
-                    <tr class="border-b border-gray-200">
-                        <td class="p-3">${p.name}</td>
-                        <td class="p-3 text-center">${p.categoryName}</td>
-                        <td class="p-3 text-center">${p.unit}</td>
-                        <td class="p-3 text-center font-bold">${p.currentQuantityAtDate}</td>
-                    </tr>`).join('');
+                    .map(p => `<tr class="border-b border-gray-200"><td class="p-3">${p.name}</td><td class="p-3 text-center">${p.categoryName}</td><td class="p-3 text-center">${p.unit}</td><td class="p-3 text-center font-bold">${p.currentQuantityAtDate}</td></tr>`).join('');
                 document.getElementById('report-title').textContent = `Relatório de Estoque Histórico`;
                 document.getElementById('report-subtitle').textContent = `Posição em ${targetDate.toLocaleDateString('pt-BR')}`;
                 reportOutput.classList.remove('hidden');
                 this.setLoading(false);
-            },
+            }
             renderPaginationControls(totalItems) {
                 const controlsContainer = document.getElementById('pagination-controls');
                 if (!controlsContainer) return;
@@ -1703,7 +1660,7 @@
                 const startItem = (this.state.currentPage - 1) * this.state.itemsPerPage + 1;
                 const endItem = Math.min(this.state.currentPage * this.state.itemsPerPage, totalItems);
                 controlsContainer.innerHTML = `<span class="text-sm text-gray-700">Mostrando <span class="font-semibold">${startItem}</span> a <span class="font-semibold">${endItem}</span> de <span class="font-semibold">${totalItems}</span></span><div class="inline-flex rounded-md shadow-sm -space-x-px"><button data-action="page-prev" class="px-3 h-8 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-l-lg hover:bg-slate-50 disabled:opacity-50" ${this.state.currentPage === 1 ? 'disabled' : ''}>Anterior</button><button data-action="page-next" class="px-3 h-8 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-r-lg hover:bg-slate-50 disabled:opacity-50" ${this.state.currentPage === totalPages ? 'disabled' : ''}>Próximo</button></div>`;
-            },
+            }
             renderBulkActionBar() {
                 const actionBar = document.getElementById('bulk-action-bar');
                 const selectedCountEl = document.getElementById('selected-count');
@@ -1718,7 +1675,7 @@
                     selectedCountEl.textContent = `${this.state.selectedProducts.length} selecionado(s)`;
                     actionBar.classList.add('open');
                 }
-            },
+            }
             clearFilters() {
                 const searchInput = document.getElementById('search-product-input');
                 const categoryFilter = document.getElementById('stock-category-filter');
@@ -1734,7 +1691,7 @@
                 
                 this.state.currentPage = 1;
                 this.debouncedRenderProducts();
-            },
+            }
             handleDownloadTemplate() {
                 const headers = { name: "Exemplo Produto", category: "Exemplo Categoria", unit: "UND", minStock: 10 };
                 this.state.locations.forEach(l => headers[l.id] = 0);
@@ -1742,7 +1699,7 @@
                 const workbook = XLSX.utils.book_new();
                 XLSX.utils.book_append_sheet(workbook, worksheet, "Produtos");
                 XLSX.writeFile(workbook, "modelo_importacao_estoque.xlsx");
-            },
+            }
             getFilteredProducts() {
                 const categoryFilter = document.getElementById('stock-category-filter')?.value || 'all';
                 const searchTerm = document.getElementById('search-product-input')?.value.toLowerCase() || '';
@@ -1784,7 +1741,7 @@
             
                     return matchesCategory && matchesSearch && matchesStatus && matchesDate;
                 }).sort((a,b) => a.name.localeCompare(b.name)); 
-            },
+            }
             handleExportPdf() {
                 const filteredProducts = this.getFilteredProducts();
                 if (filteredProducts.length === 0) {
@@ -1810,7 +1767,7 @@
                     columnStyles: { 0: { cellWidth: 50 } }
                 });
                 doc.save(`estoque_${new Date().toISOString().slice(0,10)}.pdf`);
-            },
+            }
             handleExcelParse(file, filenameEl) {
                 this.setLoading(true);
                 filenameEl.textContent = `Carregando ${file.name}...`;
@@ -1840,7 +1797,7 @@
                      this.setLoading(false);
                 };
                 reader.readAsArrayBuffer(file);
-            },
+            }
             async handleBulkInsert(data) {
                 if (!this.state.firestoreRefs) {
                     this.showAlert("Erro de configuração interna. Não é possível processar.", true);
@@ -1894,7 +1851,7 @@
                         batch.set(movRef, { 
                             productId: newProdRef.id, type: 'entrada', 
                             quantity: totalQuantity, motive: 'Importação Excel', 
-                            date: serverTimestamp() // Use serverTimestamp for consistency
+                            date: serverTimestamp()
                         });
                     }
                 }
@@ -1906,7 +1863,7 @@
                 } else {
                     this.showAlert('Nenhum produto válido encontrado no arquivo Excel para processar.');
                 }
-            },
+            }
             injectPanelContent() {
                 if (!this.state.dom || !this.state.dom.panels) {
                     console.error("DOM ou painéis não foram cacheados corretamente.");
@@ -1915,12 +1872,12 @@
                 
                 // --- PAINEL HOME ---
                 if (this.state.dom.panels.home) {
-                    this.state.dom.panels.home.innerHTML = `<div class="space-y-8"><div><h2 class="text-3xl font-bold text-gray-900 mb-2">Página Inicial</h2><p class="text-gray-500">Uma visão geral e rápida do seu estoque.</p></div><div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6"><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-primary-light text-primary p-3 rounded-xl"><i class="fas fa-box"></i></div><div><p class="text-sm text-gray-500">Produtos</p><p id="stat-total-products" class="text-2xl font-bold">0</p></div></div><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-primary-light text-primary p-3 rounded-xl"><i class="fas fa-boxes-stacked"></i></div><div><p class="text-sm text-gray-500">Itens Totais</p><p id="stat-total-items" class="text-2xl font-bold">0</p></div></div><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-primary-light text-primary p-3 rounded-xl"><i class="fas fa-tags"></i></div><div><p class="text-sm text-gray-500">Categorias</p><p id="stat-total-categories" class="text-2xl font-bold">0</p></div></div><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-amber-100 text-warning p-3 rounded-xl"><i class="fas fa-exclamation-triangle"></i></div><div><p class="text-sm text-gray-500">Estoque Baixo</p><p id="stat-low-stock" class="text-2xl font-bold">0</p></div></div></div><div class="grid grid-cols-1 lg:grid-cols-3 gap-8"><div class="lg:col-span-1 space-y-4"><h3 class="text-xl font-semibold text-gray-900">Ações Rápidas</h3><div class="grid grid-cols-2 gap-4"><a href="#" class="action-card flex flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="stock"><i class="fas fa-warehouse text-2xl text-primary mb-2"></i><span class="font-semibold text-sm">Ver Estoque</span></a><a href="#" class="action-card flex flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="register" data-role-required="admin"><i class="fas fa-plus-circle text-2xl text-success mb-2"></i><span class="font-semibold text-sm">Adicionar</span></a><a href="#" class="action-card flex flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="movements" data-role-required="admin"><i class="fas fa-exchange-alt text-2xl text-danger mb-2"></i><span class="font-semibold text-sm">Movimentar</span></a><a href="#" class="action-card flex flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="reports"><i class="fas fa-chart-pie text-2xl text-indigo-500 mb-2"></i><span class="font-semibold text-sm">Relatórios</span></a></div></div><div class="lg:col-span-2"><h3 class="text-xl font-semibold text-gray-900 mb-4">Atividade Recente</h3><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200"><ul id="recent-activity-feed" class="space-y-2"></ul></div></div></div></div>`;
+                    this.state.dom.panels.home.innerHTML = `<div class="space-y-8"><div><h2 class="text-3xl font-bold text-gray-900 mb-2">Página Inicial</h2><p class="text-gray-500">Uma visão geral e rápida do seu estoque.</p></div><div class="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6"><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-primary-light text-primary p-3 rounded-xl"><i class="fas fa-box"></i></div><div><p class="text-sm text-gray-500">Produtos</p><p id="stat-total-products" class="text-2xl font-bold">0</p></div></div><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-primary-light text-primary p-3 rounded-xl"><i class="fas fa-boxes-stacked"></i></div><div><p class="text-sm text-gray-500">Itens Totais</p><p id="stat-total-items" class="text-2xl font-bold">0</p></div></div><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-primary-light text-primary p-3 rounded-xl"><i class="fas fa-tags"></i></div><div><p class="text-sm text-gray-500">Categorias</p><p id="stat-total-categories" class="text-2xl font-bold">0</p></div></div><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200 flex items-center space-x-4"><div class="text-2xl bg-amber-100 text-warning p-3 rounded-xl"><i class="fas fa-exclamation-triangle"></i></div><div><p class="text-sm text-gray-500">Estoque Baixo</p><p id="stat-low-stock" class="text-2xl font-bold">0</p></div></div></div><div class="grid grid-cols-1 lg:grid-cols-3 gap-8"><div class="lg:col-span-1 space-y-4"><h3 class="text-xl font-semibold text-gray-900">Ações Rápidas</h3><div class="grid grid-cols-2 gap-4"><a href="#" class="action-card flex flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="stock"><i class="fas fa-warehouse text-2xl text-primary mb-2"></i><span class="font-semibold text-sm">Ver Estoque</span></a><a href="#" class="action-card flex flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="register"><i class="fas fa-plus-circle text-2xl text-success mb-2"></i><span class="font-semibold text-sm">Adicionar</span></a><a href="#" class="action-card flex flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="movements"><i class="fas fa-exchange-alt text-2xl text-danger mb-2"></i><span class="font-semibold text-sm">Movimentar</span></a><a href="#" class="action-card flex flex-col items-center justify-center text-center p-4 bg-white rounded-2xl shadow-xl border border-gray-200 hover:border-primary hover:bg-primary-light transition-all duration-300" data-tab="reports"><i class="fas fa-chart-pie text-2xl text-indigo-500 mb-2"></i><span class="font-semibold text-sm">Relatórios</span></a></div></div><div class="lg:col-span-2"><h3 class="text-xl font-semibold text-gray-900 mb-4">Atividade Recente</h3><div class="bg-white p-4 rounded-2xl shadow-xl border border-gray-200"><ul id="recent-activity-feed" class="space-y-2"></ul></div></div></div></div>`;
                 }
                 
                 // --- PAINEL ESTOQUE ---
                 if (this.state.dom.panels.stock) {
-                     this.state.dom.panels.stock.innerHTML = `<div class="space-y-6"><div class="bg-white p-4 md:p-6 rounded-2xl shadow-xl border border-gray-200 relative"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-white rounded-lg text-gray-900 border border-gray-300"></div><select id="stock-category-filter" class="p-2 bg-white border border-gray-300 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-white border border-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-slate-50 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-danger text-white font-semibold py-2 px-4 rounded-lg hover:bg-danger-hover transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-slate-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar mb-4 p-2 bg-primary-light border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-danger text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-danger-hover transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div>
+                     this.state.dom.panels.stock.innerHTML = `<div class="space-y-6"><div class="bg-white p-4 md:p-6 rounded-2xl shadow-xl border border-gray-200 relative"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-white rounded-lg text-gray-900 border border-gray-300"></div><select id="stock-category-filter" class="p-2 bg-white border border-gray-300 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-white border border-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-slate-50 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-danger text-white font-semibold py-2 px-4 rounded-lg hover:bg-danger-hover transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-slate-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar mb-4 p-2 bg-primary-light border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-danger text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-danger-hover transition"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div>
                             <div id="product-list-container">
                                 <div class="overflow-x-auto hidden md:block">
                                     <table class="w-full text-left" id="product-list">
@@ -1954,7 +1911,7 @@
                 
                 // --- PAINEL CONFIGURAÇÕES ---
                 if (this.state.dom.panels.settings) {
-                    this.state.dom.panels.settings.innerHTML = `<div class="space-y-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Configurações Gerais</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 class="text-lg font-medium text-gray-900 mb-2">Gerenciar Localidades</h3><form id="add-location-form" class="flex gap-2 mb-4"><input type="text" id="location-name" placeholder="Nova localidade" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><button type="submit" class="bg-success text-white p-2 rounded-lg hover:bg-success-hover transition flex items-center justify-center w-12 flex-shrink-0"><i class="fas fa-plus"></i></button></form><div id="location-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div><h3 class="text-lg font-medium text-gray-900 mb-2">Configurações de Exibição</h3><div class="space-y-4"><div><label for="items-per-page-input" class="block text-sm font-medium text-gray-700">Itens por página na tabela</label><input type="number" id="items-per-page-input" min="1" class="mt-1 block w-full p-2 bg-white border border-gray-300 rounded-lg"></div><button id="save-settings-btn" class="w-full bg-primary text-white font-bold py-2 rounded-lg hover:bg-primary-hover transition">Salvar Configurações Gerais</button></div></div></div></div><div id="user-management-section" class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200" data-role-required="admin"><h2 class="text-2xl font-semibold mb-6 text-gray-900"><i class="fas fa-users-cog mr-2"></i>Gerenciar Usuários</h2><div class="overflow-x-auto"><table class="w-full text-left"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr><th class="p-3 text-sm font-semibold text-gray-700">Email</th><th class="p-3 text-sm font-semibold text-gray-700">Papel</th><th class="p-3 text-sm font-semibold text-gray-700 text-right">Ação</th></tr></thead><tbody id="user-list-tbody"></tbody></table></div><p class="mt-4 text-xs text-gray-500 italic">Administradores não podem alterar seu próprio papel através desta interface.</p></div></div>`;
+                    this.state.dom.panels.settings.innerHTML = `<div class="space-y-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Configurações Gerais</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 class="text-lg font-medium text-gray-900 mb-2">Gerenciar Localidades</h3><form id="add-location-form" class="flex gap-2 mb-4"><input type="text" id="location-name" placeholder="Nova localidade" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><button type="submit" class="bg-success text-white p-2 rounded-lg hover:bg-success-hover transition flex items-center justify-center w-12 flex-shrink-0"><i class="fas fa-plus"></i></button></form><div id="location-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div><h3 class="text-lg font-medium text-gray-900 mb-2">Configurações de Exibição</h3><div class="space-y-4"><div><label for="items-per-page-input" class="block text-sm font-medium text-gray-700">Itens por página na tabela</label><input type="number" id="items-per-page-input" min="1" class="mt-1 block w-full p-2 bg-white border border-gray-300 rounded-lg"></div><button id="save-settings-btn" class="w-full bg-primary text-white font-bold py-2 rounded-lg hover:bg-primary-hover transition">Salvar Configurações Gerais</button></div></div></div></div><div id="user-management-section" class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-6 text-gray-900"><i class="fas fa-users-cog mr-2"></i>Gerenciar Usuários</h2><div class="overflow-x-auto"><table class="w-full text-left"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr><th class="p-3 text-sm font-semibold text-gray-700">Email</th><th class="p-3 text-sm font-semibold text-gray-700">Papel</th><th class="p-3 text-sm font-semibold text-gray-700 text-right">Ação</th></tr></thead><tbody id="user-list-tbody"></tbody></table></div><p class="mt-4 text-xs text-gray-500 italic">Administradores não podem alterar seu próprio papel através desta interface.</p></div></div>`;
                 }
 
                 // --- PAINEL AUDITORIA ---
@@ -1963,230 +1920,7 @@
                 }
 
                 this.applyRolePermissions();
-            },
-            renderAuditLog() {
-                const auditPanel = this.state.dom.panels.audit;
-                if (!auditPanel || auditPanel.classList.contains('hidden') || this.state.userRole !== 'admin') return;
-                
-                const logBody = document.getElementById('audit-log-body');
-                if (!logBody) return;
-
-                const sortedLog = [...this.state.auditLog].sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-
-                if (sortedLog.length === 0) {
-                    logBody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-gray-500">Nenhum registro de auditoria encontrado.</td></tr>`;
-                    return;
-                }
-
-                logBody.innerHTML = sortedLog.map(log => {
-                    const date = log.timestamp?.toDate().toLocaleString('pt-BR') || 'Data inválida';
-                    const user = log.userEmail || 'Sistema';
-                    const { action, details } = log;
-                    let actionText = action;
-                    let detailsText = JSON.stringify(details);
-
-                    switch (action) {
-                        case 'PRODUCT_CREATE': actionText = 'Produto Criado'; detailsText = `Produto "${details.productName}" criado com estoque inicial de ${details.initialStock}.`; break;
-                        case 'PRODUCT_EDIT': actionText = 'Produto Editado'; detailsText = `Produto "${details.productName}" teve seu ${details.details}.`; break;
-                        case 'PRODUCT_DELETE': actionText = 'Produto Excluído'; detailsText = `Produto "${details.productName}" foi excluído.`; break;
-                        case 'BULK_PRODUCT_DELETE': actionText = 'Exclusão em Lote'; detailsText = `${details.count} produtos excluídos: ${details.productNames.join(', ')}.`; break;
-                        case 'CATEGORY_CREATE': actionText = 'Categoria Criada'; detailsText = `Categoria "${details.categoryName}" foi criada.`; break;
-                        case 'CATEGORY_DELETE': actionText = 'Categoria Excluída'; detailsText = `Categoria "${details.categoryName}" foi excluída.`; break;
-                        case 'LOCATION_CREATE': actionText = 'Localidade Criada'; detailsText = `Localidade "${details.locationName}" foi criada.`; break;
-                        case 'LOCATION_DELETE': actionText = 'Localidade Excluída'; detailsText = `Localidade "${details.locationName}" foi excluída.`; break;
-                        case 'STOCK_OUTPUT': actionText = 'Saída de Estoque'; detailsText = `${details.quantity}x de "${details.productName}" saíram de ${details.locationName} (Motivo: ${details.motive}).`; break;
-                        case 'STOCK_TRANSFER': actionText = 'Transferência'; detailsText = `${details.quantity}x de "${details.productName}" movidos de ${details.from} para ${details.to}.`; break;
-                        case 'USER_ROLE_CHANGE': actionText = 'Papel Alterado'; detailsText = `Papel de ${details.targetUserEmail} alterado de ${details.oldRole} para ${details.newRole}.`; break;
-                        case 'USER_PERMISSIONS_CHANGE': actionText = 'Permissões Alteradas'; detailsText = `Permissões de ${details.targetUserEmail} atualizadas.`; break;
-                        case 'BULK_PRODUCT_INSERT': actionText = 'Importação Excel'; detailsText = `${details.count} produtos foram importados.`; break;
-                    }
-
-                    return `
-                        <tr class="border-b border-gray-200 hover:bg-gray-50">
-                            <td class="p-3 text-sm text-gray-600 whitespace-nowrap">${date}</td>
-                            <td class="p-3 text-sm text-gray-800 font-medium">${user}</td>
-                            <td class="p-3 text-sm text-gray-800 font-semibold">${actionText}</td>
-                            <td class="p-3 text-sm text-gray-600">${detailsText}</td>
-                        </tr>
-                    `;
-                }).join('');
-            },
-            updateOutputQuantityLock() {
-                const quantityInput = document.getElementById('output-quantity');
-                const selectedLocationRadio = document.querySelector('input[name="output-location"]:checked');
-                
-                if (!quantityInput) return;
-
-                if (!selectedLocationRadio) {
-                    quantityInput.disabled = true;
-                    quantityInput.value = '';
-                    quantityInput.placeholder = 'Selecione uma localidade';
-                    return;
-                }
-                const productId = document.getElementById('output-product-select').value;
-                const product = this.state.products.find(p => p.id === productId);
-                if (!product) {
-                    quantityInput.disabled = true;
-                    quantityInput.value = '';
-                    quantityInput.placeholder = 'Produto inválido';
-                    return;
-                }
-                
-                const locationId = selectedLocationRadio.value;
-                const productQuantities = product.quantities || {};
-                const maxQuantity = productQuantities[locationId] || 0;
-                
-                quantityInput.max = maxQuantity.toString();
-                quantityInput.disabled = (maxQuantity === 0);
-                quantityInput.placeholder = maxQuantity > 0 ? `Máx: ${maxQuantity}` : 'Sem estoque';
-                
-                if (parseInt(quantityInput.value, 10) > maxQuantity) {
-                    quantityInput.value = maxQuantity.toString();
-                }
-                 if (maxQuantity === 0) {
-                    quantityInput.value = '';
-                }
-            },
-            handleOutputProductSelection(productId) {
-                const stockInfoEl = document.getElementById('output-stock-info');
-                const locationSelectorEl = document.getElementById('output-location-selector');
-                const quantityInput = document.getElementById('output-quantity');
-
-                if (!stockInfoEl || !locationSelectorEl || !quantityInput) return;
-
-                stockInfoEl.textContent = '';
-                locationSelectorEl.innerHTML = '';
-                quantityInput.value = '';
-                quantityInput.removeAttribute('max');
-                quantityInput.disabled = true;
-                quantityInput.placeholder = '';
-
-                if (!productId) return;
-
-                const product = this.state.products.find(p => p.id === productId);
-                if (product) {
-                    stockInfoEl.textContent = `Estoque Total: ${product.totalQuantity || 0} ${product.unit}`;
-                    const productQuantities = product.quantities || {};
-                    const locationOptionsHtml = this.state.locations.map(loc => {
-                        const qty = productQuantities[loc.id] || 0;
-                        return `
-                            <label class="flex items-center space-x-3 p-2 rounded-lg border border-gray-200 hover:bg-gray-50 ${qty > 0 ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}">
-                                <input type="radio" name="output-location" value="${loc.id}" class="h-4 w-4 text-primary border-gray-300 focus:ring-primary" ${qty === 0 ? 'disabled' : ''}>
-                                <span class="text-gray-800">${loc.name}: <span class="font-semibold">${qty}</span></span>
-                            </label>
-                            `;
-                    }).join('');
-                    
-                    if (locationOptionsHtml.trim() !== '') {
-                        locationSelectorEl.innerHTML = `<p class="text-sm font-medium text-gray-700 mb-2">De onde está saindo?</p><div class="grid grid-cols-1 sm:grid-cols-2 gap-2">${locationOptionsHtml}</div>`;
-                    } else {
-                         locationSelectorEl.innerHTML = '<p class="text-sm text-gray-500">Nenhuma localidade de estoque encontrada para este produto ou nenhuma localidade cadastrada.</p>';
-                    }
-                } else {
-                    stockInfoEl.textContent = 'Produto não encontrado.';
-                }
-            },
-            handleTransferProductSelection(productId) {
-                const infoEl = document.getElementById('transfer-stock-info');
-                const fromSelect = document.getElementById('transfer-from-location-select');
-                const toSelect = document.getElementById('transfer-to-location-select');
-                const qtyInput = document.getElementById('transfer-quantity');
-
-                if(infoEl) infoEl.textContent = '';
-                if(fromSelect) { fromSelect.innerHTML = '<option value="">Selecione a origem</option>'; fromSelect.disabled = true; }
-                if(toSelect) { toSelect.innerHTML = '<option value="">Selecione o destino</option>'; toSelect.disabled = true; }
-                if(qtyInput) { qtyInput.value = ''; qtyInput.disabled = true; qtyInput.placeholder = ''; }
-
-                if (!productId) return;
-
-                const product = this.state.products.find(p => p.id === productId);
-                if (product) {
-                    if (infoEl) infoEl.textContent = `Estoque Total: ${product.totalQuantity || 0} ${product.unit}`;
-                    
-                    const quantities = product.quantities || {};
-                    const locationsWithStock = this.state.locations.filter(loc => quantities[loc.id] > 0);
-                    
-                    if (locationsWithStock.length > 0 && fromSelect) {
-                        let fromOptions = '<option value="">Selecione a origem</option>';
-                        fromOptions += locationsWithStock.map(loc => `<option value="${loc.id}">${loc.name} (${quantities[loc.id]})</option>`).join('');
-                        fromSelect.innerHTML = fromOptions;
-                        fromSelect.disabled = false;
-                    } else if (fromSelect) {
-                        fromSelect.innerHTML = '<option value="">Sem estoque disponível</option>';
-                    }
-                }
-            },
-            handleTransferFromLocationSelection(fromLocationId) {
-                const productId = document.getElementById('transfer-product-select').value;
-                const toSelect = document.getElementById('transfer-to-location-select');
-                const qtyInput = document.getElementById('transfer-quantity');
-                
-                if (toSelect) { toSelect.innerHTML = '<option value="">Selecione o destino</option>'; toSelect.disabled = true; }
-                if (qtyInput) { qtyInput.value = ''; qtyInput.disabled = true; qtyInput.placeholder = ''; }
-
-                if (!productId || !fromLocationId) return;
-
-                const product = this.state.products.find(p => p.id === productId);
-                if (product) {
-                    const availableDestinations = this.state.locations.filter(loc => loc.id !== fromLocationId);
-                    
-                    if (availableDestinations.length > 0 && toSelect) {
-                        let toOptions = '<option value="">Selecione o destino</option>';
-                        toOptions += availableDestinations.map(loc => `<option value="${loc.id}">${loc.name}</option>`).join('');
-                        toSelect.innerHTML = toOptions;
-                        toSelect.disabled = false;
-                    }
-
-                    const maxQty = product.quantities[fromLocationId] || 0;
-                    if (qtyInput) {
-                        qtyInput.max = maxQty;
-                        qtyInput.placeholder = `Máx: ${maxQty}`;
-                        qtyInput.disabled = false;
-                    }
-                }
-            },
-            handleContentInput(e) {
-                const target = e.target;
-                if (target.id === 'search-product-input') {
-                    this.state.currentPage = 1;
-                    this.debouncedRenderProducts();
-                }
-                const inputsToValidate = ['output-quantity', 'transfer-quantity'];
-                if (inputsToValidate.includes(target.id)) {
-                    const max = parseInt(target.max, 10);
-                    const currentValue = parseInt(target.value, 10);
-                    if (!isNaN(currentValue)) {
-                        if (!isNaN(max) && currentValue > max) {
-                            target.value = max.toString();
-                        }
-                        if (currentValue < 0) {
-                            target.value = "0";
-                        }
-                    }
-                }
-            },
-            async handleSaveSettings() {
-                if (this.state.userRole !== 'admin') {
-                    return this.showAlert('Você não tem permissão para salvar configurações.', true);
-                }
-                const input = document.getElementById('items-per-page-input');
-                if (!input) return;
-                const itemsPerPage = parseInt(input.value, 10);
-                if (isNaN(itemsPerPage) || itemsPerPage <= 0) {
-                    return this.showAlert('Número de itens por página inválido. Deve ser um número positivo.', true);
-                }
-                
-                this.setLoading(true);
-                try {
-                    await setDoc(this.state.firestoreRefs.settings, { itemsPerPage }, { merge: true });
-                    this.showAlert('Configurações gerais salvas.');
-                } catch(error) {
-                    console.error("Erro ao salvar configurações:", error);
-                    this.showAlert('Não foi possível salvar as configurações gerais.', true);
-                } finally {
-                    this.setLoading(false);
-                }
-            } // CORREÇÃO: A vírgula que causava o erro de sintaxe foi removida daqui.
+            }
         }
 
         new StockApp();

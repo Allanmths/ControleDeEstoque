@@ -323,7 +323,7 @@
             handleAuthentication() {
                 onAuthStateChanged(this.auth, async (user) => {
                     this.setLoading(true);
-                    this.clearAllListeners(); // Limpa listeners antigos antes de qualquer coisa
+                    this.clearAllListeners(); 
 
                     if (user) {
                         try {
@@ -338,7 +338,6 @@
                                      this.state.currentUserData.permissions = { home: true, reports: true, stock: true, register: false, movements: false, settings: false, audit: false };
                                 }
                             } else {
-                                // Usuário existe no Auth mas não no Firestore, trata como visualizador padrão
                                 this.state.userRole = 'viewer';
                                 this.state.currentUserData = { 
                                     email: user.email,
@@ -347,21 +346,20 @@
                                 };
                             }
                             
-                            this.state.isAuthReady = true; // Autenticação e dados do usuário carregados
+                            this.state.isAuthReady = true; 
                             
-                            this.showAppUI(); // Mostra UI principal e aplica permissões
-                            this.initializeAppDataListeners(); // SÓ AGORA anexa os listeners de dados
-                            this.renderCurrentTab(); // Renderiza a aba ativa pela primeira vez
+                            this.showAppUI(); 
+                            this.initializeAppDataListeners(); 
+                            this.renderCurrentTab(); 
 
                         } catch (error) {
                             console.error("Erro fatal durante a autenticação ou inicialização:", error);
                             this.showAlert("Ocorreu um erro crítico ao carregar a aplicação.", true);
-                            this.showAuthUI(); // Garante que o usuário seja deslogado em caso de erro grave
+                            this.showAuthUI(); 
                         } finally {
                             this.setLoading(false);
                         }
                     } else {
-                        // Nenhum usuário logado
                         this.showAuthUI();
                         this.setLoading(false);
                     }
@@ -428,13 +426,11 @@
                 this.state.currentUser = null;
                 this.state.currentUserData = null;
                 this.state.userRole = null;
-                this.state.allUsers = [];
-
+                
                 this.state.dom.authSection.classList.remove('hidden');
                 this.state.dom.authSection.classList.add('flex');
                 this.state.dom.appSection.classList.add('hidden');
                 
-                // Limpa o estado para não vazar dados do usuário anterior
                 this.state = {
                     ...this.state, products: [], categories: [], locations: [],
                     movements: [], selectedProducts: [], currentPage: 1, allUsers: [], auditLog: [],
@@ -442,7 +438,7 @@
             }
             
             applyRolePermissions() {
-                const { userRole, currentUserData } = this.state;
+                const { userRole } = this.state;
                 const welcomeEl = document.getElementById('user-welcome-message');
                 if (welcomeEl) {
                     welcomeEl.textContent = `Bem-vindo! Você está logado como ${userRole === 'admin' ? 'Administrador' : 'Visualizador'}.`;
@@ -455,7 +451,6 @@
                 
                 const activeTabEl = document.querySelector('.sidebar-link.bg-gray-100');
                 if (activeTabEl && !this.checkUserPermissionForTab(activeTabEl.dataset.tab)) {
-                    // Se o usuário não tem permissão para a aba ativa, muda para a home
                     this.switchTab('home');
                 }
             }
@@ -493,56 +488,46 @@
             }
 
             initializeAppDataListeners() {
-                const dataFetchPromises = [
-                    this.createSnapshotListener(this.state.firestoreRefs.settings, (docSnap) => {
-                        if (docSnap.exists()) this.state.itemsPerPage = docSnap.data().itemsPerPage || 10;
-                    }),
-                    this.createSnapshotListener(query(this.state.firestoreRefs.locations), (snapshot) => {
-                        this.state.locations = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => a.name.localeCompare(b.name));
-                    }),
-                    this.createSnapshotListener(query(this.state.firestoreRefs.categories), (snapshot) => {
-                        this.state.categories = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name));
-                    }),
-                    this.createSnapshotListener(query(this.state.firestoreRefs.products), (snapshot) => {
-                        this.state.products = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                        this.populateProductSelects();
-                    }),
-                    this.createSnapshotListener(query(this.state.firestoreRefs.movements), (snapshot) => {
-                        this.state.movements = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                    })
-                ];
+                this.createSnapshotListener(this.state.firestoreRefs.settings, (docSnap) => {
+                    if (docSnap.exists()) this.state.itemsPerPage = docSnap.data().itemsPerPage || 10;
+                    this.renderCurrentTab();
+                });
+                this.createSnapshotListener(query(this.state.firestoreRefs.locations), (snapshot) => {
+                    this.state.locations = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => a.name.localeCompare(b.name));
+                    this.renderCurrentTab();
+                });
+                this.createSnapshotListener(query(this.state.firestoreRefs.categories), (snapshot) => {
+                    this.state.categories = snapshot.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => a.name.localeCompare(b.name));
+                    this.renderCurrentTab();
+                });
+                this.createSnapshotListener(query(this.state.firestoreRefs.products), (snapshot) => {
+                    this.state.products = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                    this.populateProductSelects();
+                    this.renderCurrentTab();
+                });
+                this.createSnapshotListener(query(this.state.firestoreRefs.movements), (snapshot) => {
+                    this.state.movements = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                    this.renderCurrentTab();
+                });
 
                 if (this.state.userRole === 'admin') {
-                    dataFetchPromises.push(this.createSnapshotListener(query(this.state.firestoreRefs.users), (snapshot) => {
+                    this.createSnapshotListener(query(this.state.firestoreRefs.users), (snapshot) => {
                         this.state.allUsers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                    }));
-                    dataFetchPromises.push(this.createSnapshotListener(query(this.state.firestoreRefs.auditLog), (snapshot) => {
+                        this.renderCurrentTab();
+                    });
+                    this.createSnapshotListener(query(this.state.firestoreRefs.auditLog), (snapshot) => {
                          this.state.auditLog = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
-                    }));
+                         this.renderCurrentTab();
+                    });
                 }
-
-                return Promise.all(dataFetchPromises);
             }
 
             createSnapshotListener(queryOrRef, callback) {
-                return new Promise((resolve, reject) => {
-                    let isInitialLoad = true;
-                    const unsubscribe = onSnapshot(queryOrRef, (snapshot) => {
-                        callback(snapshot);
-                        // A renderização é chamada aqui para refletir mudanças em tempo real.
-                        // Como os listeners só são ativados quando a auth está pronta, isso é seguro.
-                        this.renderCurrentTab();
-                        if (isInitialLoad) {
-                            isInitialLoad = false;
-                            resolve();
-                        }
-                    }, (error) => {
-                        console.error("Firestore listener error:", error);
-                        this.showAlert("Erro ao sincronizar dados com o servidor.", true);
-                        if (isInitialLoad) reject(error);
-                    });
-                    this.state.unsubscribers.push(unsubscribe);
+                const unsubscribe = onSnapshot(queryOrRef, callback, (error) => {
+                    console.error("Firestore listener error:", error);
+                    this.showAlert("Erro ao sincronizar dados com o servidor.", true);
                 });
+                this.state.unsubscribers.push(unsubscribe);
             }
 
             clearAllListeners() {
@@ -1374,12 +1359,13 @@
                 
                 document.querySelectorAll('.sidebar-link').forEach(l => l.classList.toggle('bg-gray-100', l.dataset.tab === tabId));
                 
-                if (this.state.isAuthReady) {
-                    this.renderCurrentTab();
-                }
+                this.renderCurrentTab();
             }
             renderCurrentTab() {
-                if (!this.state.isAuthReady) return; // Guarda para não renderizar nada antes da hora
+                // *** CORREÇÃO PRINCIPAL ***
+                // Este "guarda" impede qualquer tentativa de renderização se a aplicação não estiver
+                // totalmente autenticada e pronta, resolvendo o erro na tela de login.
+                if (!this.state.isAuthReady) return;
 
                 const activeTabEl = document.querySelector('.sidebar-link.bg-gray-100');
                 if (!activeTabEl) return;
@@ -1433,14 +1419,13 @@
             }
             renderDashboard() {
                 const reportsPanel = document.getElementById('panel-reports');
-                if (!reportsPanel || reportsPanel.classList.contains('hidden') || !this.state.isAuthReady) return;
+                if (!reportsPanel || reportsPanel.classList.contains('hidden')) return;
                 
                 this.updateDashboardView();
                 this.renderLowStockAlerts();
                 this.renderTopMovements();
             }
             updateDashboardView() {
-                if(!this.state.isAuthReady) return;
                 const reportsPanel = document.getElementById('panel-reports');
                 if (!reportsPanel || reportsPanel.classList.contains('hidden')) return;
 
@@ -1593,7 +1578,7 @@
             }
             renderHomeTab() {
                 const homePanel = this.state.dom.panels.home;
-                if (!homePanel || homePanel.classList.contains('hidden') || !this.state.isAuthReady) return;
+                if (!homePanel || homePanel.classList.contains('hidden')) return;
                 
                 const totalProducts = this.state.products.length;
                 const totalItems = this.state.products.reduce((acc, p) => acc + (p.totalQuantity || 0), 0);
@@ -2058,8 +2043,6 @@
             }
             
             renderAuditLog() {
-                if (!this.state.isAuthReady || this.state.userRole !== 'admin') return;
-
                 const auditLogBody = document.getElementById('audit-log-body');
                 if (!auditLogBody) return;
 

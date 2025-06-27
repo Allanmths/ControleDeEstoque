@@ -142,6 +142,9 @@
                 <a href="#" data-tab="movements" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700">
                     <i class="fas fa-exchange-alt w-6 mr-3"></i>Movimentações
                 </a>
+                <a href="#" data-tab="counting" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700">
+                    <i class="fas fa-clipboard-check w-6 mr-3"></i>Contagem
+                </a>
                 <a href="#" data-tab="audit" class="sidebar-link flex items-center p-3 rounded-lg hover:bg-gray-100 text-gray-700">
                     <i class="fas fa-history w-6 mr-3"></i>Auditoria
                 </a>
@@ -177,6 +180,7 @@
                 <div id="panel-stock" class="tab-panel hidden"></div>
                 <div id="panel-register" class="tab-panel hidden"></div>
                 <div id="panel-movements" class="tab-panel hidden"></div>
+                <div id="panel-counting" class="tab-panel hidden"></div>
                 <div id="panel-settings" class="tab-panel hidden"></div>
                 <div id="panel-audit" class="tab-panel hidden"></div>
             </main>
@@ -219,7 +223,7 @@
             auth;
             db;
             state = {
-                products: [], categories: [], locations: [], movements: [], allUsers: [], auditLog: [],
+                products: [], categories: [], locations: [], movements: [], allUsers: [], auditLog: [], countingHistory: [],
                 selectedProducts: [],
                 currentPage: 1, itemsPerPage: 10,
                 firestoreRefs: null, dom: null, chartInstance: null,
@@ -271,7 +275,8 @@
                         movements: document.getElementById('panel-movements'), 
                         reports: document.getElementById('panel-reports'), 
                         settings: document.getElementById('panel-settings'),
-                        audit: document.getElementById('panel-audit')
+                        audit: document.getElementById('panel-audit'),
+                        counting: document.getElementById('panel-counting'),
                     },
                     sidebar: { menu: document.getElementById('sidebar-menu'), nav: document.getElementById('sidebar-nav'), overlay: document.getElementById('sidebar-overlay'), toggleBtn: document.getElementById('menu-toggle-btn'), logoutBtn: document.getElementById('logout-btn') },
                     modals: {
@@ -335,14 +340,14 @@
                                 this.state.currentUserData = userDoc.data();
                                 this.state.userRole = this.state.currentUserData.role || 'viewer';
                                 if (!this.state.currentUserData.permissions) {
-                                     this.state.currentUserData.permissions = { home: true, reports: true, stock: true, register: false, movements: false, settings: false, audit: false };
+                                     this.state.currentUserData.permissions = { home: true, reports: true, stock: true, register: false, movements: false, settings: false, audit: false, counting: false };
                                 }
                             } else {
                                 this.state.userRole = 'viewer';
                                 this.state.currentUserData = { 
                                     email: user.email,
                                     role: 'viewer',
-                                    permissions: { home: true, reports: true, stock: true, register: false, movements: false, settings: false, audit: false } 
+                                    permissions: { home: true, reports: true, stock: true, register: false, movements: false, settings: false, audit: false, counting: false } 
                                 };
                             }
                             
@@ -395,7 +400,8 @@
                             register: false,
                             movements: false,
                             settings: false,
-                            audit: false
+                            audit: false,
+                            counting: false,
                         }
                     });
                 } catch (error) {
@@ -438,6 +444,7 @@
                 this.state.movements = [];
                 this.state.allUsers = [];
                 this.state.auditLog = [];
+                this.state.countingHistory = [];
                 this.state.selectedProducts = [];
                 this.state.currentPage = 1;
             }
@@ -488,7 +495,8 @@
                     locations: collection(this.db, `${basePath}/locations`),
                     settings: doc(this.db, `${basePath}/settings/main`),
                     users: collection(this.db, 'users'),
-                    auditLog: collection(this.db, `${basePath}/auditLog`)
+                    auditLog: collection(this.db, `${basePath}/auditLog`),
+                    countingHistory: collection(this.db, `${basePath}/countingHistory`),
                 };
             }
 
@@ -512,6 +520,10 @@
                 });
                 this.createSnapshotListener(query(this.state.firestoreRefs.movements), (snapshot) => {
                     this.state.movements = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+                    this.renderCurrentTab();
+                });
+                this.createSnapshotListener(query(this.state.firestoreRefs.countingHistory), (snapshot) => {
+                    this.state.countingHistory = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                     this.renderCurrentTab();
                 });
 
@@ -545,9 +557,13 @@
                 const isAdmin = this.state.userRole === 'admin';
                 const form = e.target;
                 
-                if (!isAdmin) {
+                if (!isAdmin && form.id !== 'save-count-form') { // Allow non-admins to submit count form if permitted
                      return this.showAlert('Você não tem permissão para realizar esta ação.', true);
                 }
+                if (form.id === 'save-count-form' && !this.checkUserPermissionForTab('counting')) {
+                    return this.showAlert('Você não tem permissão para salvar contagens.', true);
+                }
+
                 
                 this.setLoading(true);
                 try {
@@ -556,6 +572,7 @@
                     if (form.id === 'add-output-form') await this.handleAddOutput(form);
                     if (form.id === 'add-location-form') await this.handleAddLocation(form);
                     if (form.id === 'transfer-stock-form') await this.handleTransferStock(form);
+                    if (form.id === 'save-count-form') await this.handleSaveCount(form);
                 } catch (error) {
                     this.showAlert(error.message, true);
                 } finally {
@@ -649,6 +666,7 @@
              if (target.id === 'output-product-select') this.handleOutputProductSelection(target.value);
              if (target.id === 'transfer-product-select') this.handleTransferProductSelection(target.value);
              if (target.id === 'transfer-from-location-select') this.handleTransferFromLocationSelection(target.value);
+             if (target.id === 'counting-product-select') this.handleProductSelectForCount(target.value);
              
              if (target.id === 'excel-insert-input') {
                  const file = target.files?.[0];
@@ -984,9 +1002,16 @@
                 form.reset();
                 this.handleTransferProductSelection(''); 
             }
-            async logMovement(productId, type, quantity, motive) {
+            async logMovement(productId, type, quantity, motive, locationId = null) {
                 if (!this.state.firestoreRefs) return;
-                await addDoc(this.state.firestoreRefs.movements, { productId, type, quantity, motive, date: serverTimestamp() });
+                const movementData = { 
+                    productId, type, quantity, motive, 
+                    date: serverTimestamp() 
+                };
+                if (locationId) {
+                    movementData.location = locationId;
+                }
+                await addDoc(this.state.firestoreRefs.movements, movementData);
             }
             renderProducts() {
                 const stockPanel = document.getElementById('panel-stock');
@@ -1252,6 +1277,7 @@
                     { id: 'stock', name: 'Estoque' },
                     { id: 'register', name: 'Cadastros' },
                     { id: 'movements', name: 'Movimentações' },
+                    { id: 'counting', name: 'Contagem' },
                     { id: 'audit', name: 'Auditoria' },
                     { id: 'settings', name: 'Configurações' },
                 ];
@@ -1322,7 +1348,7 @@
                 }
             }
             populateProductSelects() {
-                const selects = ['output-product-select', 'transfer-product-select'];
+                const selects = ['output-product-select', 'transfer-product-select', 'counting-product-select'];
                 const sortedProducts = [...this.state.products].sort((a,b) => a.name.localeCompare(b.name));
                 const options = '<option value="">Selecione um produto...</option>' + sortedProducts.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
 
@@ -1337,6 +1363,7 @@
                         selectEl.value = "";
                         if (selectId === 'output-product-select') this.handleOutputProductSelection('');
                         if (selectId === 'transfer-product-select') this.handleTransferProductSelection('');
+                        if (selectId === 'counting-product-select') this.handleProductSelectForCount('');
                     }
                 });
             }
@@ -1388,6 +1415,7 @@
                     case 'reports': this.renderDashboard(); break;
                     case 'register': this.renderCategories(); this.updateRegisterForm(); break;
                     case 'movements': this.populateProductSelects(); break;
+                    case 'counting': this.renderCountingTab(); break;
                     case 'settings': this.renderSettings(); break;
                     case 'audit': this.renderAuditLog(); break;
                 }
@@ -1613,6 +1641,7 @@
                             switch(mov.type) {
                                 case 'entrada': icon = 'fa-arrow-down'; color = 'text-green-500'; text = `<strong>${mov.quantity}x</strong> ${productName} entraram no estoque.`; break;
                                 case 'saida': icon = 'fa-arrow-up'; color = 'text-red-500'; text = `<strong>${mov.quantity}x</strong> ${productName} saíram do estoque.`; break;
+                                case 'ajuste': icon = 'fa-arrows-left-right-to-line'; color = 'text-blue-500'; text = `Ajuste de <strong>${Math.abs(mov.quantity)}x</strong> em ${productName}.`; break;
                                 default: icon = 'fa-exchange-alt'; color = 'text-blue-500'; text = `Movimentação de <strong>${mov.quantity}x</strong> ${productName}.`;
                             }
                             if (mov.motive?.includes('Transferência')) {
@@ -1928,6 +1957,11 @@
                     this.state.dom.panels.reports.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 mb-8"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Dashboard de Movimentações</h2><div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border"><div><label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Gráfico</label><div id="chart-type-selector" class="flex rounded-md shadow-sm"><button data-type="bar" class="chart-type-btn relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Barra</button><button data-type="line" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Linha</button><button data-type="pie" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Pizza</button></div></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Período</label><select id="period-selector" class="dashboard-control block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="7days">Últimos 7 dias</option><option value="30days">Últimos 30 dias</option><option value="this_month">Este Mês</option><option value="last_month">Mês Passado</option><option value="custom">Personalizado</option></select></div><div id="custom-date-range-selector" class="hidden md:col-span-1 grid grid-cols-2 gap-4"><div><label for="dashboard-date-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="dashboard-date-start" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="dashboard-date-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="dashboard-date-end" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div></div></div><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><div class="md:col-span-2 bg-gray-50 p-4 rounded-lg h-96 border"><canvas id="movements-chart"></canvas></div><div class="space-y-4"><div class="bg-amber-100 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-amber-800">Alerta de Estoque Baixo</h3><ul id="low-stock-list" class="space-y-2 max-h-40 overflow-y-auto"></ul><p id="low-stock-empty" class="text-sm text-gray-500 hidden">Tudo em ordem!</p></div><div class="bg-gray-50 p-4 rounded-lg border"><h3 class="font-semibold mb-2 text-green-800">Top 5 Entradas Recentes</h3><ul id="top-entradas-list" class="space-y-2"></ul></div><div class="bg-gray-50 p-4 rounded-lg border"><h3 class="font-semibold mb-2 text-red-800">Top 5 Saídas Recentes</h3><ul id="top-saidas-list" class="space-y-2"></ul></div></div></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-history mr-2 text-indigo-500"></i>Relatório Histórico</h2><div class="flex items-end gap-4"><div class="flex-grow"><label for="report-date" class="block text-sm font-medium text-gray-700">Verificar estoque na data:</label><input type="date" id="report-date" class="mt-1 block w-full p-2 bg-white border border-gray-300 rounded-lg"></div><button id="generate-report-btn" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Gerar Relatório</button></div><div id="report-output" class="hidden mt-6"><div id="print-area"><h3 id="report-title" class="text-xl font-bold text-center"></h3><p id="report-subtitle" class="text-center text-gray-500 mb-4"></p><table class="w-full text-left"><thead class="border-b-2 border-gray-300"><tr><th class="p-3">Produto</th><th class="p-3 text-center">Categoria</th><th class="p-3 text-center">Unidade</th><th class="p-3 text-center">Qtd. em Estoque</th></tr></thead><tbody id="report-list"></tbody></table></div><button id="print-report-btn" class="mt-4 bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-800 transition float-right"><i class="fas fa-print mr-2"></i>Imprimir</button></div></div>`;
                 }
                 
+                // --- PAINEL CONTAGEM ---
+                if (this.state.dom.panels.counting) {
+                    this.state.dom.panels.counting.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-3 gap-8"><div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Nova Contagem</h2><form id="save-count-form" class="space-y-4"><div><label for="counting-product-select" class="block text-sm mb-1 text-gray-700">Selecionar Produto</label><select id="counting-product-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option value="">Selecione...</option></select></div><div id="counting-fields-container" class="space-y-3 hidden"></div></form></div><div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Histórico de Contagens</h2><div id="counting-history-list" class="space-y-4 max-h-[600px] overflow-y-auto"></div></div></div>`;
+                }
+
                 // --- PAINEL CONFIGURAÇÕES ---
                 if (this.state.dom.panels.settings) {
                     this.state.dom.panels.settings.innerHTML = `<div class="space-y-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Configurações Gerais</h2><div class="grid grid-cols-1 md:grid-cols-2 gap-6"><div><h3 class="text-lg font-medium text-gray-900 mb-2">Gerenciar Localidades</h3><form id="add-location-form" class="flex gap-2 mb-4"><input type="text" id="location-name" placeholder="Nova localidade" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><button type="submit" class="bg-success text-white p-2 rounded-lg hover:bg-success-hover transition flex items-center justify-center w-12 flex-shrink-0"><i class="fas fa-plus"></i></button></form><div id="location-list" class="space-y-2 max-h-60 overflow-y-auto pr-2"></div></div><div><h3 class="text-lg font-medium text-gray-900 mb-2">Configurações de Exibição</h3><div class="space-y-4"><div><label for="items-per-page-input" class="block text-sm font-medium text-gray-700">Itens por página na tabela</label><input type="number" id="items-per-page-input" min="1" class="mt-1 block w-full p-2 bg-white border border-gray-300 rounded-lg"></div><button id="save-settings-btn" class="w-full bg-primary text-white font-bold py-2 rounded-lg hover:bg-primary-hover transition">Salvar Configurações Gerais</button></div></div></div></div><div id="user-management-section" class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-6 text-gray-900"><i class="fas fa-users-cog mr-2"></i>Gerenciar Usuários</h2><div class="overflow-x-auto"><table class="w-full text-left"><thead class="border-b-2 border-gray-200 bg-gray-50"><tr><th class="p-3 text-sm font-semibold text-gray-700">Email</th><th class="p-3 text-sm font-semibold text-gray-700">Papel</th><th class="p-3 text-sm font-semibold text-gray-700 text-right">Ação</th></tr></thead><tbody id="user-list-tbody"></tbody></table></div><p class="mt-4 text-xs text-gray-500 italic">Administradores não podem alterar seu próprio papel através desta interface.</p></div></div>`;
@@ -2031,6 +2065,169 @@
                     }
                 });
             }
+
+            handleProductSelectForCount(productId) {
+                const fieldsContainer = document.getElementById('counting-fields-container');
+                if (!fieldsContainer) return;
+
+                if (!productId) {
+                    fieldsContainer.classList.add('hidden');
+                    fieldsContainer.innerHTML = '';
+                    return;
+                }
+
+                const product = this.state.products.find(p => p.id === productId);
+                if (!product) return;
+
+                const locationInputs = this.state.locations.map(loc => {
+                    const currentQty = product.quantities?.[loc.id] || 0;
+                    return `<div>
+                                <label for="count-qty-${loc.id}" class="block text-sm font-medium text-gray-700">${loc.name}</label>
+                                <input type="number" id="count-qty-${loc.id}" name="count-qty-${loc.id}" min="0" required 
+                                       placeholder="Atual: ${currentQty}"
+                                       class="mt-1 block w-full rounded-md bg-white border border-gray-300 focus:border-primary focus:bg-white focus:ring-primary">
+                            </div>`;
+                }).join('');
+
+                fieldsContainer.innerHTML = `
+                    <div class="grid grid-cols-2 gap-4">${locationInputs}</div>
+                    <button type="submit" class="w-full mt-4 bg-primary text-white font-bold py-2 rounded-lg hover:bg-primary-hover transition">
+                        <i class="fas fa-save mr-2"></i>Salvar Contagem
+                    </button>
+                `;
+                fieldsContainer.classList.remove('hidden');
+            }
+            
+            async handleSaveCount(form) {
+                const productId = form.querySelector('#counting-product-select').value;
+                if (!productId) throw new Error("Nenhum produto selecionado para contagem.");
+
+                const product = this.state.products.find(p => p.id === productId);
+                if (!product) throw new Error("Produto não encontrado.");
+
+                const countedQuantities = {};
+                let countedTotal = 0;
+                let hasErrors = false;
+
+                this.state.locations.forEach(loc => {
+                    const input = form.querySelector(`#count-qty-${loc.id}`);
+                    if (input) {
+                        const qty = parseInt(input.value, 10);
+                        if (isNaN(qty) || qty < 0) {
+                           hasErrors = true;
+                        }
+                        countedQuantities[loc.id] = qty || 0;
+                        countedTotal += qty || 0;
+                    }
+                });
+
+                if (hasErrors) {
+                    throw new Error("Todas as quantidades contadas devem ser números válidos e não negativos.");
+                }
+
+                const previousQuantities = { ...(product.quantities || {}) };
+                const previousTotal = product.totalQuantity || 0;
+                const adjustment = countedTotal - previousTotal;
+
+                const batch = writeBatch(this.db);
+                
+                // 1. Update product stock
+                const productRef = doc(this.state.firestoreRefs.products, productId);
+                batch.update(productRef, {
+                    quantities: countedQuantities,
+                    totalQuantity: countedTotal
+                });
+
+                // 2. Create movement record for the adjustment
+                if (adjustment !== 0) {
+                    const movementRef = doc(this.state.firestoreRefs.movements);
+                    batch.set(movementRef, {
+                        productId,
+                        type: 'ajuste',
+                        quantity: adjustment, // can be positive or negative
+                        motive: 'Ajuste de contagem',
+                        date: serverTimestamp()
+                    });
+                }
+                
+                // 3. Create counting history record
+                const historyRef = doc(this.state.firestoreRefs.countingHistory);
+                batch.set(historyRef, {
+                    productId,
+                    productName: product.name,
+                    date: serverTimestamp(),
+                    userEmail: this.state.currentUser.email,
+                    countedQuantities,
+                    previousQuantities,
+                    adjustment
+                });
+                
+                await batch.commit();
+
+                this.logAudit('STOCK_COUNT', {
+                    productName: product.name,
+                    adjustment,
+                    newTotal: countedTotal,
+                    oldTotal: previousTotal,
+                });
+
+                this.showAlert('Contagem salva e estoque ajustado com sucesso!');
+                form.reset();
+                this.handleProductSelectForCount(''); // Reset form fields
+            }
+            
+            renderCountingTab() {
+                this.populateProductSelects();
+                this.renderCountingHistory();
+            }
+
+            renderCountingHistory() {
+                const historyListEl = document.getElementById('counting-history-list');
+                if (!historyListEl) return;
+
+                const sortedHistory = [...this.state.countingHistory].sort((a,b) => (b.date?.seconds || 0) - (a.date?.seconds || 0));
+
+                if (sortedHistory.length === 0) {
+                    historyListEl.innerHTML = `<p class="text-center text-gray-500 py-8">Nenhuma contagem registrada.</p>`;
+                    return;
+                }
+
+                historyListEl.innerHTML = sortedHistory.map(entry => {
+                    const date = entry.date?.toDate().toLocaleString('pt-BR') || 'Data indefinida';
+                    const adjustment = entry.adjustment || 0;
+                    let adjColor = 'text-gray-700';
+                    let adjIcon = 'fa-arrows-left-right';
+                    if (adjustment > 0) { adjColor = 'text-success'; adjIcon = 'fa-arrow-up'; }
+                    if (adjustment < 0) { adjColor = 'text-danger'; adjIcon = 'fa-arrow-down'; }
+
+                    const detailsHtml = this.state.locations.map(loc => {
+                        const prevQty = entry.previousQuantities?.[loc.id] || 0;
+                        const countedQty = entry.countedQuantities?.[loc.id] || 0;
+                        if (prevQty === 0 && countedQty === 0) return ''; // Skip if no stock and no count
+                        return `<div class="flex justify-between text-xs"><span class="text-gray-600">${loc.name}:</span><span>${prevQty} &rarr; <strong>${countedQty}</strong></span></div>`;
+                    }).join('');
+
+                    return `
+                        <div class="p-4 bg-gray-50 rounded-lg border">
+                            <div class="flex justify-between items-start gap-4">
+                                <div>
+                                    <p class="font-semibold text-gray-900">${entry.productName}</p>
+                                    <p class="text-xs text-gray-500">${entry.userEmail} &bull; ${date}</p>
+                                </div>
+                                <div class="text-right flex-shrink-0">
+                                    <p class="font-bold text-lg ${adjColor}">
+                                        <i class="fas ${adjIcon} mr-1"></i>${adjustment > 0 ? '+' : ''}${adjustment}
+                                    </p>
+                                    <p class="text-xs text-gray-500">Ajuste</p>
+                                </div>
+                            </div>
+                            <div class="mt-3 pt-3 border-t grid grid-cols-2 gap-x-4 gap-y-1">
+                                ${detailsHtml}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
             
             async handleSaveSettings() {
                 if (this.state.userRole !== 'admin') {
@@ -2089,6 +2286,7 @@
                     case 'STOCK_TRANSFER': return `Transferência de ${details.quantity}x '${details.productName}' de '${details.from}' para '${details.to}'.`;
                     case 'USER_ROLE_CHANGE': return `Papel de '${details.targetUserEmail}' alterado de '${details.oldRole}' para '${details.newRole}'.`;
                     case 'USER_PERMISSIONS_CHANGE': return `Permissões de '${details.targetUserEmail}' atualizadas: ${details.newPermissions.join(', ')}.`;
+                    case 'STOCK_COUNT': return `Contagem de '${details.productName}'. Ajuste: ${details.adjustment}. Estoque: ${details.oldTotal} -> ${details.newTotal}.`;
                     default: return JSON.stringify(details);
                 }
             }

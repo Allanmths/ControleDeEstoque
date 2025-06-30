@@ -2028,7 +2028,7 @@
                 doc.save(`relatorio_historico_${new Date().toISOString().slice(0,10)}.pdf`);
             }
             
-            handleExportComparisonPdf() {
+            handleExportComparisonExcel() {
                 const table = document.getElementById('comparison-list');
                 const startDate = document.getElementById('start-week-picker').value;
                 const endDate = document.getElementById('end-week-picker').value;
@@ -2037,32 +2037,36 @@
                     return this.showAlert("Nenhum dado no comparativo para exportar.", true);
                 }
 
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
+                const data = [
+                    ["Relatório Comparativo Semanal"],
+                    [`Período de ${startDate} a ${endDate}`],
+                    [], // Empty row for spacing
+                    ['Produto', 'Estoque Inicial', 'Estoque Final', 'Variação']
+                ];
 
-                doc.setFontSize(18);
-                doc.setTextColor(40);
-                doc.text("Relatório Comparativo Semanal", 14, 22);
-
-                doc.setFontSize(11);
-                doc.setTextColor(100);
-                doc.text(`Período de ${startDate} a ${endDate}`, 14, 30);
-
-                doc.autoTable({
-                    html: '#comparison-list',
-                    startY: 40,
-                    head: [['Produto', 'Estoque Inicial', 'Estoque Final', 'Variação']],
-                    headStyles: { fillColor: [124, 58, 237] }, // --color-purple
-                    theme: 'striped',
-                    styles: {
-                        halign: 'center'
-                    },
-                    columnStyles: {
-                        0: { halign: 'left' }
+                for (let i = 0; i < table.rows.length; i++) {
+                    const row = table.rows[i];
+                    const rowData = [];
+                    for (let j = 0; j < row.cells.length; j++) {
+                        rowData.push(row.cells[j].innerText);
                     }
-                });
+                    data.push(rowData);
+                }
 
-                doc.save(`comparativo_semanal_${new Date().toISOString().slice(0,10)}.pdf`);
+                const worksheet = XLSX.utils.aoa_to_sheet(data);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Comparativo Semanal");
+
+                // Optional: Adjust column widths
+                const wscols = [
+                    { wch: 40 }, // Produto
+                    { wch: 15 }, // Estoque Inicial
+                    { wch: 15 }, // Estoque Final
+                    { wch: 10 }  // Variação
+                ];
+                worksheet['!cols'] = wscols;
+
+                XLSX.writeFile(workbook, `comparativo_semanal_${new Date().toISOString().slice(0,10)}.xlsx`);
             }
 
             handleExcelParse(file, filenameEl) {

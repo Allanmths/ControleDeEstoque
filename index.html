@@ -192,7 +192,7 @@
     <!-- Modals -->
     <div id="edit-modal" class="fixed inset-0 modal-backdrop items-center justify-center z-50 hidden"><div class="bg-white w-full max-w-lg p-6 rounded-2xl shadow-2xl m-4"><h3 class="text-xl font-semibold mb-4 text-gray-900">Editar Produto</h3><p id="edit-product-name" class="mb-4 text-gray-600"></p><div id="edit-quantities-container" class="space-y-4"></div><div class="mt-6 flex justify-end space-x-4"><button id="cancel-edit" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancelar</button><button id="save-edit" class="px-6 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary transition">Salvar</button></div></div></div>
     <div id="delete-modal" class="fixed inset-0 modal-backdrop items-center justify-center z-50 hidden"><div class="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl m-4 text-center"><i class="fas fa-triangle-exclamation fa-3x text-danger mb-4"></i><h3 class="text-xl font-semibold mb-2 text-gray-900">Confirmar Exclusão</h3><p id="delete-modal-text" class="mb-6 text-gray-600"></p><div class="flex justify-center space-x-4"><button id="cancel-delete" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancelar</button><button id="confirm-delete" class="px-6 py-2 bg-danger text-white font-semibold rounded-lg hover:bg-danger-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition">Excluir</button></div></div></div>
-    <div id="permissions-modal" class="fixed inset-0 modal-backdrop items-center justify-center z-50 hidden"><div class="bg-white w-full max-w-md p-6 rounded-2xl shadow-2xl m-4"><h3 class="text-xl font-semibold mb-1 text-gray-900">Gerenciar Permissões</h3><p id="permissions-user-email" class="mb-4 text-gray-600"></p><div id="permissions-checkbox-container" class="space-y-3"></div><div class="mt-6 flex justify-end space-x-4"><button id="cancel-permissions" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancelar</button><button id="save-permissions" class="px-6 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary-hover transition">Salvar</button></div></div></div>
+    <div id="permissions-modal" class="fixed inset-0 modal-backdrop items-center justify-center z-50 hidden"><div class="bg-white w-full max-w-2xl p-6 rounded-2xl shadow-2xl m-4"><h3 class="text-xl font-semibold mb-1 text-gray-900">Gerenciar Permissões</h3><p id="permissions-user-email" class="mb-4 text-gray-600"></p><div id="permissions-checkbox-container" class="space-y-4 max-h-[60vh] overflow-y-auto pr-2"></div><div class="mt-6 flex justify-end space-x-4"><button id="cancel-permissions" class="px-6 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition">Cancelar</button><button id="save-permissions" class="px-6 py-2 bg-primary text-white font-semibold rounded-lg hover:bg-primary-hover transition">Salvar</button></div></div></div>
 
     <!-- Firebase SDK e Script da Aplicação -->
     <script type="module">
@@ -341,16 +341,22 @@
                             if (userDoc.exists()) {
                                 this.state.currentUserData = userDoc.data();
                                 this.state.userRole = this.state.currentUserData.role || 'viewer';
-                                if (!this.state.currentUserData.permissions) {
-                                     this.state.currentUserData.permissions = { home: true, reports: true, stock: true, register: false, movements: false, settings: false, audit: false, counting: false };
+                                // Migration logic for old permissions structure
+                                if (this.state.currentUserData.permissions && typeof this.state.currentUserData.permissions.home === 'boolean') {
+                                    console.log("Migrating old permissions structure for user:", user.email);
+                                    const newPermissions = this.migratePermissions(this.state.currentUserData.permissions);
+                                    this.state.currentUserData.permissions = newPermissions;
+                                    await updateDoc(userDocRef, { permissions: newPermissions });
                                 }
                             } else {
+                                // This case should ideally not happen after registration, but as a fallback:
                                 this.state.userRole = 'viewer';
                                 this.state.currentUserData = { 
                                     email: user.email,
                                     role: 'viewer',
-                                    permissions: { home: true, reports: true, stock: true, register: false, movements: false, settings: false, audit: false, counting: false } 
+                                    permissions: this.getDefaultPermissions()
                                 };
+                                await setDoc(userDocRef, this.state.currentUserData);
                             }
                             
                             this.state.isAuthReady = true; 
@@ -395,16 +401,7 @@
                         email: userCredential.user.email,
                         role: "viewer",
                         createdAt: serverTimestamp(),
-                        permissions: {
-                            home: true,
-                            reports: true,
-                            stock: true,
-                            register: false,
-                            movements: false,
-                            settings: false,
-                            audit: false,
-                            counting: false,
-                        }
+                        permissions: this.getDefaultPermissions()
                     });
                 } catch (error) {
                     this.showAlert(this.getFriendlyAuthError(error.code), true);
@@ -460,21 +457,69 @@
 
                 document.querySelectorAll('#sidebar-nav .sidebar-link').forEach(link => {
                     const tabId = link.dataset.tab;
-                    link.style.display = this.checkUserPermissionForTab(tabId) ? 'flex' : 'none';
+                    link.style.display = this.canViewTab(tabId) ? 'flex' : 'none';
                 });
                 
                 const activeTabEl = document.querySelector('.sidebar-link.bg-gray-100');
-                if (activeTabEl && !this.checkUserPermissionForTab(activeTabEl.dataset.tab)) {
+                if (activeTabEl && !this.canViewTab(activeTabEl.dataset.tab)) {
                     this.switchTab('home');
                 }
+                
+                // Re-render current tab to apply granular permissions within the panel
+                this.renderCurrentTab();
+            }
+            
+            can(action) {
+                if (this.state.userRole === 'admin') return true;
+                if (!this.state.currentUserData || !this.state.currentUserData.permissions) return false;
+                return this.state.currentUserData.permissions[action] === true;
             }
 
-            checkUserPermissionForTab(tabId) {
-                if (!this.state.currentUser || !this.state.isAuthReady) return false;
-                if (this.state.userRole === 'admin') return true;
-                
-                const permissions = this.state.currentUserData?.permissions;
-                return permissions ? permissions[tabId] === true : false;
+            canViewTab(tabId) {
+                const viewPermissions = {
+                    home: 'viewHome',
+                    reports: 'viewDashboard',
+                    stock: 'viewStock',
+                    register: 'viewRegister',
+                    movements: 'viewMovements',
+                    counting: 'viewCounting',
+                    audit: 'viewAuditLog',
+                    settings: 'viewSettings'
+                };
+                return this.can(viewPermissions[tabId]);
+            }
+
+            getDefaultPermissions() {
+                return {
+                    viewHome: true, viewDashboard: true, viewStock: true, viewRegister: false,
+                    viewMovements: false, viewCounting: false, viewAuditLog: false, viewSettings: false,
+                    generateHistoricalReport: false, editStock: false, deleteProduct: false,
+                    bulkDeleteProducts: false, exportStockPDF: false, manageCategories: false,
+                    manageLocations: false, addProduct: false, bulkImportProducts: false,
+                    registerStockOutput: false, transferStock: false, performStockCount: false,
+                    manageGeneralSettings: false, manageUsers: false,
+                };
+            }
+
+            migratePermissions(oldPerms) {
+                const newPerms = this.getDefaultPermissions();
+                newPerms.viewHome = oldPerms.home ?? true;
+                newPerms.viewDashboard = oldPerms.reports ?? false;
+                newPerms.generateHistoricalReport = oldPerms.reports ?? false;
+                newPerms.viewStock = oldPerms.stock ?? false;
+                newPerms.viewRegister = oldPerms.register ?? false;
+                newPerms.manageCategories = oldPerms.register ?? false;
+                newPerms.addProduct = oldPerms.register ?? false;
+                newPerms.bulkImportProducts = oldPerms.register ?? false;
+                newPerms.viewMovements = oldPerms.movements ?? false;
+                newPerms.registerStockOutput = oldPerms.movements ?? false;
+                newPerms.transferStock = oldPerms.movements ?? false;
+                newPerms.viewCounting = oldPerms.counting ?? false;
+                newPerms.performStockCount = oldPerms.counting ?? false;
+                newPerms.viewAuditLog = oldPerms.audit ?? false;
+                newPerms.viewSettings = oldPerms.settings ?? false;
+                // Admin-level permissions remain false unless explicitly granted
+                return newPerms;
             }
 
             getFriendlyAuthError(code) {
@@ -529,11 +574,13 @@
                     this.renderCurrentTab();
                 });
 
-                if (this.state.userRole === 'admin') {
+                if (this.can('manageUsers')) {
                     this.createSnapshotListener(query(this.state.firestoreRefs.users), (snapshot) => {
                         this.state.allUsers = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                         this.renderCurrentTab();
                     });
+                }
+                if (this.can('viewAuditLog')) {
                     this.createSnapshotListener(query(this.state.firestoreRefs.auditLog), (snapshot) => {
                          this.state.auditLog = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
                          this.renderCurrentTab();
@@ -556,16 +603,21 @@
             
             async handleFormSubmit(e) {
                 e.preventDefault();
-                const isAdmin = this.state.userRole === 'admin';
                 const form = e.target;
-                
-                if (!isAdmin && form.id !== 'save-count-form') { // Allow non-admins to submit count form if permitted
-                     return this.showAlert('Você não tem permissão para realizar esta ação.', true);
-                }
-                if (form.id === 'save-count-form' && !this.checkUserPermissionForTab('counting')) {
-                    return this.showAlert('Você não tem permissão para salvar contagens.', true);
+                let requiredPermission = null;
+
+                switch(form.id) {
+                    case 'add-category-form': requiredPermission = 'manageCategories'; break;
+                    case 'add-product-form': requiredPermission = 'addProduct'; break;
+                    case 'add-output-form': requiredPermission = 'registerStockOutput'; break;
+                    case 'add-location-form': requiredPermission = 'manageLocations'; break;
+                    case 'transfer-stock-form': requiredPermission = 'transferStock'; break;
+                    case 'save-count-form': requiredPermission = 'performStockCount'; break;
                 }
 
+                if (requiredPermission && !this.can(requiredPermission)) {
+                    return this.showAlert('Você não tem permissão para realizar esta ação.', true);
+                }
                 
                 this.setLoading(true);
                 try {
@@ -586,7 +638,7 @@
                 const actionCard = e.target.closest('.action-card');
                 if (actionCard && actionCard.dataset.tab) {
                     e.preventDefault();
-                    if(this.checkUserPermissionForTab(actionCard.dataset.tab)){
+                    if(this.canViewTab(actionCard.dataset.tab)){
                         this.switchTab(actionCard.dataset.tab);
                     } else {
                         this.showAlert('Você não tem permissão para acessar esta área.', true);
@@ -597,14 +649,14 @@
                 const button = e.target.closest('button');
                 if (!button) {
                     const ctaLink = e.target.closest('a#cta-add-product');
-                    if (ctaLink) {
+                    if (ctaLink && this.can('addProduct')) {
                         e.preventDefault();
                         this.switchTab('register');
                     }
                     return;
                 }
                 
-                if (button.classList.contains('manage-permissions-btn')) {
+                if (button.classList.contains('manage-permissions-btn') && this.can('manageUsers')) {
                     const userId = button.dataset.userId;
                     if(userId) this.openPermissionsModal(userId);
                     return;
@@ -615,7 +667,7 @@
                     this.updateDashboardView();
                     return;
                 }
-                 if (button.classList.contains('save-user-role-btn')) {
+                 if (button.classList.contains('save-user-role-btn') && this.can('manageUsers')) {
                     const userId = button.dataset.userId;
                     const selectEl = document.getElementById(`role-select-${userId}`);
                     if (userId && selectEl) {
@@ -624,28 +676,23 @@
                     return;
                 }
 
-                if (button.id === 'download-template-btn') {
+                if (button.id === 'download-template-btn' && this.can('bulkImportProducts')) {
                     this.handleDownloadTemplate();
                     return;
                 }
                 
-                if (button.id === 'export-report-pdf-btn') {
+                if (button.id === 'export-report-pdf-btn' && this.can('generateHistoricalReport')) {
                     this.handleExportReportPdf();
                     return;
                 }
 
                 const { action, id } = button.dataset;
-                const isAdmin = this.state.userRole === 'admin';
 
-                if ((action?.startsWith('delete') || action === 'edit' || button.id === 'bulk-delete-btn') && !isAdmin) {
-                    return this.showAlert('Você não tem permissão para realizar esta ação.', true);
-                }
-
-                if (action === 'delete-category' && id) this.openDeleteModal(id, 'category');
-                if (action === 'delete-location' && id) this.openDeleteModal(id, 'location');
-                if (action === 'edit' && id) this.openEditModal(id);
-                if (action === 'delete' && id) this.openDeleteModal(id, 'product');
-                if (button.id === 'bulk-delete-btn') this.openDeleteModal(null, 'product', true);
+                if (action === 'edit' && this.can('editStock')) this.openEditModal(id);
+                if (action === 'delete' && this.can('deleteProduct')) this.openDeleteModal(id, 'product');
+                if (action === 'delete-category' && this.can('manageCategories')) this.openDeleteModal(id, 'category');
+                if (action === 'delete-location' && this.can('manageLocations')) this.openDeleteModal(id, 'location');
+                if (button.id === 'bulk-delete-btn' && this.can('bulkDeleteProducts')) this.openDeleteModal(null, 'product', true);
                 
                 if (action === 'page-prev') { this.state.currentPage--; this.debouncedRenderProducts(); }
                 if (action === 'page-next') { this.state.currentPage++; this.debouncedRenderProducts(); }
@@ -654,14 +701,12 @@
                     button.classList.toggle('open');
                 }
                 if (button.id === 'clear-filters-btn') this.clearFilters();
-                if (button.id === 'generate-report-btn') this.handleGenerateReport();
+                if (button.id === 'generate-report-btn' && this.can('generateHistoricalReport')) this.handleGenerateReport();
                 if (button.id === 'print-report-btn') window.print();
                 
-                if (isAdmin) {
-                    if (button.id === 'upload-insert-trigger-btn') document.getElementById('excel-insert-input').click();
-                    if (button.id === 'export-pdf-btn') this.handleExportPdf();
-                    if (button.id === 'save-settings-btn') this.handleSaveSettings();
-                }
+                if (button.id === 'upload-insert-trigger-btn' && this.can('bulkImportProducts')) document.getElementById('excel-insert-input').click();
+                if (button.id === 'export-pdf-btn' && this.can('exportStockPDF')) this.handleExportPdf();
+                if (button.id === 'save-settings-btn' && this.can('manageGeneralSettings')) this.handleSaveSettings();
             }
             
             handleContentChange(e) {
@@ -752,7 +797,7 @@
                 this.renderBulkActionBar();
             }
             async handleSaveEdit(button) {
-                if (this.state.userRole !== 'admin') return this.showAlert('Você não tem permissão para salvar edições.', true);
+                if (!this.can('editStock')) return this.showAlert('Você não tem permissão para salvar edições.', true);
                 
                 const originalContent = button.innerHTML;
                 button.disabled = true;
@@ -805,9 +850,14 @@
             }
 
             async handleDelete() {
-                if (this.state.userRole !== 'admin') return this.showAlert('Você não tem permissão para excluir.', true);
                 const { id, type, isBulk } = this.state.deleteQueue;
                 if (!type) return;
+
+                if (isBulk && !this.can('bulkDeleteProducts')) return this.showAlert('Você não tem permissão para excluir em massa.', true);
+                if (!isBulk && type === 'product' && !this.can('deleteProduct')) return this.showAlert('Você não tem permissão para excluir produtos.', true);
+                if (!isBulk && type === 'category' && !this.can('manageCategories')) return this.showAlert('Você não tem permissão para excluir categorias.', true);
+                if (!isBulk && type === 'location' && !this.can('manageLocations')) return this.showAlert('Você não tem permissão para excluir localidades.', true);
+
                 this.setLoading(true);
                 try {
                     if (isBulk) {
@@ -1035,9 +1085,8 @@
                 
                 const productTableHeaderRow = stockPanel.querySelector('#product-table-header-row');
                 if(productTableHeaderRow) {
-                    const isAdmin = this.state.userRole === 'admin';
-                    const tableCheckboxHeader = isAdmin ? `<th class="p-3 w-4"><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"></th>` : `<th class="p-3 w-4"></th>`;
-                    const tableActionsHeader = isAdmin ? `<th class="p-3 text-right text-gray-900 whitespace-nowrap font-medium">Ações</th>` : `<th></th>`;
+                    const tableCheckboxHeader = this.can('bulkDeleteProducts') ? `<th class="p-3 w-4"><input type="checkbox" id="select-all-checkbox" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"></th>` : `<th class="p-3 w-4"></th>`;
+                    const tableActionsHeader = (this.can('editStock') || this.can('deleteProduct')) ? `<th class="p-3 text-right text-gray-900 whitespace-nowrap font-medium">Ações</th>` : `<th></th>`;
                     const locationHeaders = this.state.locations.map(loc => `<th class="p-3 text-center text-gray-900 whitespace-nowrap font-medium">${loc.name}</th>`).join('');
 
                     productTableHeaderRow.innerHTML = `
@@ -1063,7 +1112,7 @@
                     productListContainer.classList.add('hidden');
                     emptyState.classList.remove('hidden');
                     if (this.state.products.length === 0) {
-                         emptyState.innerHTML = `<div class="text-center py-12"><i class="fas fa-box-open fa-4x text-gray-400"></i><p class="mt-4 text-gray-500">Nenhum produto cadastrado ainda.</p><p class="mt-2 text-gray-500">Que tal <a href="#" id="cta-add-product" class="font-semibold text-primary hover:underline">adicionar o primeiro</a>?</p></div>`;
+                         emptyState.innerHTML = `<div class="text-center py-12"><i class="fas fa-box-open fa-4x text-gray-400"></i><p class="mt-4 text-gray-500">Nenhum produto cadastrado ainda.</p>${this.can('addProduct') ? `<p class="mt-2 text-gray-500">Que tal <a href="#" id="cta-add-product" class="font-semibold text-primary hover:underline">adicionar o primeiro</a>?</p>` : ''}</div>`;
                     } else {
                          emptyState.innerHTML = `<div class="text-center py-12"><i class="fas fa-search-minus fa-4x text-gray-400"></i><p class="mt-4 text-gray-500">Nenhum produto encontrado com os filtros atuais.</p><p class="mt-2 text-gray-500">Tente ajustar sua busca ou <button id="clear-filters-btn" class="font-semibold text-primary hover:underline">limpar os filtros</button>.</p></div>`;
                     }
@@ -1080,18 +1129,21 @@
                 this.updateSelectionState();
             }
             renderProductRow(product) {
-                const isAdmin = this.state.userRole === 'admin';
                 const category = this.state.categories.find(c => c.id === product.category);
                 const isLowStock = product.minStock > 0 && product.totalQuantity <= product.minStock;
                 const isSelected = this.state.selectedProducts.includes(product.id);
                 
                 const quantitiesHtml = this.state.locations.map(loc => `<td class="p-3 text-center text-gray-800">${(product.quantities || {})[loc.id] || 0}</td>`).join('');
                 
-                const actionButtons = isAdmin ? `
-                    <button data-action="edit" data-id="${product.id}" class="text-primary hover:text-primary-hover p-2"><i class="fas fa-edit"></i></button>
-                    <button data-action="delete" data-id="${product.id}" class="text-danger hover:text-danger-hover p-2"><i class="fas fa-trash"></i></button>
-                ` : '';
-                const checkbox = isAdmin ? `<td class="p-3 text-center"><input type="checkbox" class="product-checkbox h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" data-id="${product.id}" ${isSelected ? 'checked' : ''}></td>` : '<td class="p-3 w-4"></td>';
+                let actionButtons = '';
+                if (this.can('editStock')) {
+                    actionButtons += `<button data-action="edit" data-id="${product.id}" class="text-primary hover:text-primary-hover p-2"><i class="fas fa-edit"></i></button>`;
+                }
+                 if (this.can('deleteProduct')) {
+                    actionButtons += `<button data-action="delete" data-id="${product.id}" class="text-danger hover:text-danger-hover p-2"><i class="fas fa-trash"></i></button>`;
+                }
+
+                const checkbox = this.can('bulkDeleteProducts') ? `<td class="p-3 text-center"><input type="checkbox" class="product-checkbox h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" data-id="${product.id}" ${isSelected ? 'checked' : ''}></td>` : '<td class="p-3 w-4"></td>';
 
                 return `
                     <tr class="border-b border-gray-200 hover:bg-slate-50 transition-colors ${isLowStock ? 'low-stock-warning' : ''} ${isSelected ? 'bg-primary-light' : ''}" data-product-id="${product.id}">
@@ -1104,7 +1156,6 @@
                     </tr>`;
             }
             renderProductCard(product) {
-                const isAdmin = this.state.userRole === 'admin';
                 const category = this.state.categories.find(c => c.id === product.category);
                 const isLowStock = product.minStock > 0 && product.totalQuantity <= product.minStock;
                 const isSelected = this.state.selectedProducts.includes(product.id);
@@ -1120,13 +1171,15 @@
                     `;
                 }).join('');
 
-                const actionButtons = isAdmin ? `
-                    <div class="mt-2">
-                        <button data-action="edit" data-id="${product.id}" class="text-primary hover:text-primary-hover p-2 text-sm"><i class="fas fa-edit mr-1"></i> Editar</button>
-                        <button data-action="delete" data-id="${product.id}" class="text-danger hover:text-danger-hover p-2 text-sm"><i class="fas fa-trash mr-1"></i> Excluir</button>
-                    </div>
-                ` : '';
-                const checkbox = isAdmin ? `<input type="checkbox" class="product-checkbox h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" data-id="${product.id}" ${isSelected ? 'checked' : ''}>` : '';
+                let actionButtons = '';
+                 if (this.can('editStock')) {
+                    actionButtons += `<button data-action="edit" data-id="${product.id}" class="text-primary hover:text-primary-hover p-2 text-sm"><i class="fas fa-edit mr-1"></i> Editar</button>`;
+                }
+                 if (this.can('deleteProduct')) {
+                    actionButtons += `<button data-action="delete" data-id="${product.id}" class="text-danger hover:text-danger-hover p-2 text-sm"><i class="fas fa-trash mr-1"></i> Excluir</button>`;
+                }
+
+                const checkbox = this.can('bulkDeleteProducts') ? `<input type="checkbox" class="product-checkbox h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" data-id="${product.id}" ${isSelected ? 'checked' : ''}>` : '';
                 
                 return `
                     <div class="border-b border-gray-200 p-4 ${isSelected ? 'bg-primary-light' : ''}" data-product-id="${product.id}">
@@ -1155,7 +1208,7 @@
                 if (categoryList) {
                     categoryList.innerHTML = this.state.categories.length > 0 ? this.state.categories.map(cat => {
                         const isUsed = this.state.products.some(p => p.category === cat.id);
-                        const deleteButton = this.state.userRole === 'admin' ? `
+                        const deleteButton = this.can('manageCategories') ? `
                             <button data-action="delete-category" data-id="${cat.id}" class="text-danger hover:text-danger-hover disabled:text-gray-400 disabled:cursor-not-allowed" ${isUsed ? 'disabled title="Categoria em uso"' : ''}>
                                 <i class="fas fa-times"></i>
                             </button>
@@ -1194,7 +1247,7 @@
                 if (locationsList) {
                     locationsList.innerHTML = this.state.locations.length > 0 ? this.state.locations.map(loc => {
                         const isUsed = this.state.products.some(p => p.quantities && p.quantities[loc.id] > 0);
-                         const deleteButton = this.state.userRole === 'admin' ? `
+                         const deleteButton = this.can('manageLocations') ? `
                             <button data-action="delete-location" data-id="${loc.id}" class="text-danger hover:text-danger-hover disabled:text-gray-400 disabled:cursor-not-allowed" ${isUsed ? 'disabled title="Localidade em uso"' : ''}>
                                 <i class="fas fa-times"></i>
                             </button>
@@ -1210,13 +1263,23 @@
                 const itemsPerPageInput = document.getElementById('items-per-page-input');
                 if (itemsPerPageInput) {
                     itemsPerPageInput.value = this.state.itemsPerPage;
+                    itemsPerPageInput.disabled = !this.can('manageGeneralSettings');
                 }
-                if(this.state.userRole === 'admin' && document.getElementById('user-management-section')) {
-                    this.renderUserManagement();
+                const saveSettingsBtn = document.getElementById('save-settings-btn');
+                if (saveSettingsBtn) {
+                    saveSettingsBtn.style.display = this.can('manageGeneralSettings') ? 'block' : 'none';
+                }
+
+                const userManagementSection = document.getElementById('user-management-section');
+                if (userManagementSection) {
+                    userManagementSection.style.display = this.can('manageUsers') ? 'block' : 'none';
+                    if (this.can('manageUsers')) {
+                        this.renderUserManagement();
+                    }
                 }
             }
              renderUserManagement() {
-                if (this.state.userRole !== 'admin') return; 
+                if (!this.can('manageUsers')) return; 
                 const userListTbody = document.getElementById('user-list-tbody');
                 if (!userListTbody) return;
 
@@ -1248,7 +1311,7 @@
                 }).join('');
             }
             async handleChangeUserRole(userId, newRole, button) {
-                if (this.state.userRole !== 'admin') {
+                if (!this.can('manageUsers')) {
                     return this.showAlert('Apenas administradores podem alterar papéis.', true);
                 }
                 if (this.state.currentUser && this.state.currentUser.uid === userId) {
@@ -1287,33 +1350,78 @@
                 self.dataset.userId = userId;
                 userEmail.textContent = user.email;
 
-                const ALL_TABS = [
-                    { id: 'home', name: 'Início' },
-                    { id: 'reports', name: 'Dashboard' },
-                    { id: 'stock', name: 'Estoque' },
-                    { id: 'register', name: 'Cadastros' },
-                    { id: 'movements', name: 'Movimentações' },
-                    { id: 'counting', name: 'Contagem' },
-                    { id: 'audit', name: 'Auditoria' },
-                    { id: 'settings', name: 'Configurações' },
+                const PERMISSIONS_STRUCTURE = [
+                    {
+                        group: 'Geral',
+                        perms: [
+                            { id: 'viewHome', name: 'Acessar Início' },
+                            { id: 'viewDashboard', name: 'Acessar Dashboard' },
+                            { id: 'viewAuditLog', name: 'Ver Log de Auditoria' },
+                        ]
+                    },
+                    {
+                        group: 'Estoque',
+                        perms: [
+                            { id: 'viewStock', name: 'Visualizar Estoque' },
+                            { id: 'editStock', name: 'Editar Estoque (Qtd, Mínimo)' },
+                            { id: 'deleteProduct', name: 'Excluir Produtos' },
+                            { id: 'bulkDeleteProducts', name: 'Excluir em Massa' },
+                            { id: 'exportStockPDF', name: 'Exportar PDF do Estoque' },
+                        ]
+                    },
+                    {
+                        group: 'Cadastros',
+                        perms: [
+                            { id: 'viewRegister', name: 'Acessar Aba de Cadastros' },
+                            { id: 'addProduct', name: 'Adicionar Novos Produtos' },
+                            { id: 'manageCategories', name: 'Gerenciar Categorias' },
+                            { id: 'bulkImportProducts', name: 'Importar Produtos via Excel' },
+                        ]
+                    },
+                    {
+                        group: 'Operações',
+                        perms: [
+                             { id: 'viewMovements', name: 'Acessar Movimentações' },
+                             { id: 'registerStockOutput', name: 'Registrar Saídas' },
+                             { id: 'transferStock', name: 'Realizar Transferências' },
+                             { id: 'viewCounting', name: 'Acessar Contagem' },
+                             { id: 'performStockCount', name: 'Salvar Novas Contagens' },
+                        ]
+                    },
+                     {
+                        group: 'Configurações',
+                        perms: [
+                             { id: 'viewSettings', name: 'Acessar Configurações' },
+                             { id: 'manageLocations', name: 'Gerenciar Localidades' },
+                             { id: 'manageGeneralSettings', name: 'Alterar Conf. Gerais' },
+                             { id: 'manageUsers', name: 'Gerenciar Usuários e Permissões' },
+                        ]
+                    }
                 ];
                 
-                const userPermissions = user.permissions || {};
+                const userPermissions = user.permissions || this.getDefaultPermissions();
                 const isTargetAdmin = user.role === 'admin';
 
-                checkboxContainer.innerHTML = ALL_TABS.map(tab => `
-                    <label class="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50">
-                        <input type="checkbox" data-tab-id="${tab.id}" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" 
-                            ${(userPermissions[tab.id] || isTargetAdmin) ? 'checked' : ''} 
-                            ${isTargetAdmin ? 'disabled' : ''}>
-                        <span class="${isTargetAdmin ? 'text-gray-500' : 'text-gray-800'}">${tab.name}</span>
-                    </label>
+                checkboxContainer.innerHTML = PERMISSIONS_STRUCTURE.map(group => `
+                    <div class="border-t pt-4">
+                        <h4 class="font-semibold text-gray-800 mb-2">${group.group}</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2">
+                            ${group.perms.map(perm => `
+                                <label class="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50">
+                                    <input type="checkbox" data-perm-id="${perm.id}" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" 
+                                        ${(userPermissions[perm.id] || isTargetAdmin) ? 'checked' : ''} 
+                                        ${isTargetAdmin ? 'disabled' : ''}>
+                                    <span class="${isTargetAdmin ? 'text-gray-500' : 'text-gray-800'} text-sm">${perm.name}</span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
                 `).join('');
 
                 if (isTargetAdmin) {
                     const note = document.createElement('p');
                     note.className = 'text-xs text-gray-500 italic mt-4';
-                    note.textContent = 'Administradores sempre têm acesso a todas as abas.';
+                    note.textContent = 'Administradores sempre têm acesso a todas as abas e funcionalidades.';
                     checkboxContainer.appendChild(note);
                 }
                 
@@ -1323,6 +1431,7 @@
                 this.state.dom.modals.permissions.self.classList.replace('flex', 'hidden');
             }
             async handleSavePermissions() {
+                if (!this.can('manageUsers')) return;
                 const { self, checkboxContainer } = this.state.dom.modals.permissions;
                 const userId = self.dataset.userId;
                 if (!userId) return;
@@ -1330,9 +1439,9 @@
                 const userToChange = this.state.allUsers.find(u => u.id === userId);
                 if (!userToChange) return;
 
-                const newPermissions = {};
+                const newPermissions = this.getDefaultPermissions();
                 checkboxContainer.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
-                    newPermissions[checkbox.dataset.tabId] = checkbox.checked;
+                    newPermissions[checkbox.dataset.permId] = checkbox.checked;
                 });
 
                 this.setLoading(true);
@@ -1408,7 +1517,7 @@
                     return;
                 }
 
-                if (!this.checkUserPermissionForTab(tabId)) {
+                if (!this.canViewTab(tabId)) {
                     this.showAlert('Você não tem permissão para acessar esta aba.', true);
                     return;
                 }
@@ -1776,7 +1885,7 @@
 
                 const selectedCount = this.state.selectedProducts.length;
 
-                if (this.state.userRole !== 'admin' || selectedCount === 0) {
+                if (!this.can('bulkDeleteProducts') || selectedCount === 0) {
                     actionBar.classList.remove('open');
                 } else {
                     selectedCountEl.textContent = `${selectedCount} selecionado(s)`;
@@ -2319,8 +2428,8 @@
             }
             
             async handleSaveSettings() {
-                if (this.state.userRole !== 'admin') {
-                    return this.showAlert('Apenas administradores podem salvar configurações.', true);
+                if (!this.can('manageGeneralSettings')) {
+                    return this.showAlert('Você não tem permissão para salvar configurações.', true);
                 }
                 const itemsPerPageInput = document.getElementById('items-per-page-input');
                 const itemsPerPage = parseInt(itemsPerPageInput.value, 10);

@@ -685,6 +685,11 @@
                     this.handleExportReportPdf();
                     return;
                 }
+                
+                if (button.id === 'compare-weeks-btn') {
+                    this.handleWeeklyComparison();
+                    return;
+                }
 
                 const { action, id } = button.dataset;
 
@@ -2157,7 +2162,7 @@
                 
                 // --- PAINEL CONTAGEM ---
                 if (this.state.dom.panels.counting) {
-                    this.state.dom.panels.counting.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-3 gap-8"><div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Nova Contagem</h2><form id="save-count-form" class="space-y-4"><div><label for="counting-product-select" class="block text-sm mb-1 text-gray-700">Selecionar Produto</label><select id="counting-product-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option value="">Selecione...</option></select></div><div id="counting-fields-container" class="space-y-3 hidden"></div></form></div><div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Histórico de Contagens</h2><div id="counting-history-list" class="space-y-4 max-h-[600px] overflow-y-auto"></div></div></div>`;
+                    this.state.dom.panels.counting.innerHTML = `<div class="space-y-8"><div class="grid grid-cols-1 lg:grid-cols-3 gap-8"><div class="lg:col-span-1 bg-white p-6 rounded-2xl shadow-xl border border-gray-200 h-fit"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Nova Contagem</h2><form id="save-count-form" class="space-y-4"><div><label for="counting-product-select" class="block text-sm mb-1 text-gray-700">Selecionar Produto</label><select id="counting-product-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option value="">Selecione...</option></select></div><div id="counting-fields-container" class="space-y-3 hidden"></div></form></div><div class="lg:col-span-2 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Histórico de Contagens</h2><div id="counting-history-list" class="space-y-4 max-h-[600px] overflow-y-auto"></div></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-calendar-week mr-2 text-purple"></i>Comparativo Semanal</h2><div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 rounded-lg border mb-4"><div class="md:col-span-1"><label for="start-week-picker" class="block text-sm font-medium text-gray-700">Semana Inicial:</label><input type="date" id="start-week-picker" class="mt-1 block w-full p-2 bg-white border border-gray-300 rounded-lg"></div><div class="md:col-span-1"><label for="end-week-picker" class="block text-sm font-medium text-gray-700">Semana Final:</label><input type="date" id="end-week-picker" class="mt-1 block w-full p-2 bg-white border border-gray-300 rounded-lg"></div><div class="flex items-end"><button id="compare-weeks-btn" class="w-full bg-purple text-white font-semibold py-2 px-4 rounded-lg hover:bg-purple-700 transition">Comparar</button></div></div><div id="comparison-output" class="hidden mt-6"><h3 class="text-xl font-bold mb-4">Resultado da Comparação</h3><table class="w-full text-left"><thead class="border-b-2 border-gray-300"><tr><th class="p-3">Produto</th><th class="p-3 text-center">Estoque Inicial</th><th class="p-3 text-center">Estoque Final</th><th class="p-3 text-center">Variação</th></tr></thead><tbody id="comparison-list"></tbody></table></div></div></div>`;
                 }
 
                 // --- PAINEL CONFIGURAÇÕES ---
@@ -2425,6 +2430,88 @@
                         </div>
                     `;
                 }).join('');
+            }
+
+            getWeekNumber(d) {
+                d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+                d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay()||7));
+                var yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+                var weekNo = Math.ceil(( ( (d - yearStart) / 86400000) + 1)/7);
+                return [d.getUTCFullYear(), weekNo];
+            }
+
+            handleWeeklyComparison() {
+                const startDateInput = document.getElementById('start-week-picker');
+                const endDateInput = document.getElementById('end-week-picker');
+                const comparisonOutput = document.getElementById('comparison-output');
+                const comparisonList = document.getElementById('comparison-list');
+
+                if (!startDateInput.value || !endDateInput.value) {
+                    this.showAlert("Por favor, selecione a semana inicial e final.", true);
+                    return;
+                }
+
+                const startWeek = this.getWeekNumber(new Date(startDateInput.value));
+                const endWeek = this.getWeekNumber(new Date(endDateInput.value));
+
+                const countsByProductWeek = {};
+                this.state.countingHistory.forEach(count => {
+                    const [year, week] = this.getWeekNumber(count.date.toDate());
+                    const weekKey = `${year}-W${week}`;
+                    
+                    if (!countsByProductWeek[count.productId]) {
+                        countsByProductWeek[count.productId] = {};
+                    }
+                    if (!countsByProductWeek[count.productId][weekKey]) {
+                        countsByProductWeek[count.productId][weekKey] = [];
+                    }
+                    countsByProductWeek[count.productId][weekKey].push(count);
+                });
+
+                const comparisonResults = [];
+                for (const productId in countsByProductWeek) {
+                    const productCounts = countsByProductWeek[productId];
+                    const startWeekKey = `${startWeek[0]}-W${startWeek[1]}`;
+                    const endWeekKey = `${endWeek[0]}-W${endWeek[1]}`;
+
+                    const startCounts = productCounts[startWeekKey] || [];
+                    const endCounts = productCounts[endWeekKey] || [];
+
+                    if (startCounts.length > 0 || endCounts.length > 0) {
+                        const lastStartCount = startCounts.sort((a,b) => b.date.seconds - a.date.seconds)[0];
+                        const lastEndCount = endCounts.sort((a,b) => b.date.seconds - a.date.seconds)[0];
+
+                        const startStock = lastStartCount ? Object.values(lastStartCount.countedQuantities).reduce((a, b) => a + b, 0) : 0;
+                        const endStock = lastEndCount ? Object.values(lastEndCount.countedQuantities).reduce((a, b) => a + b, 0) : 0;
+                        
+                        comparisonResults.push({
+                            productName: this.state.products.find(p => p.id === productId)?.name || 'Produto Desconhecido',
+                            startStock,
+                            endStock,
+                            variation: endStock - startStock,
+                        });
+                    }
+                }
+                
+                if (comparisonResults.length === 0) {
+                    comparisonList.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-gray-500">Nenhuma contagem encontrada para as semanas selecionadas.</td></tr>`;
+                } else {
+                    comparisonList.innerHTML = comparisonResults.map(res => {
+                        let variationClass = 'text-gray-700';
+                        if (res.variation > 0) variationClass = 'text-success';
+                        if (res.variation < 0) variationClass = 'text-danger';
+                        
+                        return `
+                            <tr class="border-b">
+                                <td class="p-3 font-medium">${res.productName}</td>
+                                <td class="p-3 text-center">${res.startStock}</td>
+                                <td class="p-3 text-center">${res.endStock}</td>
+                                <td class="p-3 text-center font-bold ${variationClass}">${res.variation > 0 ? '+' : ''}${res.variation}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+                comparisonOutput.classList.remove('hidden');
             }
             
             async handleSaveSettings() {

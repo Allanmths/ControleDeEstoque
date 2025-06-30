@@ -690,6 +690,11 @@
                     this.handleWeeklyComparison();
                     return;
                 }
+                
+                if (button.id === 'export-comparison-pdf-btn') {
+                    this.handleExportComparisonPdf();
+                    return;
+                }
 
                 const { action, id } = button.dataset;
 
@@ -2017,6 +2022,32 @@
                 });
 
                 doc.save(`relatorio_historico_${new Date().toISOString().slice(0,10)}.pdf`);
+            }
+            
+            handleExportComparisonPdf() {
+                const table = document.getElementById('comparison-list');
+                const startDate = document.getElementById('start-week-picker').value;
+                const endDate = document.getElementById('end-week-picker').value;
+
+                if (!table || table.rows.length === 0) {
+                    return this.showAlert("Nenhum dado no comparativo para exportar.", true);
+                }
+
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                doc.text("Relatório Comparativo Semanal", 14, 16);
+                doc.setFontSize(10);
+                doc.text(`Período de ${startDate} a ${endDate}`, 14, 22);
+
+                doc.autoTable({
+                    html: '#comparison-list',
+                    startY: 30,
+                    head: [['Produto', 'Estoque Inicial', 'Estoque Final', 'Variação']],
+                    headStyles: { fillColor: [124, 58, 237] }, // --color-purple
+                });
+
+                doc.save(`comparativo_semanal_${new Date().toISOString().slice(0,10)}.pdf`);
             }
 
             handleExcelParse(file, filenameEl) {

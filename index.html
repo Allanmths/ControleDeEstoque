@@ -1359,15 +1359,23 @@
                 }
             }
             populateProductSelects() {
-                const selects = ['output-product-select', 'transfer-product-select', 'counting-product-select'];
+                const selects = ['output-product-select', 'transfer-product-select', 'counting-product-select', 'report-category-filter'];
                 const sortedProducts = [...this.state.products].sort((a,b) => a.name.localeCompare(b.name));
-                const options = '<option value="">Selecione um produto...</option>' + sortedProducts.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+                const productOptions = '<option value="">Selecione um produto...</option>' + sortedProducts.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+
+                const categoryOptions = '<option value="all">Todas as Categorias</option>' + this.state.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
 
                 selects.forEach(selectId => {
                     const selectEl = document.getElementById(selectId);
                     if (!selectEl) return;
+                    
+                    if (selectId === 'report-category-filter') {
+                        selectEl.innerHTML = categoryOptions;
+                        return;
+                    }
+
                     const currentValue = selectEl.value;
-                    selectEl.innerHTML = options;
+                    selectEl.innerHTML = productOptions;
                     if (Array.from(selectEl.options).some(opt => opt.value === currentValue)) {
                         selectEl.value = currentValue;
                     } else {
@@ -1391,8 +1399,6 @@
                 overlay.classList.toggle('hidden', !show);
             }
             switchTab(tabId) {
-                // FIX: Add a guard to prevent any tab switching before authentication is ready.
-                // This stops erroneous calls on the login screen from showing an error.
                 if (!this.state.isAuthReady) {
                     return;
                 }
@@ -1411,8 +1417,6 @@
                 this.renderCurrentTab();
             }
             renderCurrentTab() {
-                // This guard prevents any attempt to render if the application isn't
-                // fully authenticated and ready.
                 if (!this.state.isAuthReady) return;
 
                 const activeTabEl = document.querySelector('.sidebar-link.bg-gray-100');
@@ -1423,7 +1427,7 @@
                 switch(tabId) {
                     case 'home': this.renderHomeTab(); break;
                     case 'stock': this.renderCategories(); this.debouncedRenderProducts(); break;
-                    case 'reports': this.renderDashboard(); break;
+                    case 'reports': this.renderDashboard(); this.populateProductSelects(); break;
                     case 'register': this.renderCategories(); this.updateRegisterForm(); break;
                     case 'movements': this.populateProductSelects(); break;
                     case 'counting': this.renderCountingTab(); break;
@@ -1677,39 +1681,74 @@
                 }
             }
             async handleGenerateReport() {
-                const dateInput = document.getElementById('report-date'), reportOutput = document.getElementById('report-output');
-                if (!dateInput || !reportOutput || !dateInput.value) return this.showAlert('Selecione uma data para gerar o relatório.', true);
+                const reportDateInput = document.getElementById('report-date');
+                const categoryFilter = document.getElementById('report-category-filter').value;
+                const statusFilter = document.getElementById('report-status-filter').value;
+                const reportOutput = document.getElementById('report-output');
+
+                if (!reportDateInput || !reportOutput || !reportDateInput.value) {
+                    return this.showAlert('Selecione uma data para gerar o relatório.', true);
+                }
                 
-                const targetDateParts = dateInput.value.split('-');
+                const targetDateParts = reportDateInput.value.split('-');
                 const targetDate = new Date(parseInt(targetDateParts[0]), parseInt(targetDateParts[1]) - 1, parseInt(targetDateParts[2]), 23, 59, 59, 999);
 
                 this.setLoading(true);
-                const historicalStock = {};
                 
-                this.state.products.forEach(p => {
-                    if (p.createdAt?.toDate && p.createdAt.toDate() <= targetDate) {
-                        historicalStock[p.id] = { ...p, currentQuantityAtDate: 0, categoryName: this.state.categories.find(c=>c.id === p.category)?.name || 'N/A' };
-                    }
-                });
-                
-                this.state.movements
-                    .filter(m => m.date?.toDate && m.date.toDate() <= targetDate && historicalStock[m.productId])
-                    .sort((a,b) => (a.date.seconds || 0) - (b.date.seconds || 0))
-                    .forEach(m => {
-                        const productEntry = historicalStock[m.productId];
-                        if (productEntry) {
-                           productEntry.currentQuantityAtDate += (m.type === 'entrada' ? m.quantity : -m.quantity);
-                        }
-                    });
+                try {
+                    let historicalProducts = this.state.products
+                        .filter(p => p.createdAt?.toDate() <= targetDate)
+                        .map(p => ({
+                            ...p,
+                            categoryName: this.state.categories.find(c => c.id === p.category)?.name || 'N/A',
+                            stockAtDate: p.totalQuantity // Start with current and adjust backwards. Easier.
+                        }));
 
-                document.getElementById('report-list').innerHTML = Object.values(historicalStock)
-                    .filter(p => p.currentQuantityAtDate > 0)
-                    .sort((a,b) => a.name.localeCompare(b.name))
-                    .map(p => `<tr class="border-b border-gray-200"><td class="p-3">${p.name}</td><td class="p-3 text-center">${p.categoryName}</td><td class="p-3 text-center">${p.unit}</td><td class="p-3 text-center font-bold">${p.currentQuantityAtDate}</td></tr>`).join('');
-                document.getElementById('report-title').textContent = `Relatório de Estoque Histórico`;
-                document.getElementById('report-subtitle').textContent = `Posição em ${targetDate.toLocaleDateString('pt-BR')}`;
-                reportOutput.classList.remove('hidden');
-                this.setLoading(false);
+                    const movementsAfterTargetDate = this.state.movements
+                        .filter(m => m.date?.toDate() > targetDate)
+                        .sort((a, b) => (b.date.seconds || 0) - (a.date.seconds || 0));
+
+                    for (const mov of movementsAfterTargetDate) {
+                        const product = historicalProducts.find(p => p.id === mov.productId);
+                        if (product) {
+                            // Reverse the movement
+                            if (mov.type === 'entrada' || (mov.type === 'ajuste' && mov.quantity > 0)) {
+                                product.stockAtDate -= mov.quantity;
+                            } else if (mov.type === 'saida' || (mov.type === 'ajuste' && mov.quantity < 0)) {
+                                product.stockAtDate -= mov.quantity; // Subtracting a negative is adding
+                            }
+                        }
+                    }
+
+                    // Apply filters
+                    let filteredReport = historicalProducts;
+
+                    if (categoryFilter !== 'all') {
+                        filteredReport = filteredReport.filter(p => p.category === categoryFilter);
+                    }
+
+                    if (statusFilter !== 'all') {
+                        filteredReport = filteredReport.filter(p => {
+                            if (statusFilter === 'low') return p.stockAtDate > 0 && p.stockAtDate <= p.minStock;
+                            if (statusFilter === 'ok') return p.stockAtDate > p.minStock;
+                            return true;
+                        });
+                    }
+                    
+                    document.getElementById('report-list').innerHTML = filteredReport
+                        .sort((a, b) => a.name.localeCompare(b.name))
+                        .map(p => `<tr class="border-b border-gray-200"><td class="p-3">${p.name}</td><td class="p-3 text-center">${p.categoryName}</td><td class="p-3 text-center">${p.unit}</td><td class="p-3 text-center font-bold">${p.stockAtDate}</td></tr>`).join('');
+                    
+                    document.getElementById('report-title').textContent = `Relatório de Estoque Histórico`;
+                    document.getElementById('report-subtitle').textContent = `Posição em ${targetDate.toLocaleDateString('pt-BR')}`;
+                    reportOutput.classList.remove('hidden');
+
+                } catch(e) {
+                    console.error("Error generating report", e);
+                    this.showAlert("Falha ao gerar o relatório. Verifique os dados e tente novamente.", true);
+                } finally {
+                    this.setLoading(false);
+                }
             }
             renderPaginationControls(totalItems) {
                 const controlsContainer = document.getElementById('pagination-controls');
@@ -1974,7 +2013,7 @@
 
                 // --- PAINEL DASHBOARD/RELATÓRIOS ---
                 if (this.state.dom.panels.reports) {
-                    this.state.dom.panels.reports.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 mb-8"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Dashboard de Movimentações</h2><div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border"><div><label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Gráfico</label><div id="chart-type-selector" class="flex rounded-md shadow-sm"><button data-type="bar" class="chart-type-btn relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Barra</button><button data-type="line" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Linha</button><button data-type="pie" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Pizza</button></div></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Período</label><select id="period-selector" class="dashboard-control block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="7days">Últimos 7 dias</option><option value="30days">Últimos 30 dias</option><option value="this_month">Este Mês</option><option value="last_month">Mês Passado</option><option value="custom">Personalizado</option></select></div><div id="custom-date-range-selector" class="hidden md:col-span-1 grid grid-cols-2 gap-4"><div><label for="dashboard-date-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="dashboard-date-start" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="dashboard-date-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="dashboard-date-end" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div></div></div><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><div class="md:col-span-2 bg-gray-50 p-4 rounded-lg h-96 border"><canvas id="movements-chart"></canvas></div><div class="space-y-4"><div class="bg-amber-100 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-amber-800">Alerta de Estoque Baixo</h3><ul id="low-stock-list" class="space-y-2 max-h-40 overflow-y-auto"></ul><p id="low-stock-empty" class="text-sm text-gray-500 hidden">Tudo em ordem!</p></div><div class="bg-gray-50 p-4 rounded-lg border"><h3 class="font-semibold mb-2 text-green-800">Top 5 Entradas Recentes</h3><ul id="top-entradas-list" class="space-y-2"></ul></div><div class="bg-gray-50 p-4 rounded-lg border"><h3 class="font-semibold mb-2 text-red-800">Top 5 Saídas Recentes</h3><ul id="top-saidas-list" class="space-y-2"></ul></div></div></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-history mr-2 text-indigo-500"></i>Relatório Histórico</h2><div class="flex items-end gap-4"><div class="flex-grow"><label for="report-date" class="block text-sm font-medium text-gray-700">Verificar estoque na data:</label><input type="date" id="report-date" class="mt-1 block w-full p-2 bg-white border border-gray-300 rounded-lg"></div><button id="generate-report-btn" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Gerar Relatório</button></div><div id="report-output" class="hidden mt-6"><div id="print-area"><h3 id="report-title" class="text-xl font-bold text-center"></h3><p id="report-subtitle" class="text-center text-gray-500 mb-4"></p><table class="w-full text-left"><thead class="border-b-2 border-gray-300"><tr><th class="p-3">Produto</th><th class="p-3 text-center">Categoria</th><th class="p-3 text-center">Unidade</th><th class="p-3 text-center">Qtd. em Estoque</th></tr></thead><tbody id="report-list"></tbody></table></div><button id="print-report-btn" class="mt-4 bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-800 transition float-right"><i class="fas fa-print mr-2"></i>Imprimir</button></div></div>`;
+                    this.state.dom.panels.reports.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200 mb-8"><h2 class="text-2xl font-semibold mb-4 text-gray-900">Dashboard de Movimentações</h2><div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 p-4 bg-gray-50 rounded-lg border"><div><label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Gráfico</label><div id="chart-type-selector" class="flex rounded-md shadow-sm"><button data-type="bar" class="chart-type-btn relative inline-flex items-center px-4 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Barra</button><button data-type="line" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Linha</button><button data-type="pie" class="chart-type-btn -ml-px relative inline-flex items-center px-4 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:z-10 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500">Pizza</button></div></div><div><label class="block text-sm font-medium text-gray-700 mb-1">Período</label><select id="period-selector" class="dashboard-control block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="7days">Últimos 7 dias</option><option value="30days">Últimos 30 dias</option><option value="this_month">Este Mês</option><option value="last_month">Mês Passado</option><option value="custom">Personalizado</option></select></div><div id="custom-date-range-selector" class="hidden md:col-span-1 grid grid-cols-2 gap-4"><div><label for="dashboard-date-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="dashboard-date-start" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="dashboard-date-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="dashboard-date-end" class="dashboard-control mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div></div></div><div class="grid grid-cols-1 md:grid-cols-3 gap-6"><div class="md:col-span-2 bg-gray-50 p-4 rounded-lg h-96 border"><canvas id="movements-chart"></canvas></div><div class="space-y-4"><div class="bg-amber-100 p-4 rounded-lg"><h3 class="font-semibold mb-2 text-amber-800">Alerta de Estoque Baixo</h3><ul id="low-stock-list" class="space-y-2 max-h-40 overflow-y-auto"></ul><p id="low-stock-empty" class="text-sm text-gray-500 hidden">Tudo em ordem!</p></div><div class="bg-gray-50 p-4 rounded-lg border"><h3 class="font-semibold mb-2 text-green-800">Top 5 Entradas Recentes</h3><ul id="top-entradas-list" class="space-y-2"></ul></div><div class="bg-gray-50 p-4 rounded-lg border"><h3 class="font-semibold mb-2 text-red-800">Top 5 Saídas Recentes</h3><ul id="top-saidas-list" class="space-y-2"></ul></div></div></div></div><div class="mt-8 bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-history mr-2 text-indigo-500"></i>Relatório Histórico de Estoque</h2><div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-lg border mb-4"><div class="md:col-span-1"><label for="report-date" class="block text-sm font-medium text-gray-700">Posição em:</label><input type="date" id="report-date" class="mt-1 block w-full p-2 bg-white border border-gray-300 rounded-lg"></div><div><label for="report-category-filter" class="block text-sm font-medium text-gray-700">Categoria</label><select id="report-category-filter" class="mt-1 block w-full p-2 bg-white border border-gray-300 rounded-lg"><option value="all">Todas</option></select></div><div><label for="report-status-filter" class="block text-sm font-medium text-gray-700">Status do Estoque</label><select id="report-status-filter" class="mt-1 block w-full p-2 bg-white border border-gray-300 rounded-lg"><option value="all">Todos</option><option value="ok">OK</option><option value="low">Baixo/Crítico</option></select></div><div class="flex items-end"><button id="generate-report-btn" class="w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition">Gerar Relatório</button></div></div><div id="report-output" class="hidden mt-6"><div id="print-area"><h3 id="report-title" class="text-xl font-bold text-center"></h3><p id="report-subtitle" class="text-center text-gray-500 mb-4"></p><table class="w-full text-left"><thead class="border-b-2 border-gray-300"><tr><th class="p-3">Produto</th><th class="p-3 text-center">Categoria</th><th class="p-3 text-center">Unidade</th><th class="p-3 text-center">Qtd. em Estoque</th></tr></thead><tbody id="report-list"></tbody></table></div><button id="print-report-btn" class="mt-4 bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-800 transition float-right"><i class="fas fa-print mr-2"></i>Imprimir</button></div></div>`;
                 }
                 
                 // --- PAINEL CONTAGEM ---

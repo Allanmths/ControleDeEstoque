@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSettings } from '../context/SettingsContext';
 import DiagnosticPanel from '../components/DiagnosticPanel';
+import UserRoleManager from '../components/UserRoleManager';
 import { FaListOl } from 'react-icons/fa';
 
 const SettingsPage = () => {
@@ -15,6 +16,9 @@ const SettingsPage = () => {
             <h2 className="text-3xl font-bold text-gray-800 mb-6">Configurações</h2>
             
             <div className="space-y-8 max-w-4xl mx-auto">
+                {/* Gerenciador de Roles de Usuário */}
+                <UserRoleManager />
+                
                 {/* Card de Paginação */}
                 <div className="bg-white p-6 rounded-lg shadow-md">
                     <div className="flex items-center mb-4">

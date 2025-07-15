@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import useFirestore from '../hooks/useFirestore';
-import { db } from '../firebase';
+import { db } from '../services/firebase';
 import { collection, addDoc } from 'firebase/firestore';
 import Papa from 'papaparse';
 import toast from 'react-hot-toast';

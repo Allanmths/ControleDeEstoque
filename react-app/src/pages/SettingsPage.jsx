@@ -1,6 +1,6 @@
 import React from 'react';
-import UsersManager from '../components/UsersManager';
 import { useSettings } from '../context/SettingsContext';
+import DiagnosticPanel from '../components/DiagnosticPanel';
 import { FaListOl } from 'react-icons/fa';
 
 const SettingsPage = () => {
@@ -39,8 +39,8 @@ const SettingsPage = () => {
                     </div>
                 </div>
 
-                {/* Card de Usuários (existente) */}
-                <UsersManager />
+                {/* Painel de Diagnóstico do Firebase */}
+                <DiagnosticPanel />
             </div>
         </div>
     );

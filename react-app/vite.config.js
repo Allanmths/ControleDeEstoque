@@ -5,7 +5,7 @@ import { configDefaults } from 'vitest/config';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  base: '/ControleDeEstoque/', // Nome do seu repositório GitHub
+  base: '/Controle1/', // Nome do seu repositório GitHub
   build: {
     outDir: 'dist',
     assetsDir: 'assets',

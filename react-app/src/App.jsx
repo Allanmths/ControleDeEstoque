@@ -4,6 +4,8 @@ import { Toaster } from 'react-hot-toast';
 import AuthPage from './pages/AuthPage';
 import MainLayout from './pages/MainLayout';
 import PrivateRoute from './components/PrivateRoute';
+import ProtectedRoute from './components/ProtectedRoute';
+import { PERMISSIONS } from './utils/permissions';
 
 import HomePage from './pages/HomePage';
 import StockPage from './pages/StockPage';
@@ -37,7 +39,7 @@ function App() {
           },
         }}
       />
-      <Router>
+      <Router basename="/Controle1">
         <Routes>
           <Route path="/auth" element={<AuthPage />} />
           <Route 
@@ -48,19 +50,95 @@ function App() {
               </PrivateRoute>
             }
           >
-            {/* Rotas aninhadas que serão exibidas dentro do MainLayout */}
+            {/* Rotas aninhadas com proteção por permissões */}
             <Route index element={<HomePage />} />
-            <Route path="/stock" element={<StockPage />} />
+            
+            <Route 
+              path="/stock" 
+              element={
+                <ProtectedRoute requiredPermissions={[PERMISSIONS.VIEW_STOCK]}>
+                  <StockPage />
+                </ProtectedRoute>
+              } 
+            />
+            
             <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/registers" element={<RegistersPage />} />
-            <Route path="/movements" element={<MovementsPage />} />
-            <Route path="/counting" element={<CountingPage />} />
-            <Route path="/counting/new" element={<NewCountPage />} />
-            <Route path="/counting/:id" element={<CountReportPage />} />
-            <Route path="/reports" element={<ReportsPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/audit" element={<AuditPage />} />
-            {/* Outras rotas da aplicação (estoque, cadastros, etc.) virão aqui */}
+            
+            <Route 
+              path="/registers" 
+              element={
+                <ProtectedRoute requiredPermissions={[
+                  PERMISSIONS.VIEW_PRODUCTS, 
+                  PERMISSIONS.VIEW_CATEGORIES, 
+                  PERMISSIONS.VIEW_SUPPLIERS
+                ]}>
+                  <RegistersPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/movements" 
+              element={
+                <ProtectedRoute requiredPermissions={[PERMISSIONS.VIEW_MOVEMENTS]}>
+                  <MovementsPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/counting" 
+              element={
+                <ProtectedRoute requiredPermissions={[PERMISSIONS.VIEW_COUNTING]}>
+                  <CountingPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/counting/new" 
+              element={
+                <ProtectedRoute requiredPermissions={[PERMISSIONS.CREATE_COUNTING]}>
+                  <NewCountPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/counting/:id" 
+              element={
+                <ProtectedRoute requiredPermissions={[PERMISSIONS.VIEW_COUNTING]}>
+                  <CountReportPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/reports" 
+              element={
+                <ProtectedRoute requiredPermissions={[PERMISSIONS.VIEW_REPORTS]}>
+                  <ReportsPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/settings" 
+              element={
+                <ProtectedRoute requiredPermissions={[PERMISSIONS.VIEW_SETTINGS]}>
+                  <SettingsPage />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
+              path="/audit" 
+              element={
+                <ProtectedRoute requiredPermissions={[PERMISSIONS.VIEW_AUDIT]}>
+                  <AuditPage />
+                </ProtectedRoute>
+              } 
+            />
           </Route>
         </Routes>
       </Router>

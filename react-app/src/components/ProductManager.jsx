@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
 import ProductModal from './ProductModal';
+import { useAuth } from '../context/AuthContext';
+import useFirestore from '../hooks/useFirestore';
 import { FaPlus } from 'react-icons/fa';
 
 const ProductManager = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const { userData } = useAuth();
+    const { docs: locations } = useFirestore('locations');
 
     return (
         <>
@@ -26,7 +30,9 @@ const ProductManager = () => {
             <ProductModal 
                 isOpen={isModalOpen} 
                 onClose={() => setIsModalOpen(false)} 
-                product={null} 
+                productToEdit={null}
+                locations={locations || []}
+                userData={userData}
             />
         </>
     );

@@ -115,7 +115,7 @@ export default function CountReportPage() {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {count.details.map(item => {
+                            {(count.details || []).map(item => {
                                 const difference = item.countedQuantity - item.expectedQuantity;
                                 return (
                                     <tr key={item.productId}>

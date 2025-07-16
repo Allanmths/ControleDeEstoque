@@ -48,7 +48,7 @@ const StockPage = () => {
     // Por simplicidade, o PDF será gerado com os itens visíveis na página atual.
     doc.autoTable({
       head: [['Nome', 'Categoria', 'Local', 'Quantidade', 'Preço']],
-      body: products.map(p => [p.name, p.category, p.location, p.quantity, `R$ ${p.price}`]),
+      body: (products || []).map(p => [p.name, p.category, p.location, p.quantity, `R$ ${p.price}`]),
     });
     doc.save('relatorio_estoque.pdf');
   };
@@ -130,7 +130,7 @@ const StockPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {products.map(product => (
+                {(products || []).map(product => (
                   <tr key={product.id}>
                     <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{product.name}</td>
                     <td className="px-5 py-5 border-b border-gray-200 bg-white text-sm">{product.category}</td>

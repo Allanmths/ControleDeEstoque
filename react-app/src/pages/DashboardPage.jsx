@@ -75,7 +75,7 @@ export default function DashboardPage() {
   }, [periodOption]);
 
   const lowStockProducts = useMemo(() => {
-    return products
+    return (products || [])
       .map(p => {
         const totalQuantity = Object.values(p.locations || {}).reduce((sum, qty) => sum + (Number(qty) || 0), 0);
         return { ...p, totalQuantity };
@@ -151,7 +151,7 @@ export default function DashboardPage() {
   }, [chartType]);
 
   const handleGenerateReport = () => {
-    const augmentedProducts = products.map(p => ({
+    const augmentedProducts = (products || []).map(p => ({
         ...p,
         totalQuantity: Object.values(p.locations || {}).reduce((sum, qty) => sum + (Number(qty) || 0), 0),
     }));

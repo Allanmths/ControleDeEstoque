@@ -44,7 +44,7 @@ export default function NewCountPage() {
         
         setLoading(true);
         
-        const countDetails = products.map(product => ({
+        const countDetails = (products || []).map(product => ({
             productId: product.id,
             productName: product.name,
             expectedQuantity: product.totalQuantity || 0,
@@ -98,7 +98,7 @@ export default function NewCountPage() {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {filteredProducts.map(product => (
+                            {(filteredProducts || []).map(product => (
                                 <tr key={product.id}>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{product.name}</td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{product.totalQuantity || 0}</td>

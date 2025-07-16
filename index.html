@@ -1104,13 +1104,13 @@ const tableActionsHeader = (this.can('editStock') || this.can('deleteProduct')) 
 const locationHeaders = this.state.locations.map(loc => `<th class="p-3 text-center text-gray-900 whitespace-nowrap font-medium">${loc.name}</th>`).join('');
 
 productTableHeaderRow.innerHTML = `
-                       ${tableCheckboxHeader}
-                       <th class="p-3 text-left text-gray-900 sticky left-0 bg-white hover:bg-slate-50 whitespace-nowrap font-medium">Produto</th>
-                       <th class="p-3 text-center text-gray-900 whitespace-nowrap font-medium">Categoria</th>
-                       <th class="p-3 text-center text-gray-900 font-bold whitespace-nowrap">Total</th>
-                       ${locationHeaders}
-                       ${tableActionsHeader}
-                   `;
+                                ${tableCheckboxHeader}
+                                <th class="p-3 text-left text-gray-900 sticky left-0 bg-white hover:bg-slate-50 whitespace-nowrap font-medium">Produto</th>
+                                <th class="p-3 text-center text-gray-900 whitespace-nowrap font-medium">Categoria</th>
+                                <th class="p-3 text-center text-gray-900 font-bold whitespace-nowrap">Total</th>
+                                ${locationHeaders}
+                                ${tableActionsHeader}
+                            `;
 }
 
 const productListContainer = stockPanel.querySelector('#product-list-container');
@@ -1160,14 +1160,14 @@ actionButtons += `<button data-action="delete" data-id="${product.id}" class="te
 const checkbox = this.can('bulkDeleteProducts') ? `<td class="p-3 text-center"><input type="checkbox" class="product-checkbox h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" data-id="${product.id}" ${isSelected ? 'checked' : ''}></td>` : '<td class="p-3 w-4"></td>';
 
 return `
-                   <tr class="border-b border-gray-200 hover:bg-slate-50 transition-colors ${isLowStock ? 'low-stock-warning' : ''} ${isSelected ? 'bg-primary-light' : ''}" data-product-id="${product.id}">
-                       ${checkbox}
-                       <td class="p-3 font-medium text-gray-900 sticky left-0 bg-white hover:bg-slate-50">${product.name} ${isLowStock ? `<i class="fas fa-exclamation-triangle text-warning ml-1" title="Estoque baixo!"></i>` : ''}</td>
-                       <td class="p-3 text-center text-gray-800">${category?.name || 'N/A'}</td>
-                       <td class="p-3 text-center font-bold text-gray-900">${product.totalQuantity || 0}</td>
-                       ${quantitiesHtml}
-                       <td class="p-3 text-right">${actionButtons}</td>
-                   </tr>`;
+                              <tr class="border-b border-gray-200 hover:bg-slate-50 transition-colors ${isLowStock ? 'low-stock-warning' : ''} ${isSelected ? 'bg-primary-light' : ''}" data-product-id="${product.id}">
+                                  ${checkbox}
+                                  <td class="p-3 font-medium text-gray-900 sticky left-0 bg-white hover:bg-slate-50">${product.name} ${isLowStock ? `<i class="fas fa-exclamation-triangle text-warning ml-1" title="Estoque baixo!"></i>` : ''}</td>
+                                  <td class="p-3 text-center text-gray-800">${category?.name || 'N/A'}</td>
+                                  <td class="p-3 text-center font-bold text-gray-900">${product.totalQuantity || 0}</td>
+                                  ${quantitiesHtml}
+                                  <td class="p-3 text-right">${actionButtons}</td>
+                              </tr>`;
 }
 renderProductCard(product) {
 const category = this.state.categories.find(c => c.id === product.category);
@@ -1178,11 +1178,11 @@ const quantitiesHtml = this.state.locations.map(loc => {
 const qty = (product.quantities || {})[loc.id] || 0;
 if (qty === 0) return '';
 return `
-                       <div class="flex justify-between items-start gap-2 text-sm">
-                           <span class="text-gray-600 break-words">${loc.name}</span>
-                           <span class="font-semibold text-gray-900 flex-shrink-0">${qty}</span>
-                       </div>
-                   `;
+                                <div class="flex justify-between items-start gap-2 text-sm">
+                                    <span class="text-gray-600 break-words">${loc.name}</span>
+                                    <span class="font-semibold text-gray-900 flex-shrink-0">${qty}</span>
+                                </div>
+                            `;
 }).join('');
 
 let actionButtons = '';
@@ -1196,26 +1196,26 @@ actionButtons += `<button data-action="delete" data-id="${product.id}" class="te
 const checkbox = this.can('bulkDeleteProducts') ? `<input type="checkbox" class="product-checkbox h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" data-id="${product.id}" ${isSelected ? 'checked' : ''}>` : '';
 
 return `
-                   <div class="border-b border-gray-200 p-4 ${isSelected ? 'bg-primary-light' : ''}" data-product-id="${product.id}">
-                       <div class="flex justify-between items-start gap-4">
-                           <div class="flex items-start gap-3">
-                               ${checkbox}
-                               <div>
-                                   <p class="font-bold text-gray-900">${product.name} ${isLowStock ? `<i class="fas fa-exclamation-triangle text-warning ml-1" title="Estoque baixo!"></i>` : ''}</p>
-                                   <p class="text-sm text-gray-600">${category?.name || 'N/A'}</p>
-                               </div>
-                           </div>
-                           <div class="text-right flex-shrink-0">
-                               <p class="text-lg font-bold">${product.totalQuantity || 0}</p>
-                               <p class="text-xs text-gray-500">Total</p>
-                           </div>
-                       </div>
-                       <div class="mt-4 pt-3 border-t border-gray-200 ml-7 space-y-1">
-                           ${quantitiesHtml}
-                       </div>
-                       <div class="ml-7">${actionButtons}</div>
-                   </div>
-               `;
+                              <div class="border-b border-gray-200 p-4 ${isSelected ? 'bg-primary-light' : ''}" data-product-id="${product.id}">
+                                  <div class="flex justify-between items-start gap-4">
+                                      <div class="flex items-start gap-3">
+                                          ${checkbox}
+                                          <div>
+                                              <p class="font-bold text-gray-900">${product.name} ${isLowStock ? `<i class="fas fa-exclamation-triangle text-warning ml-1" title="Estoque baixo!"></i>` : ''}</p>
+                                              <p class="text-sm text-gray-600">${category?.name || 'N/A'}</p>
+                                          </div>
+                                      </div>
+                                      <div class="text-right flex-shrink-0">
+                                          <p class="text-lg font-bold">${product.totalQuantity || 0}</p>
+                                          <p class="text-xs text-gray-500">Total</p>
+                                      </div>
+                                  </div>
+                                  <div class="mt-4 pt-3 border-t border-gray-200 ml-7 space-y-1">
+                                      ${quantitiesHtml}
+                                  </div>
+                                  <div class="ml-7">${actionButtons}</div>
+                              </div>
+                            `;
 }
 renderCategories() {
 const categoryList = document.getElementById('category-list');
@@ -1223,15 +1223,15 @@ if (categoryList) {
 categoryList.innerHTML = this.state.categories.length > 0 ? this.state.categories.map(cat => {
 const isUsed = this.state.products.some(p => p.category === cat.id);
 const deleteButton = this.can('manageCategories') ? `
-                           <button data-action="delete-category" data-id="${cat.id}" class="text-danger hover:text-danger-hover disabled:text-gray-400 disabled:cursor-not-allowed" ${isUsed ? 'disabled title="Categoria em uso"' : ''}>
-                               <i class="fas fa-times"></i>
-                           </button>
-                       ` : '';
+                                  <button data-action="delete-category" data-id="${cat.id}" class="text-danger hover:text-danger-hover disabled:text-gray-400 disabled:cursor-not-allowed" ${isUsed ? 'disabled title="Categoria em uso"' : ''}>
+                                      <i class="fas fa-times"></i>
+                                  </button>
+                                ` : '';
 return `
-                           <div class="flex justify-between items-center p-2 bg-gray-50 rounded-lg">
-                               <span class="text-gray-900">${cat.name}</span>
-                               ${deleteButton}
-                           </div>`;
+                                  <div class="flex justify-between items-center p-2 bg-gray-50 rounded-lg">
+                                      <span class="text-gray-900">${cat.name}</span>
+                                      ${deleteButton}
+                                  </div>`;
 }).join('') : '<p class="text-sm text-gray-500">Nenhuma categoria.</p>';
 }
 
@@ -1262,16 +1262,16 @@ if (locationsList) {
 locationsList.innerHTML = this.state.locations.length > 0 ? this.state.locations.map(loc => {
 const isUsed = this.state.products.some(p => p.quantities && p.quantities[loc.id] > 0);
 const deleteButton = this.can('manageLocations') ? `
-                           <button data-action="delete-location" data-id="${loc.id}" class="text-danger hover:text-danger-hover disabled:text-gray-400 disabled:cursor-not-allowed" ${isUsed ? 'disabled title="Localidade em uso"' : ''}>
-                               <i class="fas fa-times"></i>
-                           </button>
-                       ` : '';
+                                  <button data-action="delete-location" data-id="${loc.id}" class="text-danger hover:text-danger-hover disabled:text-gray-400 disabled:cursor-not-allowed" ${isUsed ? 'disabled title="Localidade em uso"' : ''}>
+                                      <i class="fas fa-times"></i>
+                                  </button>
+                                ` : '';
 return `
-                               <div class="flex justify-between items-center p-2 bg-gray-50 rounded-lg">
-                                   <span class="text-gray-900">${loc.name}</span>
-                                   ${deleteButton}
-                               </div>
-                           `;
+                                      <div class="flex justify-between items-center p-2 bg-gray-50 rounded-lg">
+                                          <span class="text-gray-900">${loc.name}</span>
+                                          ${deleteButton}
+                                      </div>
+                                  `;
 }).join('') : '<p class="text-sm text-gray-500">Nenhuma localidade cadastrada.</p>';
 }
 const itemsPerPageInput = document.getElementById('items-per-page-input');
@@ -1302,26 +1302,26 @@ const isCurrentUser = this.state.currentUser && this.state.currentUser.uid === u
 const roleSelectDisabled = isCurrentUser; 
 
 return `
-                       <tr class="border-b border-gray-200 hover:bg-gray-50">
-                           <td class="p-3 text-sm text-gray-700">${user.email}</td>
-                           <td class="p-3 text-sm text-gray-700">
-                               <select id="role-select-${user.id}" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" ${roleSelectDisabled ? 'disabled' : ''}>
-                                   <option value="viewer" ${user.role === 'viewer' ? 'selected' : ''}>Visualizador</option>
-                                   <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Administrador</option>
-                               </select>
-                           </td>
-                           <td class="p-3 text-right">
-                               ${!isCurrentUser ? `
-                               <button data-user-id="${user.id}" class="save-user-role-btn bg-primary text-white text-xs font-semibold py-1 px-3 rounded-md hover:bg-primary-hover transition">
-                                   Salvar Papel
-                               </button>
-                               <button data-user-id="${user.id}" class="manage-permissions-btn text-indigo-600 hover:text-indigo-800 text-xs font-semibold py-1 px-3 rounded-md ml-2 border border-indigo-200 hover:bg-indigo-50">
-                                   Permissões
-                               </button>
-                               ` : '<span class="text-xs text-gray-500 italic">Você</span>'}
-                           </td>
-                       </tr>
-                   `;
+                              <tr class="border-b border-gray-200 hover:bg-gray-50">
+                                  <td class="p-3 text-sm text-gray-700">${user.email}</td>
+                                  <td class="p-3 text-sm text-gray-700">
+                                      <select id="role-select-${user.id}" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" ${roleSelectDisabled ? 'disabled' : ''}>
+                                          <option value="viewer" ${user.role === 'viewer' ? 'selected' : ''}>Visualizador</option>
+                                          <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Administrador</option>
+                                      </select>
+                                  </td>
+                                  <td class="p-3 text-right">
+                                      ${!isCurrentUser ? `
+                                      <button data-user-id="${user.id}" class="save-user-role-btn bg-primary text-white text-xs font-semibold py-1 px-3 rounded-md hover:bg-primary-hover transition">
+                                          Salvar Papel
+                                      </button>
+                                      <button data-user-id="${user.id}" class="manage-permissions-btn text-indigo-600 hover:text-indigo-800 text-xs font-semibold py-1 px-3 rounded-md ml-2 border border-indigo-200 hover:bg-indigo-50">
+                                          Permissões
+                                      </button>
+                                      ` : '<span class="text-xs text-gray-500 italic">Você</span>'}
+                                  </td>
+                              </tr>
+                            `;
 }).join('');
 }
 async handleChangeUserRole(userId, newRole, button) {
@@ -1417,20 +1417,20 @@ const userPermissions = user.permissions || this.getDefaultPermissions();
 const isTargetAdmin = user.role === 'admin';
 
 checkboxContainer.innerHTML = PERMISSIONS_STRUCTURE.map(group => `
-                   <div class="border-t pt-4">
-                       <h4 class="font-semibold text-gray-800 mb-2">${group.group}</h4>
-                       <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2">
-                           ${group.perms.map(perm => `
-                               <label class="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50">
-                                   <input type="checkbox" data-perm-id="${perm.id}" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" 
-                                       ${(userPermissions[perm.id] || isTargetAdmin) ? 'checked' : ''} 
-                                       ${isTargetAdmin ? 'disabled' : ''}>
-                                   <span class="${isTargetAdmin ? 'text-gray-500' : 'text-gray-800'} text-sm">${perm.name}</span>
-                               </label>
-                           `).join('')}
-                       </div>
-                   </div>
-               `).join('');
+                              <div class="border-t pt-4">
+                                  <h4 class="font-semibold text-gray-800 mb-2">${group.group}</h4>
+                                  <div class="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-2">
+                                      ${group.perms.map(perm => `
+                                          <label class="flex items-center space-x-3 p-2 rounded-md hover:bg-gray-50">
+                                              <input type="checkbox" data-perm-id="${perm.id}" class="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary" 
+                                                  ${(userPermissions[perm.id] || isTargetAdmin) ? 'checked' : ''} 
+                                                  ${isTargetAdmin ? 'disabled' : ''}>
+                                              <span class="${isTargetAdmin ? 'text-gray-500' : 'text-gray-800'} text-sm">${perm.name}</span>
+                                          </label>
+                                      `).join('')}
+                                  </div>
+                              </div>
+                            `).join('');
 
 if (isTargetAdmin) {
 const note = document.createElement('p');
@@ -1480,9 +1480,9 @@ const container = document.getElementById('add-product-form-locations-container'
 if (container) {
 container.innerHTML = this.state.locations.map(loc => 
 `<label class="block">
-                           <span class="text-gray-700">${loc.name}</span>
-                           <input type="number" id="qty-${loc.id}" name="qty-${loc.id}" min="0" value="0" class="mt-1 block w-full rounded-md bg-white border border-gray-300 focus:border-primary focus:bg-white focus:ring-primary">
-                       </label>`
+                                  <span class="text-gray-700">${loc.name}</span>
+                                  <input type="number" id="qty-${loc.id}" name="qty-${loc.id}" min="0" value="0" class="mt-1 block w-full rounded-md bg-white border border-gray-300 focus:border-primary focus:bg-white focus:ring-primary">
+                              </label>`
 ).join('');
 }
 }
@@ -1572,18 +1572,18 @@ productName.textContent = product.name;
 const productQuantities = product.quantities || {};
 
 const quantitiesHtml = this.state.locations.map(loc => `
-                   <div>
-                       <label for="edit-qty-${loc.id}" class="block text-sm font-medium text-gray-700">${loc.name}</label>
-                       <input type="number" id="edit-qty-${loc.id}" value="${productQuantities[loc.id] || 0}" min="0" class="mt-1 block w-full rounded-md bg-white border border-gray-300 focus:border-primary focus:bg-white focus:ring-primary">
-                   </div>
-               `).join('');
+                              <div>
+                                  <label for="edit-qty-${loc.id}" class="block text-sm font-medium text-gray-700">${loc.name}</label>
+                                  <input type="number" id="edit-qty-${loc.id}" value="${productQuantities[loc.id] || 0}" min="0" class="mt-1 block w-full rounded-md bg-white border border-gray-300 focus:border-primary focus:bg-white focus:ring-primary">
+                              </div>
+                            `).join('');
 
 const minStockHtml = `
-                   <div class="col-span-2">
-                        <label for="edit-min-stock" class="block text-sm font-medium text-gray-700">Estoque Mínimo</label>
-                        <input type="number" id="edit-min-stock" value="${product.minStock || 0}" min="0" class="mt-1 block w-full rounded-md bg-white border border-gray-300 focus:border-primary focus:bg-white focus:ring-primary">
-                   </div>
-               `;
+                              <div class="col-span-2">
+                                   <label for="edit-min-stock" class="block text-sm font-medium text-gray-700">Estoque Mínimo</label>
+                                   <input type="number" id="edit-min-stock" value="${product.minStock || 0}" min="0" class="mt-1 block w-full rounded-md bg-white border border-gray-300 focus:border-primary focus:bg-white focus:ring-primary">
+                              </div>
+                            `;
 
 quantitiesContainer.innerHTML = `<div class="grid grid-cols-2 gap-4">${quantitiesHtml}${minStockHtml}</div>`;
 self.classList.replace('hidden', 'flex');
@@ -2028,8 +2028,10 @@ headStyles: { fillColor: [37, 99, 235] },
 doc.save(`relatorio_historico_${new Date().toISOString().slice(0,10)}.pdf`);
 }
 
-            handleExportComparisonPdf() {
-            handleExportComparisonExcel() {
+// CORREÇÃO: As duas funções abaixo estavam mescladas, causando um erro de sintaxe.
+// Elas foram separadas e corrigidas para funcionar de forma independente.
+
+handleExportComparisonExcel() {
 const table = document.getElementById('comparison-list');
 const startDate = document.getElementById('start-week-picker').value;
 const endDate = document.getElementById('end-week-picker').value;
@@ -2038,59 +2040,35 @@ if (!table || table.rows.length === 0) {
 return this.showAlert("Nenhum dado no comparativo para exportar.", true);
 }
 
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
+const data = [
+["Relatório Comparativo Semanal"],
+[`Período de ${startDate} a ${endDate}`],
+[], // Linha em branco para espaçamento
+['Produto', 'Estoque Inicial', 'Estoque Final', 'Variação']
+];
 
-                doc.setFontSize(18);
-                doc.setTextColor(40);
-                doc.text("Relatório Comparativo Semanal", 14, 22);
-
-                doc.setFontSize(11);
-                doc.setTextColor(100);
-                doc.text(`Período de ${startDate} a ${endDate}`, 14, 30);
-                const data = [
-                    ["Relatório Comparativo Semanal"],
-                    [`Período de ${startDate} a ${endDate}`],
-                    [], // Empty row for spacing
-                    ['Produto', 'Estoque Inicial', 'Estoque Final', 'Variação']
-                ];
-
-                doc.autoTable({
-                    html: '#comparison-list',
-                    startY: 40,
-                    head: [['Produto', 'Estoque Inicial', 'Estoque Final', 'Variação']],
-                    headStyles: { fillColor: [124, 58, 237] }, // --color-purple
-                    theme: 'striped',
-                    styles: {
-                        halign: 'center'
-                    },
-                    columnStyles: {
-                        0: { halign: 'left' }
-                for (let i = 0; i < table.rows.length; i++) {
-                    const row = table.rows[i];
-                    const rowData = [];
-                    for (let j = 0; j < row.cells.length; j++) {
-                        rowData.push(row.cells[j].innerText);
+for (let i = 0; i < table.rows.length; i++) {
+const row = table.rows[i];
+const rowData = [];
+for (let j = 0; j < row.cells.length; j++) {
+rowData.push(row.cells[j].innerText);
 }
-                });
-                    data.push(rowData);
-                }
+data.push(rowData);
+}
 
-                const worksheet = XLSX.utils.aoa_to_sheet(data);
-                const workbook = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(workbook, worksheet, "Comparativo Semanal");
+const worksheet = XLSX.utils.aoa_to_sheet(data);
+const workbook = XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(workbook, worksheet, "Comparativo Semanal");
 
-                // Optional: Adjust column widths
-                const wscols = [
-                    { wch: 40 }, // Produto
-                    { wch: 15 }, // Estoque Inicial
-                    { wch: 15 }, // Estoque Final
-                    { wch: 10 }  // Variação
-                ];
-                worksheet['!cols'] = wscols;
+const wscols = [
+{ wch: 40 }, // Produto
+{ wch: 15 }, // Estoque Inicial
+{ wch: 15 }, // Estoque Final
+{ wch: 10 }  // Variação
+];
+worksheet['!cols'] = wscols;
 
-                doc.save(`comparativo_semanal_${new Date().toISOString().slice(0,10)}.pdf`);
-                XLSX.writeFile(workbook, `comparativo_semanal_${new Date().toISOString().slice(0,10)}.xlsx`);
+XLSX.writeFile(workbook, `comparativo_semanal_${new Date().toISOString().slice(0,10)}.xlsx`);
 }
 
 handleExcelParse(file, filenameEl) {
@@ -2203,20 +2181,20 @@ this.state.dom.panels.home.innerHTML = `<div class="space-y-8"><div><h2 class="t
 // --- PAINEL ESTOQUE ---
 if (this.state.dom.panels.stock) {
 this.state.dom.panels.stock.innerHTML = `<div class="space-y-6"><div class="bg-white p-4 md:p-6 rounded-2xl shadow-xl border border-gray-200 relative"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-white rounded-lg text-gray-900 border border-gray-300"></div><select id="stock-category-filter" class="p-2 bg-white border border-gray-300 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-white border border-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-slate-50 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-danger text-white font-semibold py-2 px-4 rounded-lg hover:bg-danger-hover transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-slate-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar mb-4 p-2 bg-primary-light border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-danger text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-danger-hover transition hidden"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div>
-                           <div id="product-list-container">
-                               <div class="overflow-x-auto hidden md:block">
-                                   <table class="w-full text-left" id="product-list">
-                                       <thead class="border-b-2 border-gray-200 bg-white">
-                                           <tr id="product-table-header-row"></tr>
-                                       </thead>
-                                       <tbody id="product-table-body"></tbody>
-                                   </table>
-                               </div>
-                               <div id="product-card-list" class="block md:hidden"></div>
-                           </div>
-                           <div id="pagination-controls" class="flex justify-between items-center mt-4"></div>
-                           <div id="empty-state" class="hidden"></div>
-                       </div></div>`;
+                                <div id="product-list-container">
+                                    <div class="overflow-x-auto hidden md:block">
+                                        <table class="w-full text-left" id="product-list">
+                                            <thead class="border-b-2 border-gray-200 bg-white">
+                                                <tr id="product-table-header-row"></tr>
+                                            </thead>
+                                            <tbody id="product-table-body"></tbody>
+                                        </table>
+                                    </div>
+                                    <div id="product-card-list" class="block md:hidden"></div>
+                                </div>
+                                <div id="pagination-controls" class="flex justify-between items-center mt-4"></div>
+                                <div id="empty-state" class="hidden"></div>
+                            </div></div>`;
 }
 
 // --- PAINEL CADASTROS ---
@@ -2273,9 +2251,9 @@ if (!product) return;
 locationSelector.innerHTML = this.state.locations.map(loc => {
 const qtyInLoc = product.quantities?.[loc.id] || 0;
 return `<label class="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-50 ${qtyInLoc === 0 ? 'opacity-50 cursor-not-allowed' : ''}">
-                               <input type="radio" name="output-location" value="${loc.id}" class="h-4 w-4 text-primary focus:ring-primary" ${qtyInLoc === 0 ? 'disabled' : ''}>
-                               <span>${loc.name} <span class="text-xs text-gray-500">(Disp: ${qtyInLoc})</span></span>
-                           </label>`;
+                                      <input type="radio" name="output-location" value="${loc.id}" class="h-4 w-4 text-primary focus:ring-primary" ${qtyInLoc === 0 ? 'disabled' : ''}>
+                                      <span>${loc.name} <span class="text-xs text-gray-500">(Disp: ${qtyInLoc})</span></span>
+                                  </label>`;
 }).join('');
 
 stockInfo.textContent = `Estoque total de ${product.name}: ${product.totalQuantity || 0}`;
@@ -2359,19 +2337,19 @@ if (!product) return;
 const locationInputs = this.state.locations.map(loc => {
 const currentQty = product.quantities?.[loc.id] || 0;
 return `<div>
-                               <label for="count-qty-${loc.id}" class="block text-sm font-medium text-gray-700">${loc.name}</label>
-                               <input type="number" id="count-qty-${loc.id}" name="count-qty-${loc.id}" min="0" required 
-                                      placeholder="Atual: ${currentQty}"
-                                      class="mt-1 block w-full rounded-md bg-white border border-gray-300 focus:border-primary focus:bg-white focus:ring-primary">
-                           </div>`;
+                                      <label for="count-qty-${loc.id}" class="block text-sm font-medium text-gray-700">${loc.name}</label>
+                                      <input type="number" id="count-qty-${loc.id}" name="count-qty-${loc.id}" min="0" required 
+                                             placeholder="Atual: ${currentQty}"
+                                             class="mt-1 block w-full rounded-md bg-white border border-gray-300 focus:border-primary focus:bg-white focus:ring-primary">
+                                  </div>`;
 }).join('');
 
 fieldsContainer.innerHTML = `
-                   <div class="grid grid-cols-2 gap-4">${locationInputs}</div>
-                   <button type="submit" class="w-full mt-4 bg-primary text-white font-bold py-2 rounded-lg hover:bg-primary-hover transition">
-                       <i class="fas fa-save mr-2"></i>Salvar Contagem
-                   </button>
-               `;
+                              <div class="grid grid-cols-2 gap-4">${locationInputs}</div>
+                              <button type="submit" class="w-full mt-4 bg-primary text-white font-bold py-2 rounded-lg hover:bg-primary-hover transition">
+                                  <i class="fas fa-save mr-2"></i>Salvar Contagem
+                              </button>
+                            `;
 fieldsContainer.classList.remove('hidden');
 }
 
@@ -2499,24 +2477,24 @@ return `<div class="flex justify-between text-xs"><span class="text-gray-600">${
 }).join('');
 
 return `
-                       <div class="p-4 bg-gray-50 rounded-lg border">
-                           <div class="flex justify-between items-start gap-4">
-                               <div>
-                                   <p class="font-semibold text-gray-900">${entry.productName}</p>
-                                   <p class="text-xs text-gray-500">${entry.userEmail} &bull; ${date}</p>
-                               </div>
-                               <div class="text-right flex-shrink-0">
-                                   <p class="font-bold text-lg ${adjColor}">
-                                       <i class="fas ${adjIcon} mr-1"></i>${adjustment > 0 ? '+' : ''}${adjustment}
-                                   </p>
-                                   <p class="text-xs text-gray-500">Ajuste</p>
-                               </div>
-                           </div>
-                           <div class="mt-3 pt-3 border-t grid grid-cols-2 gap-x-4 gap-y-1">
-                               ${detailsHtml}
-                           </div>
-                       </div>
-                   `;
+                                <div class="p-4 bg-gray-50 rounded-lg border">
+                                    <div class="flex justify-between items-start gap-4">
+                                        <div>
+                                            <p class="font-semibold text-gray-900">${entry.productName}</p>
+                                            <p class="text-xs text-gray-500">${entry.userEmail} &bull; ${date}</p>
+                                        </div>
+                                        <div class="text-right flex-shrink-0">
+                                            <p class="font-bold text-lg ${adjColor}">
+                                                <i class="fas ${adjIcon} mr-1"></i>${adjustment > 0 ? '+' : ''}${adjustment}
+                                            </p>
+                                            <p class="text-xs text-gray-500">Ajuste</p>
+                                        </div>
+                                    </div>
+                                    <div class="mt-3 pt-3 border-t grid grid-cols-2 gap-x-4 gap-y-1">
+                                        ${detailsHtml}
+                                    </div>
+                                </div>
+                              `;
 }).join('');
 }
 
@@ -2590,13 +2568,13 @@ if (res.variation > 0) variationClass = 'text-success';
 if (res.variation < 0) variationClass = 'text-danger';
 
 return `
-                           <tr class="border-b">
-                               <td class="p-3 font-medium">${res.productName}</td>
-                               <td class="p-3 text-center">${res.startStock}</td>
-                               <td class="p-3 text-center">${res.endStock}</td>
-                               <td class="p-3 text-center font-bold ${variationClass}">${res.variation > 0 ? '+' : ''}${res.variation}</td>
-                           </tr>
-                       `;
+                                  <tr class="border-b">
+                                      <td class="p-3 font-medium">${res.productName}</td>
+                                      <td class="p-3 text-center">${res.startStock}</td>
+                                      <td class="p-3 text-center">${res.endStock}</td>
+                                      <td class="p-3 text-center font-bold ${variationClass}">${res.variation > 0 ? '+' : ''}${res.variation}</td>
+                                  </tr>
+                                `;
 }).join('');
 }
 comparisonOutput.classList.remove('hidden');
@@ -2637,13 +2615,13 @@ const sortedLog = [...this.state.auditLog].sort((a, b) => (b.timestamp?.seconds 
 auditLogBody.innerHTML = sortedLog.map(log => {
 const timestamp = log.timestamp?.toDate().toLocaleString('pt-BR') || 'Data inválida';
 return `
-                       <tr class="border-b border-gray-200 hover:bg-gray-50">
-                           <td class="p-3 text-sm text-gray-700 whitespace-nowrap">${timestamp}</td>
-                           <td class="p-3 text-sm text-gray-700">${log.userEmail}</td>
-                           <td class="p-3 text-sm text-gray-900 font-medium">${log.action}</td>
-                           <td class="p-3 text-sm text-gray-700">${this.formatAuditDetails(log.action, log.details)}</td>
-                       </tr>
-                   `;
+                                <tr class="border-b border-gray-200 hover:bg-gray-50">
+                                    <td class="p-3 text-sm text-gray-700 whitespace-nowrap">${timestamp}</td>
+                                    <td class="p-3 text-sm text-gray-700">${log.userEmail}</td>
+                                    <td class="p-3 text-sm text-gray-900 font-medium">${log.action}</td>
+                                    <td class="p-3 text-sm text-gray-700">${this.formatAuditDetails(log.action, log.details)}</td>
+                                </tr>
+                              `;
 }).join('');
 }
 

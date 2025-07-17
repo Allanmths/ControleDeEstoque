@@ -1,75 +1,98 @@
-import { useState, useMemo } from 'react';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { useState, useEffect, useMemo } from 'react';
 import { db } from '../services/firebase';
+import { doc, deleteDoc } from 'firebase/firestore';
 import useFirestore from './useFirestore';
 import toast from 'react-hot-toast';
-import { useSettings } from '../context/SettingsContext';
 
-/**
- * Hook customizado para gerenciar toda a lógica da página de estoque.
- * Encapsula o carregamento de dados, filtros, paginação, e o estado dos modais.
- */
 export const useStockManagement = () => {
-  // 1. Carregamento de Dados
-  const { docs: products, loading: productsLoading, error: productsError } = useFirestore('products');
-  const { docs: categories, loading: categoriesLoading, error: categoriesError } = useFirestore('categories');
-  const { docs: locations, loading: locationsLoading, error: locationsError } = useFirestore('locations');
-
-  // 2. Estado dos Modais
+  // Estados para modais
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState(null);
 
-  // 3. Estado de Filtros e Paginação
-  const { itemsPerPage } = useSettings(); // Consome do contexto
+  // Estados para filtros
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [locationFilter, setLocationFilter] = useState('');
+
+  // Estados para paginação
   const [currentPage, setCurrentPage] = useState(1);
-  
-  // 4. Lógica de Negócio
+  const itemsPerPage = 10;
 
-  // Combina os estados de loading
-  const isLoading = productsLoading || categoriesLoading || locationsLoading;
+  // Buscar dados do Firestore
+  const { docs: rawProducts, loading: loadingProducts } = useFirestore('products');
+  const { docs: categories, loading: loadingCategories } = useFirestore('categories', { field: 'name', direction: 'asc' });
+  const { docs: locations, loading: loadingLocations } = useFirestore('locations', { field: 'name', direction: 'asc' });
 
-  // Combina os erros de forma mais descritiva
-  const combinedError = useMemo(() => {
-    const errorMessages = [];
-    if (productsError) errorMessages.push(`Erro ao carregar produtos: ${productsError.message}`);
-    if (categoriesError) errorMessages.push(`Erro ao carregar categorias: ${categoriesError.message}`);
-    if (locationsError) errorMessages.push(`Erro ao carregar locais: ${locationsError.message}`);
-    
-    if (errorMessages.length === 0) return null;
-    // Retorna um objeto de erro para consistência, em vez de apenas uma string.
-    return new Error(errorMessages.join('; '));
-  }, [productsError, categoriesError, locationsError]);
+  // Processar produtos para incluir dados calculados
+  const processedProducts = useMemo(() => {
+    if (!rawProducts || !categories || !locations) return [];
 
-  // Memoiza os produtos filtrados para evitar recálculos desnecessários
+    return rawProducts.map(product => {
+      // Encontrar categoria
+      const category = categories.find(cat => cat.id === product.categoryId);
+      
+      // Calcular quantidade total e localização principal
+      const locationEntries = Object.entries(product.locations || {});
+      const totalQuantity = locationEntries.reduce((sum, [, qty]) => sum + (Number(qty) || 0), 0);
+      
+      // Encontrar localização com maior quantidade
+      let mainLocation = 'N/A';
+      let maxQuantity = 0;
+      
+      locationEntries.forEach(([locationId, quantity]) => {
+        const qty = Number(quantity) || 0;
+        if (qty > maxQuantity) {
+          maxQuantity = qty;
+          const locationObj = locations.find(loc => loc.id === locationId);
+          mainLocation = locationObj ? locationObj.name : 'N/A';
+        }
+      });
+
+      return {
+        ...product,
+        category: category ? category.name : 'Sem categoria',
+        location: mainLocation,
+        quantity: totalQuantity,
+        price: product.cost || 0,
+        totalQuantity
+      };
+    });
+  }, [rawProducts, categories, locations]);
+
+  // Aplicar filtros
   const filteredProducts = useMemo(() => {
-    return (products || []).filter(product =>
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      (categoryFilter === '' || product.category === categoryFilter) &&
-      (locationFilter === '' || product.location === locationFilter)
-    );
-  }, [products, searchTerm, categoryFilter, locationFilter]);
+    return processedProducts.filter(product => {
+      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesCategory = !categoryFilter || product.category === categoryFilter;
+      const matchesLocation = !locationFilter || product.location === locationFilter;
+      
+      return matchesSearch && matchesCategory && matchesLocation;
+    });
+  }, [processedProducts, searchTerm, categoryFilter, locationFilter]);
 
-  // Memoiza os produtos para a página atual
+  // Aplicar paginação
   const paginatedProducts = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
-    return filteredProducts.slice(startIndex, startIndex + itemsPerPage);
+    const endIndex = startIndex + itemsPerPage;
+    return filteredProducts.slice(startIndex, endIndex);
   }, [filteredProducts, currentPage, itemsPerPage]);
 
-  // 5. Funções de Manipulação de Eventos (Handlers)
+  // Resetar página quando filtros mudarem
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, categoryFilter, locationFilter]);
 
+  // Funções para gerenciar modais
   const handleOpenModal = (product = null) => {
     setSelectedProduct(product);
     setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
-    setIsModalOpen(false);
     setSelectedProduct(null);
+    setIsModalOpen(false);
   };
 
   const handleOpenDeleteModal = (product) => {
@@ -78,54 +101,57 @@ export const useStockManagement = () => {
   };
 
   const handleCloseDeleteModal = () => {
-    setIsDeleteModalOpen(false);
     setProductToDelete(null);
+    setIsDeleteModalOpen(false);
   };
 
+  // Função para deletar produto
   const handleDeleteProduct = async () => {
     if (!productToDelete) return;
-    const toastId = toast.loading('Excluindo produto...');
+
     try {
       await deleteDoc(doc(db, 'products', productToDelete.id));
-      toast.success('Produto excluído com sucesso!', { id: toastId });
+      toast.success(`Produto "${productToDelete.name}" excluído com sucesso!`);
     } catch (error) {
       console.error('Erro ao excluir produto:', error);
-      toast.error('Erro ao excluir produto.', { id: toastId });
+      toast.error('Erro ao excluir produto. Tente novamente.');
     }
   };
 
-  // 6. Retorno do Hook
-  // Expõe todos os estados e funções que a UI precisa para renderizar e interagir
   return {
     // Dados
     products: paginatedProducts,
-    categories,
-    locations,
+    categories: categories || [],
+    locations: locations || [],
     totalProducts: filteredProducts.length,
-
-    // Estados de UI
-    isLoading,
-    error: combinedError,
-
-    // Estado e Handlers do Modal de Produto
+    
+    // Estados de carregamento
+    isLoading: loadingProducts || loadingCategories || loadingLocations,
+    
+    // Estados dos modais
     isModalOpen,
     selectedProduct,
-    handleOpenModal,
-    handleCloseModal,
-
-    // Estado e Handlers do Modal de Exclusão
     isDeleteModalOpen,
     productToDelete,
+    
+    // Funções dos modais
+    handleOpenModal,
+    handleCloseModal,
     handleOpenDeleteModal,
     handleCloseDeleteModal,
     handleDeleteProduct,
-
-    // Handlers de Filtro e Paginação
+    
+    // Filtros
+    searchTerm,
     setSearchTerm,
+    categoryFilter,
     setCategoryFilter,
+    locationFilter,
     setLocationFilter,
-    setCurrentPage,
-    itemsPerPage, // Vem do contexto agora
+    
+    // Paginação
     currentPage,
+    setCurrentPage,
+    itemsPerPage,
   };
 };

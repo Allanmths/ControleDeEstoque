@@ -647,15 +647,7 @@ return;
 }
 
 const button = e.target.closest('button');
-if (!button) {
-const ctaLink = e.target.closest('a#cta-add-product');
-if (ctaLink && this.can('addProduct')) {
-e.preventDefault();
-this.switchTab('register');
-}
-return;
-}
-
+if (button) {
 if (button.classList.contains('manage-permissions-btn') && this.can('manageUsers')) {
 const userId = button.dataset.userId;
 if(userId) this.openPermissionsModal(userId);
@@ -676,36 +668,11 @@ this.handleChangeUserRole(userId, selectEl.value, button);
 return;
 }
 
-if (button.id === 'download-template-btn' && this.can('bulkImportProducts')) {
-this.handleDownloadTemplate();
-return;
-}
-
-if (button.id === 'export-report-pdf-btn' && this.can('generateHistoricalReport')) {
-this.handleExportReportPdf();
-return;
-}
-
-if (button.id === 'compare-weeks-btn') {
-this.handleWeeklyComparison();
-return;
-}
-
-if (button.id === 'export-comparison-excel-btn') {
-this.handleExportComparisonExcel();
-return;
-}
-
-const { action, id } = button.dataset;
-
-if (action === 'edit' && this.can('editStock')) this.openEditModal(id);
-if (action === 'delete' && this.can('deleteProduct')) this.openDeleteModal(id, 'product');
-if (action === 'delete-category' && this.can('manageCategories')) this.openDeleteModal(id, 'category');
-if (action === 'delete-location' && this.can('manageLocations')) this.openDeleteModal(id, 'location');
+if (button.id === 'download-template-btn' && this.can('bulkImportProducts')) this.handleDownloadTemplate();
+if (button.id === 'export-report-pdf-btn' && this.can('generateHistoricalReport')) this.handleExportReportPdf();
+if (button.id === 'compare-weeks-btn') this.handleWeeklyComparison();
+if (button.id === 'export-comparison-excel-btn') this.handleExportComparisonExcel();
 if (button.id === 'bulk-delete-btn' && this.can('bulkDeleteProducts')) this.openDeleteModal(null, 'product', true);
-
-if (action === 'page-prev') { this.state.currentPage--; this.debouncedRenderProducts(); }
-if (action === 'page-next') { this.state.currentPage++; this.debouncedRenderProducts(); }
 if (button.id === 'toggle-advanced-filters') {
 document.getElementById('advanced-filters-wrapper').classList.toggle('open');
 button.classList.toggle('open');
@@ -713,10 +680,45 @@ button.classList.toggle('open');
 if (button.id === 'clear-filters-btn') this.clearFilters();
 if (button.id === 'generate-report-btn' && this.can('generateHistoricalReport')) this.handleGenerateReport();
 if (button.id === 'print-report-btn') window.print();
-
 if (button.id === 'upload-insert-trigger-btn' && this.can('bulkImportProducts')) document.getElementById('excel-insert-input').click();
 if (button.id === 'export-pdf-btn' && this.can('exportStockPDF')) this.handleExportPdf();
 if (button.id === 'save-settings-btn' && this.can('manageGeneralSettings')) this.handleSaveSettings();
+
+const { action, id } = button.dataset;
+if (action === 'edit' && this.can('editStock')) this.openEditModal(id);
+if (action === 'delete' && this.can('deleteProduct')) this.openDeleteModal(id, 'product');
+if (action === 'delete-category' && this.can('manageCategories')) this.openDeleteModal(id, 'category');
+if (action === 'delete-location' && this.can('manageLocations')) this.openDeleteModal(id, 'location');
+if (action === 'page-prev') { this.state.currentPage--; this.debouncedRenderProducts(); }
+if (action === 'page-next') { this.state.currentPage++; this.debouncedRenderProducts(); }
+}
+
+const ctaLink = e.target.closest('a#cta-add-product');
+if (ctaLink && this.can('addProduct')) {
+e.preventDefault();
+this.switchTab('register');
+}
+
+const productResult = e.target.closest('.product-result-item');
+if (productResult) {
+const { type, id, name } = productResult.dataset;
+this.selectProduct(type, id, name);
+return;
+}
+
+const searchInputs = {
+'output-product-search': 'output-product-results',
+'transfer-product-search': 'transfer-product-results'
+};
+Object.values(searchInputs).forEach(id => {
+const el = document.getElementById(id);
+if (el && !e.target.closest(`#${el.parentElement.id}`)) {
+el.classList.add('hidden');
+}
+});
+if (searchInputs[e.target.id]) {
+document.getElementById(searchInputs[e.target.id]).classList.remove('hidden');
+}
 }
 
 handleContentChange(e) {
@@ -725,9 +727,6 @@ if (['stock-category-filter', 'stock-status-filter', 'date-filter-start', 'date-
 this.state.currentPage = 1;
 this.debouncedRenderProducts();
 }
-if (target.id === 'output-product-select') this.handleOutputProductSelection(target.value);
-if (target.id === 'transfer-product-select') this.handleTransferProductSelection(target.value);
-if (target.id === 'transfer-from-location-select') this.handleTransferFromLocationSelection(target.value);
 if (target.id === 'counting-product-select') this.handleProductSelectForCount(target.value);
 
 if (target.id === 'excel-insert-input') {
@@ -1031,6 +1030,7 @@ motive
 });
 this.showAlert('Saída registrada com sucesso.');
 form.reset();
+document.getElementById('output-product-search').value = '';
 this.handleOutputProductSelection('');
 }
 async handleTransferStock(form) {
@@ -1080,6 +1080,7 @@ to: toLocation.name
 });
 this.showAlert('Transferência realizada com sucesso!');
 form.reset();
+document.getElementById('transfer-product-search').value = '';
 this.handleTransferProductSelection(''); 
 }
 async logMovement(productId, type, quantity, motive, locationId = null) {
@@ -1487,7 +1488,7 @@ container.innerHTML = this.state.locations.map(loc =>
 }
 }
 populateProductSelects() {
-const selects = ['output-product-select', 'transfer-product-select', 'counting-product-select', 'report-category-filter'];
+const selects = ['counting-product-select', 'report-category-filter'];
 const sortedProducts = [...this.state.products].sort((a,b) => a.name.localeCompare(b.name));
 const productOptions = '<option value="">Selecione um produto...</option>' + sortedProducts.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
 
@@ -1508,11 +1509,13 @@ if (Array.from(selectEl.options).some(opt => opt.value === currentValue)) {
 selectEl.value = currentValue;
 } else {
 selectEl.value = "";
-if (selectId === 'output-product-select') this.handleOutputProductSelection('');
-if (selectId === 'transfer-product-select') this.handleTransferProductSelection('');
 if (selectId === 'counting-product-select') this.handleProductSelectForCount('');
 }
 });
+
+// Popula as listas dos novos campos de busca
+this.renderProductResults('output', sortedProducts);
+this.renderProductResults('transfer', sortedProducts);
 }
 showAlert(message, isError = false) {
 Toastify({
@@ -2028,9 +2031,6 @@ headStyles: { fillColor: [37, 99, 235] },
 doc.save(`relatorio_historico_${new Date().toISOString().slice(0,10)}.pdf`);
 }
 
-// CORREÇÃO: As duas funções abaixo estavam mescladas, causando um erro de sintaxe.
-// Elas foram separadas e corrigidas para funcionar de forma independente.
-
 handleExportComparisonExcel() {
 const table = document.getElementById('comparison-list');
 const startDate = document.getElementById('start-week-picker').value;
@@ -2204,7 +2204,7 @@ this.state.dom.panels.register.innerHTML = `<div class="grid grid-cols-1 lg:grid
 
 // --- PAINEL MOVIMENTAÇÕES ---
 if (this.state.dom.panels.movements) {
-this.state.dom.panels.movements.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-arrow-circle-up mr-2 text-danger"></i>Registrar Saída</h2><form id="add-output-form" class="space-y-4"><div><label for="output-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="output-product-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option value="">Selecione...</option></select></div><div id="output-location-selector" class="space-y-2"></div><div><label for="output-quantity" class="block text-sm mb-1 text-gray-700">Quantidade da Saída</label><input type="number" id="output-quantity" min="1" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled></div><div><label for="output-motive-select" class="block text-sm mb-1 text-gray-700">Motivo</label><select id="output-motive-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option>Venda</option><option>Perda</option><option>Uso Interno</option><option>Outro</option></select></div><p id="output-stock-info" class="text-sm text-gray-500 font-medium h-5"></p><button type="submit" class="w-full mt-4 bg-danger text-white font-bold p-2 rounded-lg hover:bg-danger-hover transition">Registrar Saída</button></form></div><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-exchange-alt mr-2 text-primary"></i>Transferir Estoque</h2><form id="transfer-stock-form" class="space-y-4"><div><label for="transfer-product-select" class="block text-sm mb-1 text-gray-700">Produto</label><select id="transfer-product-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option value="">Selecione...</option></select></div><p id="transfer-stock-info" class="text-sm text-gray-500 font-medium h-5"></p><div><label for="transfer-from-location-select" class="block text-sm mb-1 text-gray-700">De</label><select id="transfer-from-location-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled><option value="">Selecione a origem</option></select></div><div><label for="transfer-to-location-select" class="block text-sm mb-1 text-gray-700">Para</label><select id="transfer-to-location-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled><option value="">Selecione o destino</option></select></div><div><label for="transfer-quantity" class="block text-sm mb-1 text-gray-700">Quantidade</label><input type="number" id="transfer-quantity" min="1" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled></div><button type="submit" class="w-full mt-4 bg-primary text-white font-bold p-2 rounded-lg hover:bg-primary-hover transition">Confirmar Transferência</button></form></div></div>`;
+this.state.dom.panels.movements.innerHTML = `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8"><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-arrow-circle-up mr-2 text-danger"></i>Registrar Saída</h2><form id="add-output-form" class="space-y-4"><div><label for="output-product-search" class="block text-sm mb-1 text-gray-700">Produto</label><div class="relative" id="output-product-search-container"><input type="text" id="output-product-search" placeholder="Digite para buscar um produto..." autocomplete="off" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary"><input type="hidden" id="output-product-select"><div id="output-product-results" class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"></div></div></div><div id="output-location-selector" class="space-y-2"></div><div><label for="output-quantity" class="block text-sm mb-1 text-gray-700">Quantidade da Saída</label><input type="number" id="output-quantity" min="1" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled></div><div><label for="output-motive-select" class="block text-sm mb-1 text-gray-700">Motivo</label><select id="output-motive-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required><option>Venda</option><option>Perda</option><option>Uso Interno</option><option>Outro</option></select></div><p id="output-stock-info" class="text-sm text-gray-500 font-medium h-5"></p><button type="submit" class="w-full mt-4 bg-danger text-white font-bold p-2 rounded-lg hover:bg-danger-hover transition">Registrar Saída</button></form></div><div class="bg-white p-6 rounded-2xl shadow-xl border border-gray-200"><h2 class="text-2xl font-semibold mb-4 text-gray-900"><i class="fas fa-exchange-alt mr-2 text-primary"></i>Transferir Estoque</h2><form id="transfer-stock-form" class="space-y-4"><div><label for="transfer-product-search" class="block text-sm mb-1 text-gray-700">Produto</label><div class="relative" id="transfer-product-search-container"><input type="text" id="transfer-product-search" placeholder="Digite para buscar um produto..." autocomplete="off" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary"><input type="hidden" id="transfer-product-select"><div id="transfer-product-results" class="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto hidden"></div></div></div><p id="transfer-stock-info" class="text-sm text-gray-500 font-medium h-5"></p><div><label for="transfer-from-location-select" class="block text-sm mb-1 text-gray-700">De</label><select id="transfer-from-location-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled><option value="">Selecione a origem</option></select></div><div><label for="transfer-to-location-select" class="block text-sm mb-1 text-gray-700">Para</label><select id="transfer-to-location-select" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled><option value="">Selecione o destino</option></select></div><div><label for="transfer-quantity" class="block text-sm mb-1 text-gray-700">Quantidade</label><input type="number" id="transfer-quantity" min="1" class="w-full p-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-primary focus:border-primary" required disabled></div><button type="submit" class="w-full mt-4 bg-primary text-white font-bold p-2 rounded-lg hover:bg-primary-hover transition">Confirmar Transferência</button></form></div></div>`;
 }
 
 // --- PAINEL DASHBOARD/RELATÓRIOS ---
@@ -2643,9 +2643,53 @@ default: return JSON.stringify(details);
 }
 
 handleContentInput(e) {
-if (e.target.id === 'search-product-input') {
+const targetId = e.target.id;
+const searchTerm = e.target.value.toLowerCase();
+
+if (targetId === 'search-product-input') {
 this.state.currentPage = 1;
 this.debouncedRenderProducts();
+}
+
+if (targetId === 'output-product-search' || targetId === 'transfer-product-search') {
+const type = targetId.includes('output') ? 'output' : 'transfer';
+const filteredProducts = this.state.products.filter(p => p.name.toLowerCase().includes(searchTerm));
+this.renderProductResults(type, filteredProducts);
+document.getElementById(`${type}-product-results`).classList.remove('hidden');
+}
+}
+
+renderProductResults(type, productList) {
+const resultsContainerId = `${type}-product-results`;
+const resultsContainer = document.getElementById(resultsContainerId);
+if (!resultsContainer) return;
+
+if (productList.length === 0) {
+resultsContainer.innerHTML = `<div class="p-2 text-sm text-gray-500">Nenhum produto encontrado.</div>`;
+} else {
+resultsContainer.innerHTML = productList.map(p => `
+            <div class="p-2 hover:bg-primary-light cursor-pointer product-result-item" data-id="${p.id}" data-name="${p.name}" data-type="${type}">
+                ${p.name}
+            </div>
+        `).join('');
+}
+}
+
+selectProduct(type, id, name) {
+const searchInput = document.getElementById(`${type}-product-search`);
+const hiddenInput = document.getElementById(`${type}-product-select`);
+const resultsContainer = document.getElementById(`${type}-product-results`);
+
+if (searchInput && hiddenInput && resultsContainer) {
+searchInput.value = name;
+hiddenInput.value = id;
+resultsContainer.classList.add('hidden');
+
+if (type === 'output') {
+this.handleOutputProductSelection(id);
+} else if (type === 'transfer') {
+this.handleTransferProductSelection(id);
+}
 }
 }
 }

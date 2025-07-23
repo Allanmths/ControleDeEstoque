@@ -682,6 +682,7 @@ if (button.id === 'generate-report-btn' && this.can('generateHistoricalReport'))
 if (button.id === 'print-report-btn') window.print();
 if (button.id === 'upload-insert-trigger-btn' && this.can('bulkImportProducts')) document.getElementById('excel-insert-input').click();
 if (button.id === 'export-pdf-btn' && this.can('exportStockPDF')) this.handleExportPdf();
+if (button.id === 'export-excel-btn' && this.can('exportStockPDF')) this.handleExportExcel();
 if (button.id === 'save-settings-btn' && this.can('manageGeneralSettings')) this.handleSaveSettings();
 
 const { action, id } = button.dataset;
@@ -2005,6 +2006,39 @@ columnStyles: { 0: { cellWidth: 50 } }
 doc.save(`estoque_${new Date().toISOString().slice(0,10)}.pdf`);
 }
 
+handleExportExcel() {
+const filteredProducts = this.getFilteredProducts();
+if (filteredProducts.length === 0) {
+return this.showAlert("Nenhum produto para exportar com os filtros atuais.", true);
+}
+
+const head = [['Produto', 'Categoria', ...this.state.locations.map(l => l.name), 'Total']];
+const body = filteredProducts.map(p => {
+const productQuantities = p.quantities || {};
+return [
+p.name,
+this.state.categories.find(c => c.id === p.category)?.name || 'N/A',
+...this.state.locations.map(l => productQuantities[l.id] || 0),
+p.totalQuantity || 0
+];
+});
+
+const worksheet = XLSX.utils.aoa_to_sheet([...head, ...body]);
+
+const wscols = [
+{ wch: 40 }, // Produto
+{ wch: 20 }, // Categoria
+];
+this.state.locations.forEach(() => wscols.push({ wch: 15 }));
+wscols.push({ wch: 10 }); // Total
+worksheet['!cols'] = wscols;
+
+const workbook = XLSX.utils.book_new();
+XLSX.utils.book_append_sheet(workbook, worksheet, "Estoque");
+
+XLSX.writeFile(workbook, `estoque_atual_${new Date().toISOString().slice(0,10)}.xlsx`);
+}
+
 handleExportReportPdf() {
 const reportTitle = document.getElementById('report-title').textContent;
 const reportSubtitle = document.getElementById('report-subtitle').textContent;
@@ -2180,7 +2214,7 @@ this.state.dom.panels.home.innerHTML = `<div class="space-y-8"><div><h2 class="t
 
 // --- PAINEL ESTOQUE ---
 if (this.state.dom.panels.stock) {
-this.state.dom.panels.stock.innerHTML = `<div class="space-y-6"><div class="bg-white p-4 md:p-6 rounded-2xl shadow-xl border border-gray-200 relative"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-white rounded-lg text-gray-900 border border-gray-300"></div><select id="stock-category-filter" class="p-2 bg-white border border-gray-300 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-white border border-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-slate-50 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-pdf-btn" data-role-required="admin" class="bg-danger text-white font-semibold py-2 px-4 rounded-lg hover:bg-danger-hover transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> Exportar</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-slate-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar mb-4 p-2 bg-primary-light border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-danger text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-danger-hover transition hidden"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div>
+this.state.dom.panels.stock.innerHTML = `<div class="space-y-6"><div class="bg-white p-4 md:p-6 rounded-2xl shadow-xl border border-gray-200 relative"><div class="flex flex-wrap justify-between items-center mb-4 gap-4"><h2 class="text-2xl font-semibold flex-shrink-0 text-gray-900">Estoque Atual</h2><div class="flex flex-wrap items-center gap-2"><div class="relative grow sm:grow-0"><i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i><input type="text" id="search-product-input" placeholder="Buscar..." class="w-full p-2 pl-10 bg-white rounded-lg text-gray-900 border border-gray-300"></div><select id="stock-category-filter" class="p-2 bg-white border border-gray-300 rounded-lg text-gray-900 grow sm:grow-0"><option value="all">Todas as Categorias</option></select><button id="toggle-advanced-filters" class="bg-white border border-gray-300 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-slate-50 transition flex-shrink-0 flex items-center gap-2">Filtros <i class="fas fa-chevron-down"></i></button><button id="export-excel-btn" class="bg-success text-white font-semibold py-2 px-4 rounded-lg hover:bg-success-hover transition flex items-center gap-2"><i class="fas fa-file-excel"></i> Excel</button><button id="export-pdf-btn" data-role-required="admin" class="bg-danger text-white font-semibold py-2 px-4 rounded-lg hover:bg-danger-hover transition flex items-center gap-2"><i class="fas fa-file-pdf"></i> PDF</button></div></div><div id="advanced-filters-wrapper"><div id="advanced-filters-content"><div class="p-4 mb-4 bg-slate-50 rounded-lg border border-gray-200"><div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end"><div><label for="stock-status-filter" class="block text-sm font-medium text-gray-700">Status</label><select id="stock-status-filter" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"><option value="all">Todos</option><option value="low">Estoque Baixo</option><option value="ok">Estoque OK</option></select></div><div><label for="date-filter-start" class="block text-sm font-medium text-gray-700">De</label><input type="date" id="date-filter-start" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div><label for="date-filter-end" class="block text-sm font-medium text-gray-700">Até</label><input type="date" id="date-filter-end" class="mt-1 block w-full p-2 bg-white rounded-md border-gray-300 shadow-sm"></div><div class="flex justify-end"><button id="clear-filters-btn" class="bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-gray-600 transition">Limpar</button></div></div></div></div><div id="bulk-action-bar" class="bulk-action-bar mb-4 p-2 bg-primary-light border border-blue-200 rounded-lg flex items-center justify-between"><span id="selected-count" class="text-sm font-medium text-blue-800"></span><button id="bulk-delete-btn" class="bg-danger text-white text-sm font-bold py-1 px-3 rounded-md hover:bg-danger-hover transition hidden"><i class="fas fa-trash-alt mr-2"></i>Excluir Selecionados</button></div>
                                 <div id="product-list-container">
                                     <div class="overflow-x-auto hidden md:block">
                                         <table class="w-full text-left" id="product-list">
